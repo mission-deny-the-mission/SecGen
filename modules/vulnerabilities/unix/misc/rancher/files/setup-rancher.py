@@ -2,36 +2,47 @@ import requests
 import socket
 import os
 import time
+import debinterface
 
-s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-s.connect(("8.8.8.8", 80))
-ip = (s.getsockname()[0])
-s.close()
+def get_ip():
+    adapters = debinterface.Interfaces().adapters
+    for adapter in adapters:
+        if "ens" in adapter.attributes['name'] and adapter.attributes['source'] == 'static':
+            return adapter.attributes['address']
+    raise Exception("Could not find address")
 
-proxies = {
-    "http": None,
-    "https": None,
-}
+def setup_rancher():
+    ip = get_ip()
 
-data = {"type":"setting","name":"telemetry.opt","value":"in"}
-response = requests.post("http://localhost:8080/v2-beta/setting", json = data, proxies=proxies)
-print(response)
+    proxies = {
+        "http": None,
+        "https": None,
+    }
 
-null = None
-false = False
-data = {"id":"api.host","type":"activeSetting","baseType":"setting","name":"api.host","activeValue":null,"inDb":false,"source":null,"value":"http://" + ip + ":8080"}
-response = requests.put("http://localhost:8080/v2-beta/settings/api.host", json=data, proxies=proxies)
-print(response)
+    data = {"type":"setting","name":"telemetry.opt","value":"in"}
+    response = requests.post("http://localhost:8080/v2-beta/setting", json = data, proxies=proxies)
+    print(response)
 
-data = {"type":"registrationToken"}
-response = requests.post("http://localhost:8080/v2-beta/projects/1a5/registrationtoken", json=data, proxies=proxies)
-#link = response.json()["actions"]["activate"]
-link = response.json()["links"]["self"]
-print(link)
+    null = None
+    false = False
+    data = {"id":"api.host","type":"activeSetting","baseType":"setting","name":"api.host","activeValue":null,"inDb":false,"source":null,"value":"http://" + ip + ":8080"}
+    response = requests.put("http://localhost:8080/v2-beta/settings/api.host", json=data, proxies=proxies)
+    print(response)
 
-time.sleep(2)
+    data = {"type":"registrationToken"}
+    response = requests.post("http://localhost:8080/v2-beta/projects/1a5/registrationtoken", json=data, proxies=proxies)
+    #link = response.json()["actions"]["activate"]
+    link = response.json()["links"]["self"]
+    print(link)
 
-response = requests.get(link, proxies=proxies)
-command = response.json()["command"]
-print(command)
-os.system(command)
+    time.sleep(2)
+
+    response = requests.get(link, proxies=proxies)
+    command = response.json()["command"]
+    print(command)
+    os.system(command)
+
+if not os.path.exists("/root/ran"):
+    time.sleep(10)
+    setup_rancher()
+    os.system("touch /root/ran")
