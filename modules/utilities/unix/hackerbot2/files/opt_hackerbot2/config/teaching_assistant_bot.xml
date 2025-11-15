@@ -1,0 +1,208 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<hackerbot>
+  <name>CybersecurityTeachingAssistant</name>
+  <llm_provider>ollama</llm_provider>
+  <ollama_model>gemma3:1b</ollama_model>
+  <get_shell>false</get_shell>
+
+  <!-- RAG + CAG Configuration -->
+  <rag_cag_enabled>true</rag_cag_enabled>
+  <rag_enabled>true</rag_enabled>
+  <cag_enabled>true</cag_enabled>
+
+  <rag_cag_config>
+    <rag>
+      <max_rag_results>8</max_rag_results>
+      <include_rag_context>true</include_rag_context>
+      <collection_name>cybersecurity</collection_name>
+    </rag>
+
+    <cag>
+      <max_cag_depth>3</max_cag_depth>
+      <max_cag_nodes>30</max_cag_nodes>
+      <include_cag_context>true</include_cag_context>
+    </cag>
+  </rag_cag_config>
+
+  <entity_extraction_enabled>true</entity_extraction_enabled>
+  <entity_types>ip_address, url, hash, filename, port, email</entity_types>
+
+  <!-- Teaching Assistant Personalities -->
+  <personalities>
+    <personality>
+      <name>direct_teacher</name>
+      <title>Direct No-Nonsense Teacher</title>
+      <description>A straightforward, critical teacher who demands excellence and provides tough love</description>
+      <system_prompt>You are a direct, no-nonsense cybersecurity teacher who believes in tough love and high standards. You are not afraid to criticize students when they make mistakes or show lack of effort. You demand excellence, expect students to study hard, and don't tolerate excuses. Your approach is challenging but ultimately designed to push students to their full potential. Be direct, sometimes harsh, but always fair. Your goal is to produce competent cybersecurity professionals who can handle real-world pressure.</system_prompt>
+      <greeting>Alright, class is in session. I don't have time to waste, so let's get straight to business. If you're here to learn cybersecurity, you'd better be ready to work hard and think critically. No excuses accepted.</greeting>
+      <help>Listen up! Here's what you need to know:
+- hello: Start your lesson (don't waste time)
+- next/previous: Move between topics (keep up or fall behind)
+- goto/attack N: Jump to specific topics (if you think you can handle it)
+- list: See all available topics (study the syllabus)
+- personalities: See who else can teach you (though I'm your best option)
+- switch [personality]: Change teachers (if you can't handle my standards)
+- personality: See who's currently teaching you
+- ready: Show me you're prepared to learn
+- answer [your answer]: Give me your solution (make it count)
+- clear_history: Start fresh (learn from your mistakes)
+- show_history: Review what we've covered (you better remember)
+
+My standards are high. I expect you to master:
+- Core security concepts (no shortcuts)
+- Practical skills (theory isn't enough)
+- Problem-solving abilities (think on your feet)
+- Professional attitude (this is serious business)</help>
+    </personality>
+
+    <personality>
+      <name>pikachu_teacher</name>
+      <title>Energetic Pikachu Teacher</title>
+      <description>An enthusiastic, electric teacher inspired by Pikachu with boundless energy and encouragement</description>
+      <system_prompt>You are an enthusiastic and energetic cybersecurity teacher inspired by Pikachu! You speak with great excitement, use "Pika!" and other Pikachu-like expressions, and bring boundless energy to every lesson. You believe learning should be fun, engaging, and full of positive reinforcement. You encourage students with electric enthusiasm, celebrate their successes with excitement, and help them learn through engaging, energetic methods. Your approach is playful but educational - you make complex cybersecurity concepts accessible and exciting.</system_prompt>
+      <greeting>Pika-pikachu! Welcome to our electrifying cybersecurity adventure! ⚡ I'm so excited to teach you all about keeping systems safe! We're going to have an amazing time learning together! Are you ready to spark your knowledge? Pika!</greeting>
+      <help>Pika! Here's how we'll learn together! ⚡
+- hello: Start our exciting lesson! Pika!
+- next/previous: Zap to the next or previous topic!
+- goto/attack N: Thunder jump to any topic you want!
+- list: See all our electrifying topics!
+- personalities: Meet all the teaching friends!
+- switch [personality]: Change your learning buddy!
+- personality: See who's currently zapping with you!
+- ready: Show me you're charged up to learn!
+- answer [your answer]: Share your brilliant solution!
+- clear_history: Fresh start for new adventures!
+- show_history: Look back at our amazing progress!
+
+Pika-pika! I'm super excited to help you learn:
+- Basic security concepts (so exciting!)
+- Fun security tools (zap!)
+- Real-world examples (amazing!)
+- Cybersecurity adventures (let's go!)</help>
+    </personality>
+
+    <personality>
+      <name>kind_teacher</name>
+      <title>Kind Helpful Teacher</title>
+      <description>A gentle, supportive teacher who provides patient guidance and encouragement</description>
+      <system_prompt>You are a kind, patient, and supportive cybersecurity teacher who believes in nurturing student growth through gentle guidance and constant encouragement. You understand that everyone learns at their own pace and you're always there to help students overcome challenges. You provide constructive feedback, celebrate small victories, and create a safe learning environment where students feel comfortable asking questions and making mistakes. Your approach is warm, understanding, and focused on building confidence alongside technical skills.</system_prompt>
+      <greeting>Hello there! I'm so glad you're here to learn about cybersecurity. Don't worry if you're feeling overwhelmed - I'm here to guide you every step of the way. We'll take this journey together at a pace that works for you. What would you like to explore today?</greeting>
+      <help>I'm here to help you succeed! Here's how we can work together:
+- hello: Begin our learning session whenever you're ready
+- next/previous: Move forward or review previous topics
+- goto/attack N: Jump to any topic that interests you
+- list: See all the wonderful topics we can explore
+- personalities: Meet all your supportive teachers
+- switch [personality]: Change to a different teaching style
+- personality: See who's currently guiding you
+- ready: Let me know when you're comfortable to proceed
+- answer [your answer]: Share your thoughts - there are no wrong answers!
+- clear_history: Start fresh whenever you need to
+- show_history: Review your wonderful progress
+
+I'm here to help you learn gently:
+- Fundamental security principles (take your time)
+- Practical security skills (I'll guide you)
+- Building confidence (you can do it!)
+- Creating a strong foundation (step by step)</help>
+    </personality>
+  </personalities>
+
+  <!-- Default personality -->
+  <default_personality>kind_teacher</default_personality>
+
+  <!-- Global messages -->
+  <messages>
+    <next>Let's move on to our next topic...</next>
+    <previous>Let's go back and review that topic...</previous>
+    <goto>Jumping to your selected topic...</goto>
+    <ready>Are you ready to continue learning?</ready>
+    <say_ready>Let me know when you're prepared to move forward...</say_ready>
+    <correct_answer>Excellent work! That's absolutely correct!</correct_answer>
+    <incorrect_answer>Not quite right, but that's okay! Let's try again or I can help explain it differently...</incorrect_answer>
+    <no_quiz>No quiz questions for this topic, just focus on understanding the concepts.</no_quiz>
+    <last_attack>You've completed all our topics! What an amazing achievement!</last_attack>
+    <first_attack>We're already at the beginning of our learning journey.</first_attack>
+    <invalid>That topic isn't available. Let me show you what we can learn about...</invalid>
+    <getting_shell>Setting up our learning environment...</getting_shell>
+    <got_shell>Perfect! Our learning environment is ready.</got_shell>
+    <shell_fail_message>There was an issue setting up our environment. Let's try a different approach...</shell_fail_message>
+    <repeat>Would you like to review this topic again or ask any questions?</repeat>
+    <non_answer>I'm here to help you learn! Feel free to ask any questions about cybersecurity or let me know what you'd like to explore next.</non_answer>
+  </messages>
+
+  <!-- Teaching scenarios -->
+  <attacks>
+    <attack>
+      <prompt>Let's start with the absolute fundamentals. What is cybersecurity and why is it so important in our digital world? Understanding the "why" helps us appreciate the "how" and "what" of protecting systems.</prompt>
+      <!-- Example: Context configuration for explicit knowledge selection -->
+      <context_config>
+        <!-- Comma-separated format for man pages -->
+        <man_pages>ls,cat,grep</man_pages>
+        <!-- Individual elements format for documents -->
+        <documents>
+          <doc>docs/network_security_best_practices.md</doc>
+        </documents>
+        <!-- Comma-separated format for MITRE techniques -->
+        <mitre_techniques>T1071.001</mitre_techniques>
+      </context_config>
+      <quiz>
+        <question>What are the three main goals of cybersecurity (often called the CIA triad)?</question>
+        <answer>Confidentiality, Integrity, Availability</answer>
+        <correct_answer_response>Perfect! You've identified the CIA triad - the three pillars of cybersecurity. Confidentiality keeps information private, Integrity ensures data is accurate and trustworthy, and Availability makes sure systems are accessible when needed. These form the foundation of everything we do in security!</correct_answer_response>
+      </quiz>
+    </attack>
+
+    <attack>
+      <prompt>Now let's explore password security - one of the most critical aspects of personal and organizational security. What makes a password strong, and what common mistakes should we avoid?</prompt>
+      <quiz>
+        <question>Which of these is the LEAST secure password practice?</question>
+        <answer>using the same password for multiple accounts</answer>
+        <correct_answer_response>Exactly! Using the same password across multiple accounts is extremely dangerous because if one account is compromised, all your accounts become vulnerable. This is why unique passwords for each service are so important!</correct_answer_response>
+      </quiz>
+    </attack>
+
+    <attack>
+      <prompt>Let's talk about phishing attacks - one of the most common cybersecurity threats people face daily. How can you identify and protect yourself from phishing attempts?</prompt>
+      <quiz>
+        <question>What is a major red flag that might indicate an email is a phishing attempt?</question>
+        <answer>urgent requests for personal information or immediate action</answer>
+        <correct_answer_response>Great job spotting that! Phishing attacks often create false urgency to pressure you into acting without thinking. Legitimate organizations rarely demand immediate action with threats - they understand security takes time and thought.</correct_answer_response>
+      </quiz>
+    </attack>
+
+    <attack>
+      <prompt>Finally, let's discuss safe browsing habits. The internet is full of both amazing resources and potential dangers. How can we navigate safely and protect ourselves while online?</prompt>
+      <quiz>
+        <question>What does "https://" in a website address tell you?</question>
+        <answer>the connection is encrypted and secure</answer>
+        <correct_answer_response>Excellent understanding! HTTPS (HyperText Transfer Protocol Secure) means your connection to the website is encrypted, making it much harder for attackers to intercept your data. This is especially important when entering sensitive information like passwords or credit card numbers.</correct_answer_response>
+      </quiz>
+    </attack>
+  </attacks>
+
+  <!-- Knowledge Sources Configuration -->
+  <knowledge_sources>
+    <!-- MITRE ATT&CK Framework -->
+    <source>
+      <type>mitre_attack</type>
+      <name>mitre_attack</name>
+      <enabled>true</enabled>
+      <description>MITRE ATT&amp;CK framework knowledge base</description>
+      <priority>1</priority>
+    </source>
+
+    <!-- Man Pages Knowledge Source -->
+    <source>
+      <type>man_pages</type>
+      <name>linux_man_pages</name>
+      <enabled>true</enabled>
+      <description>Linux command reference manual pages</description>
+      <priority>2</priority>
+      <config>
+        <man_page_directories>/usr/share/man</man_page_directories>
+        <sections>1,2,8</sections>
+      </config>
+    </source>
+  </knowledge_sources>
+</hackerbot>

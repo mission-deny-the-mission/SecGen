@@ -1,0 +1,276 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<hackerbot>
+  <name>EnhancedKnowledgeBot</name>
+  <llm_provider>ollama</llm_provider>
+  <ollama_model>gemma3:1b</ollama_model>
+  <system_prompt>You are an advanced cybersecurity training assistant with access to comprehensive knowledge bases including MITRE ATT&CK, Unix/Linux man pages, and custom markdown documentation. You can provide detailed explanations about attack patterns, security tools, command usage, and defense strategies. Use your enhanced context to provide accurate, up-to-date information and always cite specific sources when possible.</system_prompt>
+  <get_shell>false</get_shell>
+
+  <!-- RAG + CAG Configuration -->
+  <rag_cag_enabled>true</rag_cag_enabled>
+
+  <!-- Individual system control -->
+  <rag_enabled>true</rag_enabled>
+  <cag_enabled>true</cag_enabled>
+
+  <rag_cag_config>
+    <rag>
+      <max_rag_results>7</max_rag_results>
+      <include_rag_context>true</include_rag_context>
+      <collection_name>enhanced_cybersecurity</collection_name>
+    </rag>
+
+    <cag>
+      <max_cag_depth>3</max_cag_depth>
+      <max_cag_nodes>25</max_cag_nodes>
+      <include_cag_context>true</include_cag_context>
+    </cag>
+  </rag_cag_config>
+
+  <!-- Knowledge Sources Configuration -->
+  <knowledge_sources>
+    <!-- MITRE ATT&CK Framework (always included by default) -->
+    <source>
+      <type>mitre_attack</type>
+      <name>mitre_attack</name>
+      <enabled>true</enabled>
+      <description>MITRE ATT&CK framework knowledge base</description>
+      <priority>1</priority>
+    </source>
+
+    <!-- Man Pages Knowledge Source -->
+    <source>
+      <type>man_pages</type>
+      <name>security_tools_man_pages</name>
+      <enabled>true</enabled>
+      <description>Unix/Linux security tools man pages</description>
+      <priority>2</priority>
+      <man_pages>
+        <!-- Individual man pages -->
+        <man_page>
+          <name>nmap</name>
+          <section>1</section>
+          <collection_name>network_scanning_tools</collection_name>
+        </man_page>
+        <man_page>
+          <name>netcat</name>
+          <section>1</section>
+          <collection_name>network_utilities</collection_name>
+        </man_page>
+        <man_page>
+          <name>wireshark</name>
+          <section>1</section>
+          <collection_name>network_analysis</collection_name>
+        </man_page>
+        <man_page>
+          <name>tcpdump</name>
+          <section>1</section>
+          <collection_name>packet_analysis</collection_name>
+        </man_page>
+        <man_page>
+          <name>iptables</name>
+          <section>8</section>
+          <collection_name>firewall_tools</collection_name>
+        </man_page>
+        <man_page>
+          <name>ssh</name>
+          <section>1</section>
+          <collection_name>secure_communication</collection_name>
+        </man_page>
+        <man_page>
+          <name>openssl</name>
+          <section>1</section>
+          <collection_name>cryptography_tools</collection_name>
+        </man_page>
+        <man_page>
+          <name>gpg</name>
+          <section>1</section>
+          <collection_name>cryptography_tools</collection_name>
+        </man_page>
+        <man_page>
+          <name>strace</name>
+          <section>1</section>
+          <collection_name>system_monitoring</collection_name>
+        </man_page>
+        <man_page>
+          <name>lsof</name>
+          <section>1</section>
+          <collection_name>system_monitoring</collection_name>
+        </man_page>
+      </man_pages>
+    </source>
+
+    <!-- Markdown Files Knowledge Source -->
+    <source>
+      <type>markdown_files</type>
+      <name>cybersecurity_docs</name>
+      <enabled>true</enabled>
+      <description>Custom cybersecurity documentation in markdown format</description>
+      <priority>3</priority>
+      <markdown_files>
+        <!-- Individual markdown files -->
+        <markdown_file>
+          <path>docs/network_security_best_practices.md</path>
+          <collection_name>security_guidelines</collection_name>
+          <tags>
+            <tag>network-security</tag>
+            <tag>best-practices</tag>
+            <tag>defense</tag>
+          </tags>
+        </markdown_file>
+        <markdown_file>
+          <path>docs/incident_response_procedures.md</path>
+          <collection_name>incident_response</collection_name>
+          <tags>
+            <tag>incident-response</tag>
+            <tag>procedures</tag>
+            <tag>forensics</tag>
+          </tags>
+        </markdown_file>
+        <markdown_file>
+          <path>docs/malware_analysis_guide.md</path>
+          <collection_name>malware_analysis</collection_name>
+          <tags>
+            <tag>malware</tag>
+            <tag>analysis</tag>
+            <tag>reverse-engineering</tag>
+          </tags>
+        </markdown_file>
+        <markdown_file>
+          <path>docs/penetration_testing_methodology.md</path>
+          <collection_name>pentesting</collection_name>
+          <tags>
+            <tag>penetration-testing</tag>
+            <tag>methodology</tag>
+            <tag>assessment</tag>
+          </tags>
+        </markdown_file>
+
+        <!-- Directory-based markdown files -->
+        <directory>
+          <path>docs/threat_intelligence/</path>
+          <pattern>*.md</pattern>
+          <collection_name>threat_intelligence</collection_name>
+        </directory>
+        <directory>
+          <path>docs/vulnerability_management/</path>
+          <pattern>*.md</pattern>
+          <collection_name>vulnerability_management</collection_name>
+        </directory>
+      </markdown_files>
+    </source>
+  </knowledge_sources>
+
+  <entity_extraction_enabled>true</entity_extraction_enabled>
+  <entity_types>ip_address, url, hash, filename, port, email, domain, command, tool_name</entity_types>
+
+  <messages>
+    <greeting>Hello! I'm EnhancedKnowledgeBot, your AI cybersecurity training assistant with access to comprehensive knowledge bases including MITRE ATT&CK, Unix/Linux man pages, and custom documentation. I can help you with attack patterns, security tools, command usage, and defense strategies. How can I help you today?</greeting>
+    <help>Available commands:
+- hello: Start a conversation and get the first attack scenario
+- next/previous: Navigate through cybersecurity training scenarios
+- goto/attack N: Jump to a specific attack scenario (e.g., "goto 1")
+- list: Show all available attack scenarios
+- ready: Execute shell commands for current attack (if applicable)
+- answer [your answer]: Submit your answer to quiz questions
+- clear_history: Clear your conversation history
+- show_history: View your conversation history
+
+I can provide detailed explanations about:
+- Attack patterns and techniques (MITRE ATT&CK)
+- Security tool usage and options (man pages)
+- Network scanning and analysis
+- Incident response procedures
+- Malware analysis methodologies
+- Vulnerability management
+- Threat intelligence
+- Command-line tool usage
+- Security best practices</help>
+    <next>Moving to the next scenario...</next>
+    <previous>Going back to the previous scenario...</previous>
+    <goto>Jumping to attack scenario...</goto>
+    <ready>Preparing to demonstrate the current attack pattern...</ready>
+    <say_ready>Are you ready to proceed?</say_ready>
+    <correct_answer>Excellent! That's the correct answer.</correct_answer>
+    <incorrect_answer>Not quite. Try again or ask for a hint.</incorrect_answer>
+    <no_quiz>No quiz available for this scenario.</no_quiz>
+    <last_attack>You've completed all the available scenarios. Great job!</last_attack>
+    <first_attack>You're already at the first scenario.</first_attack>
+    <invalid>Invalid attack scenario number. Please check the available scenarios with 'list'.</invalid>
+    <getting_shell>Setting up the demonstration environment...</getting_shell>
+    <got_shell>Successfully set up the demonstration environment!</got_shell>
+    <shell_fail_message>Failed to set up the demonstration environment. Please check your system configuration.</shell_fail_message>
+    <repeat>Would you like to try this scenario again or ask for more details?</repeat>
+    <non_answer>I'm here to help with cybersecurity training. Could you ask a specific question about the current scenario or general cybersecurity concepts?</non_answer>
+  </messages>
+
+  <attacks>
+    <attack>
+      <prompt>Let's explore network reconnaissance using nmap. What are the common nmap scanning techniques, and how would you use nmap to discover open ports and services on a target network?</prompt>
+      <system_prompt>You are a network security expert specializing in reconnaissance and scanning techniques. Focus on providing detailed explanations about nmap usage, scanning techniques, and service discovery. Reference the nmap man page for accurate command syntax and options.</system_prompt>
+      <quiz>
+        <question>Which nmap option performs a TCP SYN scan (half-open scan) that is often less detectable than a full TCP connect scan?</question>
+        <answer>-sS</answer>
+        <correct_answer_response>Correct! The -sS option performs a TCP SYN scan (half-open scan), which is often less detectable than a full TCP connect scan because it doesn't complete the TCP three-way handshake. This technique is commonly used for network reconnaissance.</correct_answer_response>
+      </quiz>
+      <condition>
+        <output_matches>-sS|SYN scan|half-open</output_matches>
+        <message>Excellent! You've identified the stealth scanning technique. SYN scans are indeed less detectable than full connect scans.</message>
+      </condition>
+      <else_condition>
+        <message>Consider exploring different nmap scanning techniques. The man page provides detailed information about various scan types and their use cases.</message>
+      </else_condition>
+    </attack>
+
+    <attack>
+      <prompt>Now let's examine network traffic analysis using tcpdump. How would you use tcpdump to capture and analyze network traffic, specifically focusing on suspicious patterns that might indicate malicious activity?</prompt>
+      <system_prompt>You are a network traffic analysis expert specializing in packet-level analysis and threat detection. Focus on providing detailed explanations about tcpdump usage, filter expressions, and identifying malicious traffic patterns. Reference the tcpdump man page for accurate command syntax.</system_prompt>
+      <quiz>
+        <question>What tcpdump filter expression would capture all HTTP traffic (port 80) going to or from a specific IP address 192.168.1.100?</question>
+        <answer>host 192.168.1.100 and port 80</answer>
+        <correct_answer_response>Correct! The filter expression 'host 192.168.1.100 and port 80' will capture all HTTP traffic to or from the specified IP address. Tcpdump's filtering capabilities are powerful for focusing on specific network conversations.</correct_answer_response>
+      </quiz>
+      <condition>
+        <output_matches>host.*port|tcpdump.*filter</output_matches>
+        <message>Great understanding of tcpdump filtering! Proper filtering is essential for effective traffic analysis.</message>
+      </condition>
+      <else_condition>
+        <message>Consider exploring tcpdump's filter expressions. The man page contains extensive examples of different filtering techniques for traffic analysis.</message>
+      </else_condition>
+    </attack>
+
+    <attack>
+      <prompt>Let's analyze firewall configuration using iptables. How would you configure iptables to create rules that block common attack patterns while allowing legitimate traffic?</prompt>
+      <system_prompt>You are a firewall security expert specializing in iptables configuration and network defense. Focus on providing detailed explanations about iptables rules, chains, and creating effective firewall policies. Reference the iptables man page for accurate command syntax and rule structure.</system_prompt>
+      <quiz>
+        <question>What iptables command would block all incoming SSH connections (port 22) from a specific IP address 10.0.0.50?</question>
+        <answer>iptables -A INPUT -s 10.0.0.50 -p tcp --dport 22 -j DROP</answer>
+        <correct_answer_response>Correct! This command adds a rule to the INPUT chain that drops all TCP packets destined for port 22 (SSH) coming from the specified IP address. Iptables provides granular control over network traffic filtering.</correct_answer_response>
+      </quiz>
+      <condition>
+        <output_matches>iptables.*-A.*INPUT|-s.*-p.*--dport</output_matches>
+        <message>Excellent iptables rule syntax! You understand how to create targeted firewall rules for specific threats.</message>
+      </condition>
+      <else_condition>
+        <message>Consider studying iptables rule structure and chain operations. The man page provides comprehensive information about rule syntax and firewall configuration.</message>
+      </else_condition>
+    </attack>
+
+    <attack>
+      <prompt>Finally, let's explore secure communication using SSH. What are the security best practices for SSH configuration, and how would you harden an SSH server against common attacks?</prompt>
+      <system_prompt>You are a secure communication expert specializing in SSH configuration and remote access security. Focus on providing detailed explanations about SSH hardening, key management, and defending against SSH-based attacks. Reference the SSH man page for accurate configuration options.</system_prompt>
+      <quiz>
+        <question>What SSH configuration directive would disable root login and force key-based authentication only?</question>
+        <answer>PermitRootLogin no and PasswordAuthentication no</answer>
+        <correct_answer_response>Correct! Disabling root login (PermitRootLogin no) and forcing key-based authentication (PasswordAuthentication no) are fundamental SSH hardening steps. These configurations significantly reduce the risk of brute force and credential-based attacks.</correct_answer_response>
+      </quiz>
+      <condition>
+        <output_matches>PermitRootLogin|PasswordAuthentication|key-based</output_matches>
+        <message>Great SSH security knowledge! These configurations are essential for securing remote access.</message>
+      </condition>
+      <else_condition>
+        <message>Consider exploring SSH configuration options and security best practices. The SSH documentation and man pages contain detailed information about securing SSH services.</message>
+      </else_condition>
+    </attack>
+  </attacks>
+</hackerbot>

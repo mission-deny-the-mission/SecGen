@@ -1,0 +1,549 @@
+# Performance test queries for RAG system validation
+# Total: 110 queries across 5 categories
+
+queries:
+  # Category 1: General Cybersecurity Concepts (25 queries)
+  - query: "What is the CIA triad?"
+    category: "general_concepts"
+    difficulty: "simple"
+    expected_topics: ["CIA triad", "confidentiality", "integrity", "availability"]
+
+  - query: "Explain the difference between authentication and authorization"
+    category: "general_concepts"
+    difficulty: "simple"
+    expected_topics: ["authentication", "authorization", "access control"]
+
+  - query: "What are the phases of a penetration test?"
+    category: "general_concepts"
+    difficulty: "medium"
+    expected_topics: ["penetration testing", "PTES", "phases", "reconnaissance", "exploitation"]
+
+  - query: "Define zero-day vulnerability"
+    category: "general_concepts"
+    difficulty: "simple"
+    expected_topics: ["zero-day", "vulnerability", "exploit", "unpatched"]
+
+  - query: "What is defense in depth?"
+    category: "general_concepts"
+    difficulty: "medium"
+    expected_topics: ["defense in depth", "layered security", "security controls"]
+
+  - query: "Explain the principle of least privilege"
+    category: "general_concepts"
+    difficulty: "simple"
+    expected_topics: ["least privilege", "access control", "permissions"]
+
+  - query: "What is the difference between symmetric and asymmetric encryption?"
+    category: "general_concepts"
+    difficulty: "medium"
+    expected_topics: ["symmetric encryption", "asymmetric encryption", "AES", "RSA", "cryptography"]
+
+  - query: "Describe the OWASP Top 10 vulnerabilities"
+    category: "general_concepts"
+    difficulty: "medium"
+    expected_topics: ["OWASP", "vulnerabilities", "web security", "injection"]
+
+  - query: "What is a man-in-the-middle attack?"
+    category: "general_concepts"
+    difficulty: "simple"
+    expected_topics: ["man-in-the-middle", "MITM", "interception", "network attack"]
+
+  - query: "Explain the difference between threat, vulnerability, and risk"
+    category: "general_concepts"
+    difficulty: "medium"
+    expected_topics: ["threat", "vulnerability", "risk", "risk assessment"]
+
+  - query: "What is social engineering?"
+    category: "general_concepts"
+    difficulty: "simple"
+    expected_topics: ["social engineering", "human factors", "phishing", "pretexting"]
+
+  - query: "Describe the kill chain model"
+    category: "general_concepts"
+    difficulty: "medium"
+    expected_topics: ["kill chain", "cyber kill chain", "attack lifecycle", "Lockheed Martin"]
+
+  - query: "What is network segmentation?"
+    category: "general_concepts"
+    difficulty: "simple"
+    expected_topics: ["network segmentation", "network security", "isolated networks"]
+
+  - query: "Explain public key infrastructure (PKI)"
+    category: "general_concepts"
+    difficulty: "medium"
+    expected_topics: ["PKI", "public key infrastructure", "certificates", "CA"]
+
+  - query: "What are the different types of firewalls?"
+    category: "general_concepts"
+    difficulty: "simple"
+    expected_topics: ["firewall", "packet filtering", "stateful", "application layer"]
+
+  - query: "Describe the principle of separation of duties"
+    category: "general_concepts"
+    difficulty: "simple"
+    expected_topics: ["separation of duties", "access control", "security controls"]
+
+  - query: "What is two-factor authentication?"
+    category: "general_concepts"
+    difficulty: "simple"
+    expected_topics: ["2FA", "two-factor authentication", "MFA", "multi-factor"]
+
+  - query: "Explain how hash functions work in cryptography"
+    category: "general_concepts"
+    difficulty: "medium"
+    expected_topics: ["hash function", "SHA", "MD5", "digest", "cryptographic hash"]
+
+  - query: "What is a honeypot?"
+    category: "general_concepts"
+    difficulty: "simple"
+    expected_topics: ["honeypot", "decoy", "intrusion detection"]
+
+  - query: "Describe the security development lifecycle"
+    category: "general_concepts"
+    difficulty: "medium"
+    expected_topics: ["SDL", "secure development", "SDLC", "security practices"]
+
+  - query: "What is the difference between hashing and encryption?"
+    category: "general_concepts"
+    difficulty: "medium"
+    expected_topics: ["hashing", "encryption", "one-way", "reversible"]
+
+  - query: "Explain what a security policy is"
+    category: "general_concepts"
+    difficulty: "simple"
+    expected_topics: ["security policy", "governance", "security management"]
+
+  - query: "What is asset management in cybersecurity?"
+    category: "general_concepts"
+    difficulty: "simple"
+    expected_topics: ["asset management", "inventory", "IT assets"]
+
+  - query: "Describe incident response procedures"
+    category: "general_concepts"
+    difficulty: "medium"
+    expected_topics: ["incident response", "IR", "forensics", "containment"]
+
+  - query: "What is vulnerability management?"
+    category: "general_concepts"
+    difficulty: "simple"
+    expected_topics: ["vulnerability management", "patching", "scanning"]
+
+  # Category 2: Tools and Commands (25 queries)
+  - query: "How do I use nmap to scan for open ports?"
+    category: "tools_commands"
+    difficulty: "simple"
+    expected_topics: ["nmap", "port scan", "network scanning", "-sV", "-p"]
+
+  - query: "What options does grep support?"
+    category: "tools_commands"
+    difficulty: "simple"
+    expected_topics: ["grep", "regex", "pattern matching", "-i", "-v", "-r"]
+
+  - query: "Explain how to use Wireshark for packet analysis"
+    category: "tools_commands"
+    difficulty: "medium"
+    expected_topics: ["Wireshark", "packet capture", "network analysis", "PCAP"]
+
+  - query: "How do I configure iptables firewall rules?"
+    category: "tools_commands"
+    difficulty: "medium"
+    expected_topics: ["iptables", "firewall", "NAT", "rules", "chain"]
+
+  - query: "What is the syntax for tcpdump filters?"
+    category: "tools_commands"
+    difficulty: "medium"
+    expected_topics: ["tcpdump", "packet capture", "filters", "BPF"]
+
+  - query: "How do I use netcat for port scanning?"
+    category: "tools_commands"
+    difficulty: "simple"
+    expected_topics: ["netcat", "nc", "port scanning", "connection testing"]
+
+  - query: "Explain Metasploit framework basics"
+    category: "tools_commands"
+    difficulty: "medium"
+    expected_topics: ["Metasploit", "exploit", "payload", "msfconsole"]
+
+  - query: "How do I use Burp Suite for web application testing?"
+    category: "tools_commands"
+    difficulty: "medium"
+    expected_topics: ["Burp Suite", "web testing", "proxy", "vulnerability scanner"]
+
+  - query: "What are the common curl command options?"
+    category: "tools_commands"
+    difficulty: "simple"
+    expected_topics: ["curl", "HTTP", "web requests", "-X", "-H", "-d"]
+
+  - query: "How do I use John the Ripper for password cracking?"
+    category: "tools_commands"
+    difficulty: "medium"
+    expected_topics: ["John the Ripper", "password cracking", "hash cracking"]
+
+  - query: "Explain SSH key generation and usage"
+    category: "tools_commands"
+    difficulty: "simple"
+    expected_topics: ["SSH", "ssh-keygen", "public key", "authorized_keys"]
+
+  - query: "How do I use Hydra for brute force attacks?"
+    category: "tools_commands"
+    difficulty: "medium"
+    expected_topics: ["Hydra", "brute force", "password attack", "dictionary attack"]
+
+  - query: "What are useful netstat commands?"
+    category: "tools_commands"
+    difficulty: "simple"
+    expected_topics: ["netstat", "network connections", "ports", "-tuln"]
+
+  - query: "How do I use tcpdump to capture HTTP traffic?"
+    category: "tools_commands"
+    difficulty: "medium"
+    expected_topics: ["tcpdump", "HTTP", "port 80", "port 443", "packet analysis"]
+
+  - query: "Explain SQLMap usage for SQL injection testing"
+    category: "tools_commands"
+    difficulty: "medium"
+    expected_topics: ["SQLMap", "SQL injection", "database testing", "automated testing"]
+
+  - query: "How do I use htop to monitor system resources?"
+    category: "tools_commands"
+    difficulty: "simple"
+    expected_topics: ["htop", "process monitoring", "system resources", "CPU", "memory"]
+
+  - query: "What are common find command options?"
+    category: "tools_commands"
+    difficulty: "simple"
+    expected_topics: ["find", "file search", "-name", "-type", "-exec"]
+
+  - query: "How do I use Aircrack-ng for WiFi security testing?"
+    category: "tools_commands"
+    difficulty: "medium"
+    expected_topics: ["Aircrack-ng", "WiFi", "WPA", "cracking", "monitor mode"]
+
+  - query: "Explain OpenSSL command line usage"
+    category: "tools_commands"
+    difficulty: "medium"
+    expected_topics: ["OpenSSL", "certificates", "encryption", "TLS", "SSL"]
+
+  - query: "How do I use chmod to set file permissions?"
+    category: "tools_commands"
+    difficulty: "simple"
+    expected_topics: ["chmod", "permissions", "octal", "755", "600"]
+
+  - query: "What are useful sed and awk commands?"
+    category: "tools_commands"
+    difficulty: "medium"
+    expected_topics: ["sed", "awk", "text processing", "stream editor"]
+
+  - query: "How do I use strace to trace system calls?"
+    category: "tools_commands"
+    difficulty: "medium"
+    expected_topics: ["strace", "system calls", "debugging", "tracing"]
+
+  - query: "Explain how to use wireshark filters"
+    category: "tools_commands"
+    difficulty: "medium"
+    expected_topics: ["Wireshark", "filters", "display filters", "capture filters"]
+
+  - query: "How do I use journalctl to view system logs?"
+    category: "tools_commands"
+    difficulty: "simple"
+    expected_topics: ["journalctl", "systemd", "logs", "-f", "--since"]
+
+  - query: "What are common rsync options for secure file transfer?"
+    category: "tools_commands"
+    difficulty: "simple"
+    expected_topics: ["rsync", "file transfer", "synchronization", "-a", "-v", "--progress"]
+
+  # Category 3: Attack Techniques (MITRE ATT&CK) (25 queries)
+  - query: "What is SQL injection and how does it work?"
+    category: "attack_techniques"
+    difficulty: "medium"
+    expected_topics: ["SQL injection", "T1190", "injection", "database attack"]
+
+  - query: "Describe credential dumping techniques"
+    category: "attack_techniques"
+    difficulty: "medium"
+    expected_topics: ["T1003", "credential dumping", "mimikatz", "LSASS", "NTLM"]
+
+  - query: "How does a man-in-the-middle attack work?"
+    category: "attack_techniques"
+    difficulty: "medium"
+    expected_topics: ["MITM", "T1557", "interception", "ARP poisoning", "SSL stripping"]
+
+  - query: "Explain pass-the-hash attacks"
+    category: "attack_techniques"
+    difficulty: "medium"
+    expected_topics: ["T1550.002", "pass-the-hash", "PTH", "lateral movement", "NTLM"]
+
+  - query: "What is cross-site scripting (XSS)?"
+    category: "attack_techniques"
+    difficulty: "medium"
+    expected_topics: ["XSS", "T1059.004", "cross-site scripting", "web attack", "reflected XSS"]
+
+  - query: "Describe privilege escalation techniques"
+    category: "attack_techniques"
+    difficulty: "medium"
+    expected_topics: ["T1068", "privilege escalation", "sudo", "SUID", "kernel exploit"]
+
+  - query: "How do command and control (C2) channels work?"
+    category: "attack_techniques"
+    difficulty: "medium"
+    expected_topics: ["T1071", "command and control", "C2", "beaconing", "communication"]
+
+  - query: "Explain persistence mechanisms in attacks"
+    category: "attack_techniques"
+    difficulty: "medium"
+    expected_topics: ["T1543", "persistence", "startup", "scheduled tasks", "service"]
+
+  - query: "What is lateral movement in cyber attacks?"
+    category: "attack_techniques"
+    difficulty: "medium"
+    expected_topics: ["T1021", "lateral movement", "pivoting", "remote execution"]
+
+  - query: "Describe data exfiltration techniques"
+    category: "attack_techniques"
+    difficulty: "medium"
+    expected_topics: ["T1041", "exfiltration", "data theft", "DNS tunneling", "covert channel"]
+
+  - query: "How do fileless malware attacks work?"
+    category: "attack_techniques"
+    difficulty: "medium"
+    expected_topics: ["T1055", "fileless", "memory", "PowerShell", "living off the land"]
+
+  - query: "Explain spear phishing attacks"
+    category: "attack_techniques"
+    difficulty: "simple"
+    expected_topics: ["T1566", "spear phishing", "targeted phishing", "email attack"]
+
+  - query: "What is process injection?"
+    category: "attack_techniques"
+    difficulty: "medium"
+    expected_topics: ["T1055", "process injection", "DLL injection", "hollowing"]
+
+  - query: "Describe scheduled task abuse"
+    category: "attack_techniques"
+    difficulty: "simple"
+    expected_topics: ["T1053", "scheduled tasks", "cron", "task scheduler", "persistence"]
+
+  - query: "How does ransomware work?"
+    category: "attack_techniques"
+    difficulty: "medium"
+    expected_topics: ["ransomware", "encryption", "extortion", "malware"]
+
+  - query: "Explain DLL sideloading attacks"
+    category: "attack_techniques"
+    difficulty: "medium"
+    expected_topics: ["T1574.002", "DLL sideloading", "search order", "hijacking"]
+
+  - query: "What is network service scanning?"
+    category: "attack_techniques"
+    difficulty: "simple"
+    expected_topics: ["T1046", "network scanning", "port scanning", "reconnaissance"]
+
+  - query: "Describe the attack lifecycle from reconnaissance to exfiltration"
+    category: "attack_techniques"
+    difficulty: "complex"
+    expected_topics: ["kill chain", "reconnaissance", "weaponization", "delivery", "exploitation", "exfiltration"]
+
+  - query: "How does Kerberoasting work?"
+    category: "attack_techniques"
+    difficulty: "medium"
+    expected_topics: ["T1558.003", "Kerberoasting", "Kerberos", "service tickets"]
+
+  - query: "Explain Windows registry abuse for persistence"
+    category: "attack_techniques"
+    difficulty: "medium"
+    expected_topics: ["T1112", "registry", "Run keys", "persistence", "Windows"]
+
+  - query: "What is steganography in cyber attacks?"
+    category: "attack_techniques"
+    difficulty: "medium"
+    expected_topics: ["steganography", "covert channel", "data hiding", "image embedding"]
+
+  - query: "Describe supply chain attacks"
+    category: "attack_techniques"
+    difficulty: "medium"
+    expected_topics: ["T1574.003", "supply chain", "third-party", "compromised software"]
+
+  - query: "How do buffer overflow attacks work?"
+    category: "attack_techniques"
+    difficulty: "complex"
+    expected_topics: ["buffer overflow", "stack overflow", "exploitation", "ROP", "ASLR"]
+
+  - query: "Explain authentication bypass techniques"
+    category: "attack_techniques"
+    difficulty: "medium"
+    expected_topics: ["T1078", "authentication bypass", "default credentials", "weak passwords"]
+
+  # Category 4: Defensive Measures (25 queries)
+  - query: "How can I detect port scanning?"
+    category: "defensive_measures"
+    difficulty: "simple"
+    expected_topics: ["port scanning", "detection", "IDS", "intrusion detection", "anomaly"]
+
+  - query: "What are best practices for secure password storage?"
+    category: "defensive_measures"
+    difficulty: "medium"
+    expected_topics: ["password storage", "hashing", "bcrypt", "PBKDF2", "salting"]
+
+  - query: "How do I harden an SSH server?"
+    category: "defensive_measures"
+    difficulty: "medium"
+    expected_topics: ["SSH hardening", "sshd_config", "key-based auth", "disable root login"]
+
+  - query: "Describe intrusion detection systems"
+    category: "defensive_measures"
+    difficulty: "medium"
+    expected_topics: ["IDS", "intrusion detection", "Snort", "Suricata", "signature-based"]
+
+  - query: "What is security logging and monitoring?"
+    category: "defensive_measures"
+    difficulty: "simple"
+    expected_topics: ["logging", "SIEM", "security monitoring", "audit logs", "events"]
+
+  - query: "How do I implement network segmentation?"
+    category: "defensive_measures"
+    difficulty: "medium"
+    expected_topics: ["network segmentation", "VLAN", "firewall rules", "isolated networks"]
+
+  - query: "Explain backup and recovery procedures"
+    category: "defensive_measures"
+    difficulty: "simple"
+    expected_topics: ["backup", "recovery", "BCP", "disaster recovery", "RPO", "RTO"]
+
+  - query: "What are web application firewall (WAF) configurations?"
+    category: "defensive_measures"
+    difficulty: "medium"
+    expected_topics: ["WAF", "web application firewall", "ModSecurity", "OWASP rules"]
+
+  - query: "How do I configure host-based intrusion detection?"
+    category: "defensive_measures"
+    difficulty: "medium"
+    expected_topics: ["HIDS", "host-based", "OSSEC", "file integrity monitoring"]
+
+  - query: "Describe incident response procedures"
+    category: "defensive_measures"
+    difficulty: "medium"
+    expected_topics: ["incident response", "containment", "eradication", "recovery", "lessons learned"]
+
+  - query: "What is patch management best practices?"
+    category: "defensive_measures"
+    difficulty: "simple"
+    expected_topics: ["patching", "patch management", "vulnerability remediation", "update cycles"]
+
+  - query: "How do I secure database connections?"
+    category: "defensive_measures"
+    difficulty: "medium"
+    expected_topics: ["database security", "encryption", "TLS", "prepared statements", "parameterization"]
+
+  - query: "Explain security awareness training topics"
+    category: "defensive_measures"
+    difficulty: "simple"
+    expected_topics: ["security awareness", "training", "phishing", "social engineering"]
+
+  - query: "What are endpoint detection and response (EDR) capabilities?"
+    category: "defensive_measures"
+    difficulty: "medium"
+    expected_topics: ["EDR", "endpoint detection", "threat hunting", "behavioral analysis"]
+
+  - query: "How do I implement access control lists (ACLs)?"
+    category: "defensive_measures"
+    difficulty: "simple"
+    expected_topics: ["ACL", "access control", "permissions", "RBAC", "DAC"]
+
+  - query: "Describe vulnerability scanning processes"
+    category: "defensive_measures"
+    difficulty: "simple"
+    expected_topics: ["vulnerability scanning", "Nessus", "OpenVAS", "penetration testing"]
+
+  - query: "What is secure coding practices?"
+    category: "defensive_measures"
+    difficulty: "medium"
+    expected_topics: ["secure coding", "OWASP", "input validation", "error handling", "SDL"]
+
+  - query: "How do I configure firewall rules for security?"
+    category: "defensive_measures"
+    difficulty: "simple"
+    expected_topics: ["firewall", "iptables", "rules", "default deny", "whitelist"]
+
+  - query: "Explain multi-factor authentication implementation"
+    category: "defensive_measures"
+    difficulty: "medium"
+    expected_topics: ["MFA", "multi-factor", "2FA", "TOTP", "SMS", "authenticator apps"]
+
+  - query: "What are security configuration baselines?"
+    category: "defensive_measures"
+    difficulty: "simple"
+    expected_topics: ["security baseline", "CIS", "hardening guides", "benchmarks"]
+
+  - query: "How do I implement data encryption at rest?"
+    category: "defensive_measures"
+    difficulty: "medium"
+    expected_topics: ["encryption at rest", "LUKS", "disk encryption", "FDE", "AES"]
+
+  - query: "Describe security monitoring dashboards"
+    category: "defensive_measures"
+    difficulty: "simple"
+    expected_topics: ["monitoring", "dashboards", "SIEM", "visualization", "metrics"]
+
+  - query: "What is threat intelligence and how is it used?"
+    category: "defensive_measures"
+    difficulty: "medium"
+    expected_topics: ["threat intelligence", "IOC", "indicator", "MITRE ATT&CK", "threat feeds"]
+
+  - query: "How do I implement security testing in CI/CD?"
+    category: "defensive_measures"
+    difficulty: "medium"
+    expected_topics: ["CI/CD", "DevSecOps", "SAST", "DAST", "security testing", "automation"]
+
+  # Category 5: Complex Multi-Concept Queries (10 queries)
+  - query: "Compare symmetric vs asymmetric encryption with use cases"
+    category: "complex_multi_concept"
+    difficulty: "complex"
+    expected_topics: ["symmetric encryption", "asymmetric encryption", "AES", "RSA", "hybrid", "TLS"]
+
+  - query: "Explain the attack lifecycle from reconnaissance to exfiltration with detection strategies"
+    category: "complex_multi_concept"
+    difficulty: "complex"
+    expected_topics: ["kill chain", "reconnaissance", "exploitation", "exfiltration", "detection", "defense"]
+
+  - query: "Describe defense in depth strategy with specific examples"
+    category: "complex_multi_concept"
+    difficulty: "complex"
+    expected_topics: ["defense in depth", "layered security", "network", "host", "application", "data"]
+
+  - query: "How do I secure a web application end-to-end from development to deployment?"
+    category: "complex_multi_concept"
+    difficulty: "complex"
+    expected_topics: ["secure development", "SDL", "code review", "testing", "deployment", "WAF", "monitoring"]
+
+  - query: "Explain certificate-based authentication in web applications and common vulnerabilities"
+    category: "complex_multi_concept"
+    difficulty: "complex"
+    expected_topics: ["PKI", "certificates", "TLS", "mutual TLS", "mTLS", "vulnerabilities", "configuration"]
+
+  - query: "Describe network security architecture including segmentation, firewalls, and IDS"
+    category: "complex_multi_concept"
+    difficulty: "complex"
+    expected_topics: ["network architecture", "segmentation", "firewall", "IDS", "DMZ", "routing"]
+
+  - query: "How do I implement a comprehensive incident response plan?"
+    category: "complex_multi_concept"
+    difficulty: "complex"
+    expected_topics: ["incident response", "plan", "team", "containment", "eradication", "recovery", "communication"]
+
+  - query: "Explain the relationship between vulnerability management, patch management, and configuration management"
+    category: "complex_multi_concept"
+    difficulty: "complex"
+    expected_topics: ["vulnerability management", "patch management", "configuration management", "CMDB", "change control"]
+
+  - query: "How do detection rules work in SIEM systems and what are best practices?"
+    category: "complex_multi_concept"
+    difficulty: "complex"
+    expected_topics: ["SIEM", "detection rules", "correlation", "alerts", "false positives", "tuning"]
+
+  - query: "Describe the integration of threat intelligence, log analysis, and behavioral analytics for threat detection"
+    category: "complex_multi_concept"
+    difficulty: "complex"
+    expected_topics: ["threat intelligence", "log analysis", "behavioral analytics", "UEBA", "machine learning", "detection"]
+

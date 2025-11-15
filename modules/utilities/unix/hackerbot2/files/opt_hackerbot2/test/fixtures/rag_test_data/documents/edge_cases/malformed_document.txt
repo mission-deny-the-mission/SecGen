@@ -1,0 +1,21 @@
+This document contains malformed content for testing edge cases:
+
+It has unmatched quotes: "Hello world'
+And special characters: @#$%^&*()
+Unicode content: 你好世界 🚀
+HTML entities: &lt;script&gt;alert('xss')&lt;/script&gt;
+SQL injection attempts: ' OR 1=1 --
+Newlines in weird places:
+
+
+Followed by tabs:
+Mixed encoding issues: ñáéíóú
+Very long line that goes on and on and on and on and on and on and on and on and on and on and on and on and on and on and on and on and on and on and on and on and on and on and should be truncated according to the chunk size parameters
+
+Null byte: \x00
+Carriage return: \r
+Form feed: \f
+Vertical tab: \v
+Backspace: \b
+
+This document tests various edge cases that RAG system should handle gracefully.

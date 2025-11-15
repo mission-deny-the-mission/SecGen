@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<hackerbot>
+  <name>OpenAICompatibleBot</name>
+  <llm_provider>openai</llm_provider>
+  <openai_api_key>your-api-key-here</openai_api_key>
+  <!-- Optional: Custom OpenAI-compatible API base URL -->
+  <!-- Examples:
+       - Local llama.cpp: http://localhost:8080/v1
+       - Together.ai: https://api.together.xyz/v1
+       - Chutes: https://api.chutes.ai/v1
+       - Nanogpt: https://api.nanogpt.co/v1
+       - Any other OpenAI-compatible endpoint -->
+  <openai_base_url>http://localhost:8080/v1</openai_base_url>
+  <ollama_model>gpt-3.5-turbo</ollama_model>
+  <system_prompt>You are an advanced AI assistant powered by an OpenAI-compatible API. You can help with various tasks and provide detailed responses.</system_prompt>
+  <get_shell>false</get_shell>
+  <streaming>true</streaming>
+  <max_tokens>200</max_tokens>
+  <model_temperature>0.7</model_temperature>
+
+  <!-- RAG + CAG Configuration -->
+  <rag_cag_enabled>true</rag_cag_enabled>
+  <rag_enabled>true</rag_enabled>
+  <cag_enabled>true</cag_enabled>
+
+  <rag_cag_config>
+    <rag>
+      <max_rag_results>5</max_rag_results>
+      <include_rag_context>true</include_rag_context>
+      <collection_name>cybersecurity</collection_name>
+    </rag>
+
+    <cag>
+      <max_cag_depth>3</max_cag_depth>
+      <max_cag_nodes>20</max_cag_nodes>
+      <include_cag_context>true</include_cag_context>
+    </cag>
+  </rag_cag_config>
+
+  <entity_extraction_enabled>true</entity_extraction_enabled>
+  <entity_types>ip_address, url, hash, filename, port</entity_types>
+
+  <messages>
+    <greeting>Hello! I'm connected to an OpenAI-compatible API. How can I help you today?</greeting>
+    <help>Available commands:
+- hello: Start a conversation
+- next/previous: Navigate through training scenarios
+- goto/attack N: Jump to a specific attack scenario
+- list: Show all available attack scenarios
+- ready: Execute shell commands for current attack (if applicable)
+- answer [your answer]: Submit your answer to quiz questions
+- clear_history: Clear your conversation history
+- show_history: View your conversation history
+
+I can also provide detailed information about cybersecurity topics with enhanced knowledge retrieval.</help>
+  </messages>
+
+  <attacks>
+    <attack>
+      <id>1</id>
+      <title>Network Scanning</title>
+      <description>
+Perform a network scan to identify active hosts and open ports on the target system.
+      </description>
+      <hints>
+        <hint>
+          <id>1</id>
+          <question>What tool can you use to perform network scanning?</question>
+          <answer>Nmap is the standard tool for network discovery and security auditing.</answer>
+        </hint>
+      </hints>
+      <solution>nmap -sn 192.168.1.0/24</solution>
+      <completed>false</completed>
+    </attack>
+
+    <attack>
+      <id>2</id>
+      <title>Port Analysis</title>
+      <description>
+Analyze the open ports discovered and determine what services are running.
+      </description>
+      <hints>
+        <hint>
+          <id>1</id>
+          <question>How can you get detailed information about open ports?</question>
+          <answer>Use nmap with service detection flags to identify running services.</answer>
+        </hint>
+      </hints>
+      <solution>nmap -sV -p- target</solution>
+      <completed>false</completed>
+    </attack>
+  </attacks>
+</hackerbot>
+```
+
+Now let me create a documentation file explaining how to use the new OpenAI-compatible functionality:<|tool_calls_section_begin|><|tool_call_begin|>functions.create_file:47<|tool_call_argument_begin|>{"path": "opt_hackerbot/docs/openai_compatible_apis.md", "display_description": "Create documentation for OpenAI-compatible API support"}<|tool_call_end|><|tool_calls_section_end|>

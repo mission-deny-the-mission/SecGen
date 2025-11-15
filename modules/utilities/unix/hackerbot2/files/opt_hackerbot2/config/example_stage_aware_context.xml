@@ -1,0 +1,248 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Enhanced Example Configuration for Stage-Aware Context Injection
+  
+  This configuration demonstrates the context_config feature that allows
+  explicit knowledge source selection per attack stage. This enables
+  progressive learning where early attacks have basic knowledge and
+  later attacks have advanced knowledge sources.
+  
+  The context_config element supports:
+  - <man_pages>: Unix/Linux command manual pages
+  - <documents>: Markdown documentation files
+  - <mitre_techniques>: MITRE ATT&CK technique IDs
+  
+  Each can be specified in two formats:
+  1. Comma-separated: <man_pages>nmap,netcat,tcpdump</man_pages>
+  2. Individual elements: <man_pages><page>nmap</page></man_pages>
+-->
+<hackerbot>
+  <name>StageAwareTrainingBot</name>
+  <llm_provider>ollama</llm_provider>
+  <ollama_model>gemma3:1b</ollama_model>
+  <get_shell>bash</get_shell>
+
+  <!-- RAG + CAG Configuration -->
+  <rag_cag_enabled>true</rag_cag_enabled>
+  <rag_enabled>true</rag_enabled>
+  <cag_enabled>true</cag_enabled>
+
+  <system_prompt>You are a cybersecurity training assistant that provides progressive learning experiences. Start with basic concepts and gradually introduce more advanced topics.</system_prompt>
+
+  <messages>
+    <greeting>Welcome to progressive cybersecurity training! We'll start with fundamentals and build up to advanced topics.</greeting>
+    <next>Moving to the next training stage...</next>
+    <previous>Going back to review previous concepts...</previous>
+    <goto>Jumping to your selected training stage...</goto>
+    <ready>Are you ready to continue?</ready>
+    <say_ready>Let me know when you're ready to proceed...</say_ready>
+    <correct_answer>Excellent! That's correct!</correct_answer>
+    <incorrect_answer>Not quite, but keep trying! Learning is a process.</incorrect_answer>
+    <no_quiz>No quiz for this stage - focus on understanding the concepts.</no_quiz>
+    <last_attack>Congratulations! You've completed all training stages!</last_attack>
+    <first_attack>This is the first training stage.</first_attack>
+    <invalid>That stage number isn't available.</invalid>
+    <getting_shell>Setting up your training environment...</getting_shell>
+    <got_shell>Training environment ready!</got_shell>
+    <shell_fail_message>Failed to set up environment. Let's try again.</shell_fail_message>
+    <repeat>Would you like to review this stage again?</repeat>
+    <non_answer>I'm here to help you learn! Ask questions or use commands to navigate.</non_answer>
+  </messages>
+
+  <!-- Progressive Attack Scenarios with Context Configuration -->
+  <attacks>
+    <!-- Stage 1: Basic Introduction - Minimal Knowledge Sources -->
+    <attack>
+      <prompt>Welcome to Stage 1: Fundamentals of Cybersecurity. Let's start with the basics - what is cybersecurity and why does it matter?</prompt>
+      <!-- Basic knowledge sources for beginners -->
+      <context_config>
+        <!-- Comma-separated format for simple lists -->
+        <man_pages>ls,cat</man_pages>
+        <documents>docs/network_security_best_practices.md</documents>
+        <!-- No MITRE techniques yet - too advanced for beginners -->
+      </context_config>
+      <quiz>
+        <question>What are the three main goals of cybersecurity (CIA triad)?</question>
+        <answer>Confidentiality, Integrity, Availability</answer>
+        <correct_answer_response>Perfect! The CIA triad forms the foundation of cybersecurity principles.</correct_answer_response>
+      </quiz>
+    </attack>
+
+    <!-- Stage 2: Introduction to Tools - Expanded Knowledge -->
+    <attack>
+      <prompt>Stage 2: Introduction to Security Tools. Now that you understand the basics, let's explore some essential security tools.</prompt>
+      <context_config>
+        <!-- Individual element format for clarity -->
+        <man_pages>
+          <page>nmap</page>
+          <page>netcat</page>
+        </man_pages>
+        <documents>
+          <doc>docs/network_security_best_practices.md</doc>
+          <doc>docs/incident_response_procedures.md</doc>
+        </documents>
+        <!-- Still no MITRE - keeping it simple -->
+      </context_config>
+      <quiz>
+        <question>What is the primary purpose of the nmap tool?</question>
+        <answer>network scanning and port discovery</answer>
+        <correct_answer_response>Correct! Nmap is a powerful network scanning tool.</correct_answer_response>
+      </quiz>
+    </attack>
+
+    <!-- Stage 3: Advanced Tools - More Complex Knowledge -->
+    <attack>
+      <prompt>Stage 3: Advanced Network Analysis. Let's dive deeper into network security and analysis tools.</prompt>
+      <context_config>
+        <!-- Mix of formats - demonstrating flexibility -->
+        <man_pages>tcpdump,wireshark,iptables</man_pages>
+        <documents>
+          <doc>docs/network_security_best_practices.md</doc>
+          <doc>docs/incident_response_procedures.md</doc>
+        </documents>
+        <!-- Introduce basic MITRE techniques -->
+        <mitre_techniques>T1071.001</mitre_techniques>
+      </context_config>
+      <quiz>
+        <question>What does tcpdump primarily capture?</question>
+        <answer>network packets</answer>
+        <correct_answer_response>Exactly! Tcpdump captures and analyzes network packets.</correct_answer_response>
+      </quiz>
+    </attack>
+
+    <!-- Stage 4: Threat Intelligence - MITRE ATT&CK Framework -->
+    <attack>
+      <prompt>Stage 4: Understanding Attack Techniques. Now we'll explore real-world attack techniques using the MITRE ATT&CK framework.</prompt>
+      <context_config>
+        <!-- Advanced knowledge sources -->
+        <man_pages>
+          <page>nmap</page>
+          <page>netcat</page>
+          <page>metasploit</page>
+        </man_pages>
+        <documents>
+          <doc>docs/incident_response_procedures.md</doc>
+        </documents>
+        <!-- Multiple MITRE techniques - comma-separated format -->
+        <mitre_techniques>T1003,T1059.001,T1071.001</mitre_techniques>
+      </context_config>
+      <quiz>
+        <question>What does MITRE ATT&CK technique T1003 represent?</question>
+        <answer>OS Credential Dumping</answer>
+        <correct_answer_response>Excellent! You're learning to understand threat intelligence!</correct_answer_response>
+      </quiz>
+    </attack>
+
+    <!-- Stage 5: Advanced Threat Analysis - Comprehensive Knowledge -->
+    <attack>
+      <prompt>Stage 5: Advanced Threat Analysis and Response. You're ready for comprehensive threat analysis and incident response.</prompt>
+      <context_config>
+        <!-- Full complement of knowledge sources -->
+        <man_pages>
+          <page>nmap</page>
+          <page>netcat</page>
+          <page>tcpdump</page>
+          <page>wireshark</page>
+          <page>metasploit</page>
+        </man_pages>
+        <documents>
+          <doc>docs/network_security_best_practices.md</doc>
+          <doc>docs/incident_response_procedures.md</doc>
+        </documents>
+        <!-- Advanced MITRE techniques -->
+        <mitre_techniques>
+          <technique>T1003</technique>
+          <technique>T1059.001</technique>
+          <technique>T1071.001</technique>
+          <technique>T1566</technique>
+        </mitre_techniques>
+      </context_config>
+      <quiz>
+        <question>What is the most important aspect of incident response?</question>
+        <answer>rapid detection and containment</answer>
+        <correct_answer_response>Outstanding! You understand the critical importance of quick response!</correct_answer_response>
+      </quiz>
+    </attack>
+
+    <!-- Stage 6: No Context Config - Demonstrates Default Behavior -->
+    <attack>
+      <prompt>Final Stage: Integrating Everything. This stage uses default RAG behavior (no explicit context_config), demonstrating backward compatibility.</prompt>
+      <!-- No context_config - will use default RAG behavior -->
+      <quiz>
+        <question>How has your understanding of cybersecurity evolved through this training?</question>
+        <answer>I understand the fundamentals and can identify threats</answer>
+        <correct_answer_response>Wonderful! You've completed a comprehensive cybersecurity training program!</correct_answer_response>
+      </quiz>
+    </attack>
+
+    <!-- Stage 7: VM Context Configuration - Demonstrates VM Context Fetching -->
+    <attack>
+      <prompt>Stage 7: Advanced Monitoring - VM Context Analysis. This stage demonstrates fetching context from student VMs including bash history, system state, and configuration files.</prompt>
+      <context_config>
+        <man_pages>ps,netstat,whoami</man_pages>
+      </context_config>
+      <!-- VM Context Configuration: Fetch bash history, execute commands, and read files from student VM -->
+      <vm_context>
+        <!-- Bash history with custom path, user, and line limit -->
+        <bash_history path="~/.bash_history" limit="50" user="student"/>
+        <!-- Commands to execute on the student VM -->
+        <commands>
+          <command>ps aux</command>
+          <command>netstat -tuln</command>
+          <command>whoami</command>
+        </commands>
+        <!-- Files to read from the student VM -->
+        <files>
+          <file path="/etc/passwd"/>
+          <file path="./config.txt"/>
+        </files>
+      </vm_context>
+      <quiz>
+        <question>What information can be gathered from analyzing bash history?</question>
+        <answer>command usage patterns and user behavior</answer>
+        <correct_answer_response>Correct! Bash history reveals command patterns that can indicate attack techniques!</correct_answer_response>
+      </quiz>
+    </attack>
+
+    <!-- Stage 8: Minimal VM Context - Demonstrates Partial Configuration -->
+    <attack>
+      <prompt>Stage 8: Selective Monitoring - This stage demonstrates minimal VM context configuration with only bash history.</prompt>
+      <!-- Only fetch bash history, no commands or files -->
+      <vm_context>
+        <bash_history path="~/.zsh_history" limit="100"/>
+      </vm_context>
+    </attack>
+
+    <!-- Stage 9: Commands Only VM Context -->
+    <attack>
+      <prompt>Stage 9: Command-based Monitoring - Execute specific commands on student VM to gather system state.</prompt>
+      <vm_context>
+        <commands>
+          <command>ps aux | grep -v grep</command>
+          <command>ss -tuln</command>
+          <command>cat /proc/version</command>
+        </commands>
+      </vm_context>
+    </attack>
+  </attacks>
+
+  <!-- Knowledge Sources Configuration -->
+  <knowledge_sources>
+    <source>
+      <type>mitre_attack</type>
+      <name>mitre_attack</name>
+      <enabled>true</enabled>
+      <description>MITRE ATT&CK framework knowledge base</description>
+      <priority>1</priority>
+    </source>
+
+    <source>
+      <type>man_pages</type>
+      <name>linux_man_pages</name>
+      <enabled>true</enabled>
+      <description>Linux command reference manual pages</description>
+      <priority>2</priority>
+    </source>
+  </knowledge_sources>
+</hackerbot>
+
