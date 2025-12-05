@@ -5,7 +5,7 @@
          xsi:schemaLocation="http://www.github/cliffe/SecGen/utility">
   <name>Ollama</name>
   <author>SecGen Contributors</author>
-  <module_license>Apache-2.0</module_license>
+  <module_license>Apache v2</module_license>
   <description>Ollama - Get up and running with large language models locally.
     Installs and configures Ollama for running LLMs on the system.
     Can optionally pull a specific model during installation.
@@ -20,7 +20,9 @@
 
   <default_input into="model">
     <generator type="select_model">
-      <value>gemma2:2b</value>
+      <input>
+        <value>gemma2:2b</value>
+      </input>
     </generator>
   </default_input>
 

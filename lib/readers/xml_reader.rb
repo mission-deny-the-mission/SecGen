@@ -26,7 +26,7 @@ class XMLReader
     begin
       xsd = Nokogiri::XML::Schema(File.open(schema))
       xsd.validate(doc).each do |error|
-        Print.err "Error in scenario configuration file (#{scenario_file}):"
+        Print.err "Error in #{type} configuration file (#{file_path}):"
         Print.err "    #{error.line}: #{error.message}"
         exit
       end

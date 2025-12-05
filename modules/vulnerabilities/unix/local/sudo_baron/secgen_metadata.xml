@@ -36,9 +36,9 @@
     <software_license>Misc</software_license>
 
     <!-- only known to be compatible with debian bases -->
-    <conflict>
-      <module_path>(?!.+debian)</name>
-    </conflict>
+        <conflict>
+            <module_path>(?!.+debian)</module_path>
+        </conflict>
 
     <CyBOK KA="MAT" topic="Attacks and exploitation">
         <keyword>EXPLOITATION</keyword>
