@@ -1,0 +1,30 @@
+[Unit]
+Description=ZeroClaw AI Agent for SecGen Hackerbot
+Documentation=https://github.com/openagen/zeroclaw
+After=network.target inspircd.service ollama.service
+Wants=inspircd.service ollama.service
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/opt/zeroclaw
+ExecStart=/opt/zeroclaw/zeroclaw channel start
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=zeroclaw
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/opt/zeroclaw/workspace /var/lib/zeroclaw /var/log/zeroclaw
+
+# Environment
+Environment="RUST_LOG=info"
+Environment="ZEROCLOW_WORKSPACE=/opt/zeroclaw/workspace"
+
+[Install]
+WantedBy=multi-user.target

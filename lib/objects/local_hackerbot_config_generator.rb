@@ -1,5 +1,6 @@
 #!/usr/bin/ruby
 require_relative 'local_string_generator.rb'
+require_relative 'zeroclaw_config_builder.rb'
 require 'erb'
 require 'fileutils'
 require 'redcarpet'
@@ -12,11 +13,13 @@ class HackerbotConfigGenerator < StringGenerator
   attr_accessor :html_rendered
   attr_accessor :html_TOC_rendered
   attr_accessor :title
+  attr_accessor :zeroclaw_toml_rendered
 
   attr_accessor :local_dir
   attr_accessor :templates_path
   attr_accessor :config_template_path
   attr_accessor :html_template_path
+  attr_accessor :zeroclaw_config_builder
 
   def initialize
     super
@@ -27,6 +30,8 @@ class HackerbotConfigGenerator < StringGenerator
     self.root_password = ''
     self.html_rendered = ''
     self.html_TOC_rendered = ''
+    self.zeroclaw_toml_rendered = ''
+    self.zeroclaw_config_builder = ZeroClawConfigBuilder.new
 
     self.local_dir = File.expand_path('../../', __FILE__)
     self.templates_path = "#{self.local_dir}/templates/"
@@ -91,7 +96,6 @@ class HackerbotConfigGenerator < StringGenerator
   end
 
   def generate
-
     # Print.debug self.accounts.to_s
     xml_template_out = ERB.new(File.read(self.config_template_path), 0, '<>-')
     xml_config = xml_template_out.result(self.get_binding)
@@ -105,7 +109,25 @@ class HackerbotConfigGenerator < StringGenerator
     html_template_out = ERB.new(File.read(self.html_template_path), 0, '<>-')
     html_out = html_template_out.result(self.get_binding)
 
-    json = {'xml_config' => xml_config.force_encoding('UTF-8'), 'html_lab_sheet' => html_out.force_encoding('UTF-8')}.to_json.force_encoding('UTF-8')
+    # Generate ZeroClaw TOML configuration for parallel deployment
+    self.zeroclaw_config_builder.accounts = self.accounts
+    self.zeroclaw_config_builder.flags = self.flags
+    self.zeroclaw_config_builder.root_password = self.root_password
+    self.zeroclaw_config_builder.scenario_id = self.title
+    
+    begin
+      self.zeroclaw_toml_rendered = self.zeroclaw_config_builder.generate_toml_config
+    rescue => e
+      Print.warn "Failed to generate ZeroClaw config: #{e.message}"
+      self.zeroclaw_toml_rendered = "# ZeroClaw config generation failed: #{e.message}"
+    end
+
+    # Output both Ruby XML and ZeroClaw TOML configs
+    json = {
+      'xml_config' => xml_config.force_encoding('UTF-8'),
+      'html_lab_sheet' => html_out.force_encoding('UTF-8'),
+      'zeroclaw_toml_config' => self.zeroclaw_toml_rendered.force_encoding('UTF-8')
+    }.to_json.force_encoding('UTF-8')
     self.outputs << json.to_s
   end
 
