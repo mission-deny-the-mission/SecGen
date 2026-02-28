@@ -240,9 +240,25 @@ end
 %>
     <%= system.name %>.vm.box = "<%= selected_module.module_path_name %>"
     <%= system.name %>.vm.box_url = "<%= selected_module.attributes['url'].first %>"
+    <%# Fix for vagrant cloud boxes - use the short name format %>
+    <% if selected_module.attributes['url'].first =~ /vagrantup\.com.*boxes\/([^\/]+)/ %>
+    <%= system.name %>.vm.box = "secgen/<%= $1 %>"
+    <%= system.name %>.vm.box_url = ""
+    <% end %>
+    <%# Increase memory %>
+    <%= system.name %>.vm.provider :virtualbox do |vb|
+      vb.customize ['modifyvm', :id, '--ioapic', 'on']
+      vb.customize ['storagectl', :id, '--name', 'IDE Controller', '--hostiocache', 'on']
+      vb.customize ['modifyvm', :id, '--memory', '2048']
+    end
 <%
   end
 %>
+    <%# Resize disk to 40GB after VM is created - runs on host before first provision %>
+    <%= system.name %>.trigger :before, :provision do |trigger|
+      trigger.name = "Resize disk to 40GB"
+      trigger.run = {inline: "VBoxManage modifyhd \"$(VBoxManage showvminfo '#{system.name}' --machinereadable 2>/dev/null | grep -i 'SATA-Port0' | head -1 | cut -d'\"' -f2)\" --resize 40960 2>/dev/null || true"}
+    end
     <% if selected_module.attributes['platform'].first.downcase == 'windows' %>
     <%= system.name %>.vm.communicator = 'winssh'
     <%= system.name %>.vm.guest = :windows
@@ -308,7 +324,7 @@ end
          #   project out directory of the secgen_functions module
          json_inputs_filename = "#{selected_module.module_path_end}_#{SecureRandom.hex(15).to_s}"
          dir = "#{@out_dir}/puppet/#{system.name}/modules/secgen_functions/files/json_inputs"
-         FileUtils.mkdir_p(dir) unless File.exists?(dir)
+         FileUtils.mkdir_p(dir) unless File.exist?(dir)
          Print.verbose "Writing #{selected_module.module_path_name} input to: #{dir}/#{json_inputs_filename}"
          File.write("#{dir}/#{json_inputs_filename}", b64_json_inputs)
       -%>

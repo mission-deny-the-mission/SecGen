@@ -1,5 +1,6 @@
 require 'rubygems'
 require 'process_helper'
+require_relative 'constants'
 
 class GemExec
 
@@ -17,8 +18,8 @@ class GemExec
       gem_path = ""
       # new versions of vagrant are executed directly
       # this is the most reliable way of checking for vagrant, when multiple versions are isntalled
-      if gem_name == 'vagrant' && File.file?("/usr/bin/vagrant")
-        gem_path = "/usr/bin/vagrant"
+      if gem_name == 'vagrant' && File.file?("/opt/vagrant/bin/vagrant")
+        gem_path = "/opt/vagrant/bin/vagrant"
       end
       # test if the program is already installed via package management (for example, vagrant now does this)
       if gem_path.empty?
@@ -50,8 +51,15 @@ class GemExec
     output_hash = {:output => '', :status => 0, :exception => nil}
     Dir.chdir(working_dir) do
       begin
+        # For vagrant, don't use BUNDLE_GEMFILE - just run it directly
+        # programr is now installed globally
+        if gem_name == 'vagrant'
+          full_cmd = "#{gem_path} #{arguments}"
+        else
+          full_cmd = "#{gem_path} #{arguments}"
+        end
         # Times out after 30 minutes, (TODO: make this configurable)
-        output_hash[:output] = ProcessHelper.process("#{gem_path} #{arguments}", {:pty => true, :timeout => (60 * 30),
+        output_hash[:output] = ProcessHelper.process(full_cmd, {:pty => true, :timeout => (60 * 30),
                                                                                   include_output_in_exception: true})
       rescue Exception => ex
         output_hash[:status] = 1

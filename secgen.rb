@@ -126,9 +126,10 @@ end
 # Builds the vm via the vagrant file in the project dir
 # @param project_dir
 def build_vms(scenario, project_dir, options)
-  unless project_dir.include? ROOT_DIR
+  # Only prepend ROOT_DIR if it's truly a relative path (doesn't start with /)
+  unless project_dir.start_with?('/') || project_dir.include?(ROOT_DIR)
     Print.info 'Relative path to project detected'
-    project_dir = "#{ROOT_DIR}/#{project_dir}"
+    project_dir = File.join(ROOT_DIR, project_dir)
     Print.info "Using #{project_dir}"
   end
 

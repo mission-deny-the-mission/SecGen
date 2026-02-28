@@ -345,8 +345,16 @@ class System
           # TODO: this works, but subsequent attempts at resolving the scenario always fail ("Error can't add no data...")
           raise 'failed'
         end
-        output_array = outputs.split("\n")
-        selected.output = output_array.map { |o| (Base64.strict_decode64 o).force_encoding('UTF-8') }
+        # Join all output lines and decode as a single base64 string
+        # This handles cases where base64 output contains newlines or is very long
+        output_joined = outputs.strip.gsub(/\s+/, '')
+        begin
+          selected.output = [(Base64.strict_decode64(output_joined)).force_encoding('UTF-8')]
+        rescue ArgumentError => e
+          # If base64 decoding fails, use raw output (some modules don't encode)
+          Print.warn "Base64 decode failed for module output, using raw output: #{e.message}"
+          selected.output = [outputs.force_encoding('UTF-8')]
+        end
       end
 
       # store the output of the module into a datastore, if specified

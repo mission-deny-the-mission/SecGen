@@ -97,7 +97,7 @@ class HackerbotConfigGenerator < StringGenerator
 
   def generate
     # Print.debug self.accounts.to_s
-    xml_template_out = ERB.new(File.read(self.config_template_path), 0, '<>-')
+    xml_template_out = ERB.new(File.read(self.config_template_path), trim_mode: '<>-')
     xml_config = xml_template_out.result(self.get_binding)
 
     lab_sheet_markdown = generate_lab_sheet(xml_config)
@@ -106,7 +106,7 @@ class HackerbotConfigGenerator < StringGenerator
     self.html_rendered = redcarpet.render(lab_sheet_markdown).force_encoding('UTF-8')
     redcarpet_toc = Redcarpet::Markdown.new(Redcarpet::Render::HTML_TOC.new())
     self.html_TOC_rendered = redcarpet_toc.render(lab_sheet_markdown).force_encoding('UTF-8')
-    html_template_out = ERB.new(File.read(self.html_template_path), 0, '<>-')
+    html_template_out = ERB.new(File.read(self.html_template_path), trim_mode: '<>-')
     html_out = html_template_out.result(self.get_binding)
 
     # Generate ZeroClaw TOML configuration for parallel deployment

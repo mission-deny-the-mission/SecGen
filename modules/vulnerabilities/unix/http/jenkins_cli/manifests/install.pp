@@ -20,10 +20,11 @@ class jenkins_cli::install {
     }
   }
 
-  # This generates a repo file so we can get packages from debian stretch
-  file { '/etc/apt/sources.list.d/stretch.list':
-    ensure => file,
-    source => 'puppet:///modules/jenkins_cli/stretch.list'
+  # Archive.debian.org sources are now configured by unix_update module
+  # Just ensure apt.conf.d settings are in place for this module
+  file { '/etc/apt/apt.conf.d/99archive':
+    ensure  => file,
+    content => "Acquire::Check-Valid-Until \"false\";\nAcquire::Check-Date \"false\";\nAcquire::AllowInsecureRepositories \"true\";\n",
   }
   -> exec { 'update-packages':
     command => 'apt update'
