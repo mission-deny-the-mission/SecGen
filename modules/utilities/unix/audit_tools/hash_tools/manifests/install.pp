@@ -2,7 +2,7 @@ class hash_tools::install{
   package { ['md5deep']:
     ensure => 'installed',
   }
-  case $::operatingsystem {
+  case $facts['os']['name'] {
     'Debian': {
       exec { 'hash_tools_apt_update':
         command   => '/usr/bin/apt-get update --fix-missing',

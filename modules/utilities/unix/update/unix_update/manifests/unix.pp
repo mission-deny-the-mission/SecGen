@@ -1,9 +1,9 @@
 class unix_update::unix{
-  case $::operatingsystem {
+  case $facts['os']['name'] {
     'Debian': {
       # Only force archive.debian.org for legacy Debian releases.
       # Newer releases (buster/bookworm/...) should keep their default repos.
-      if versioncmp($::operatingsystemrelease, '10') < 0 {
+      if versioncmp($facts['os']['release']['major'], '10') < 0 {
         file { '/etc/apt/sources.list':
           ensure  => file,
           content => "deb http://archive.debian.org/debian stretch main contrib non-free\ndeb http://archive.debian.org/debian-security stretch/updates main contrib non-free\n",
