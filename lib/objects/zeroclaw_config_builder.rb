@@ -8,6 +8,7 @@
 require 'json'
 require 'securerandom'
 require 'erb'
+require 'time'
 
 class ZeroClawConfigBuilder
   attr_accessor :accounts
@@ -25,7 +26,7 @@ class ZeroClawConfigBuilder
     self.irc_server_ip = 'localhost'
     self.irc_port = 6668
     self.scenario_id = ''
-    self.templates_path = File.expand_path('../../../../modules/generators/structured_content/hackerbot_config', __FILE__)
+    self.templates_path = File.expand_path('../../modules/generators/structured_content/hackerbot_config', __dir__)
   end
   
   # Generate ZeroClaw TOML config from SecGen datastore values

@@ -244,7 +244,6 @@ end
     <%= system.name %>.vm.provider :virtualbox do |vb|
       vb.customize ['modifyvm', :id, '--ioapic', 'on']
       vb.customize ['storagectl', :id, '--name', 'IDE Controller', '--hostiocache', 'on']
-      vb.customize ['modifyvm', :id, '--memory', '2048']
     end
 <%
   end
