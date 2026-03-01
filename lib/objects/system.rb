@@ -345,14 +345,23 @@ class System
           # TODO: this works, but subsequent attempts at resolving the scenario always fail ("Error can't add no data...")
           raise 'failed'
         end
-        # Join all output lines and decode as a single base64 string
-        # This handles cases where base64 output contains newlines or is very long
-        output_joined = outputs.strip.gsub(/\s+/, '')
-        begin
-          selected.output = [(Base64.strict_decode64(output_joined)).force_encoding('UTF-8')]
-        rescue ArgumentError => e
-          # If base64 decoding fails, use raw output (some modules don't encode)
-          Print.warn "Base64 decode failed for module output, using raw output: #{e.message}"
+        # Local generators write one base64-encoded output per line on stdout.
+        # Ignore any non-base64 noise lines and decode valid entries only.
+        decoded_outputs = []
+        outputs.each_line do |line|
+          candidate = line.strip
+          next if candidate.empty?
+          begin
+            decoded_outputs << Base64.strict_decode64(candidate).force_encoding('UTF-8')
+          rescue ArgumentError
+            # Ignore non-base64 lines that may appear in stdout.
+          end
+        end
+        if decoded_outputs.size > 0
+          selected.output = decoded_outputs
+        else
+          # Preserve legacy behavior for modules that output plain text only.
+          Print.warn "Base64 decode failed for module output, using raw output"
           selected.output = [outputs.force_encoding('UTF-8')]
         end
       end

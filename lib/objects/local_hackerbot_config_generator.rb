@@ -118,7 +118,8 @@ class HackerbotConfigGenerator < StringGenerator
     begin
       self.zeroclaw_toml_rendered = self.zeroclaw_config_builder.generate_toml_config
     rescue => e
-      Print.warn "Failed to generate ZeroClaw config: #{e.message}"
+      # Use stderr so status/warning text does not contaminate stdout module outputs.
+      Print.err "Warning: Failed to generate ZeroClaw config: #{e.message}"
       self.zeroclaw_toml_rendered = "# ZeroClaw config generation failed: #{e.message}"
     end
 

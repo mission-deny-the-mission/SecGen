@@ -27,5 +27,4 @@ mod 'SecGen-<%= selected_module.module_path_name %>/<%= selected_module.module_p
 <%  end -%>
 
 # stdlib is used throughout (ensure_packages, parsejson, etc), placing it last ensures a compatible version is selected
-# Pin to 4.25.1 for compatibility with Debian Stretch Puppet (3.8.5)
-mod 'puppetlabs-stdlib', '4.25.1'
+mod 'puppetlabs-stdlib'
