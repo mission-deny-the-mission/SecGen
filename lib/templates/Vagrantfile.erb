@@ -240,11 +240,6 @@ end
 %>
     <%= system.name %>.vm.box = "<%= selected_module.module_path_name %>"
     <%= system.name %>.vm.box_url = "<%= selected_module.attributes['url'].first %>"
-    <%# Fix for vagrant cloud boxes - use the short name format %>
-    <% if selected_module.attributes['url'].first =~ /vagrantup\.com.*boxes\/([^\/]+)/ %>
-    <%= system.name %>.vm.box = "secgen/<%= $1 %>"
-    <%= system.name %>.vm.box_url = ""
-    <% end %>
     <%# Increase memory %>
     <%= system.name %>.vm.provider :virtualbox do |vb|
       vb.customize ['modifyvm', :id, '--ioapic', 'on']
