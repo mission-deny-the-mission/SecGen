@@ -1,6 +1,6 @@
 [Unit]
 Description=ZeroClaw AI Agent for SecGen Hackerbot
-Documentation=https://github.com/openagen/zeroclaw
+Documentation=https://github.com/zeroclaw-labs/zeroclaw
 After=network.target inspircd.service ollama.service
 Wants=inspircd.service ollama.service
 
@@ -9,7 +9,7 @@ Type=simple
 User=root
 Group=root
 WorkingDirectory=/opt/zeroclaw
-ExecStart=/opt/zeroclaw/zeroclaw channel start
+ExecStart=/opt/zeroclaw/zeroclaw --config /opt/zeroclaw/config.toml
 Restart=on-failure
 RestartSec=10
 StandardOutput=journal
