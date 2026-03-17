@@ -238,8 +238,35 @@ end
 <%
     when "virtualbox"
 %>
+<%
+    virtualbox_url = selected_module.attributes['url']&.first
+    vagrant_cloud_url_match = virtualbox_url&.match(%r{\Ahttps?://app\.vagrantup\.com/([^/]+)/boxes/([^/]+)/versions/([^/]+)/providers/virtualbox(?:\.box|/.*)?\z})
+%>
+<% if vagrant_cloud_url_match %>
+    <%= system.name %>.vm.box = "<%= vagrant_cloud_url_match[1] %>/<%= vagrant_cloud_url_match[2] %>"
+    <%= system.name %>.vm.box_version = "<%= vagrant_cloud_url_match[3] %>"
+<% else %>
     <%= system.name %>.vm.box = "<%= selected_module.module_path_name %>"
-    <%= system.name %>.vm.box_url = "<%= selected_module.attributes['url'].first %>"
+    <%= system.name %>.vm.box_url = "<%= virtualbox_url %>"
+<% end %>
+    <% if virtualbox_url&.include?('/boxes/bookworm-base/') %>
+    # bookworm-base currently lacks reliable vagrant insecure-key auth.
+    # Bootstrap with password auth, then let Vagrant insert a temporary key
+    # so rsync/synced-folder operations stay non-interactive.
+    <%= system.name %>.ssh.username = 'vagrant'
+    <%= system.name %>.ssh.password = 'vagrant'
+    <%= system.name %>.ssh.insert_key = true
+    <%= system.name %>.ssh.keys_only = false
+    <% end %>
+    <%# Increase memory %>
+    <%= system.name %>.vm.provider :virtualbox do |vb|
+      vb.customize ['modifyvm', :id, '--ioapic', 'on']
+    end
+    <%# Enable host I/O cache on whichever storage controller exists in this box. %>
+    <%= system.name %>.trigger :before, :provision do |trigger|
+      trigger.name = "Enable VirtualBox host I/O cache"
+      trigger.run = {inline: "controller=\"$(VBoxManage showvminfo '#{system.name}' --machinereadable 2>/dev/null | grep -E '^storagecontrollername[0-9]+=' | head -1 | cut -d'\"' -f2)\"; [ -n \"$controller\" ] && VBoxManage storagectl '#{system.name}' --name \"$controller\" --hostiocache on 2>/dev/null || true"}
+    end
 <%
   end
 %>
@@ -308,7 +335,7 @@ end
          #   project out directory of the secgen_functions module
          json_inputs_filename = "#{selected_module.module_path_end}_#{SecureRandom.hex(15).to_s}"
          dir = "#{@out_dir}/puppet/#{system.name}/modules/secgen_functions/files/json_inputs"
-         FileUtils.mkdir_p(dir) unless File.exists?(dir)
+         FileUtils.mkdir_p(dir) unless File.exist?(dir)
          Print.verbose "Writing #{selected_module.module_path_name} input to: #{dir}/#{json_inputs_filename}"
          File.write("#{dir}/#{json_inputs_filename}", b64_json_inputs)
       -%>

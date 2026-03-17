@@ -1,24 +1,12 @@
 class vsftpd_234_backdoor::install {
 
-  # Add 32bit libs for stretch
-  case $operatingsystemrelease {
-    /^(9|1[0-9]).*/: { # do 9.x stretch stuff
-      exec { 'add_32bit_libs':
-        command => '/usr/bin/dpkg --add-architecture i386 && /usr/bin/apt-get update'
-      }
-      package { ['libssl-dev:i386','libpam0g-dev:i386']:
-        ensure => installed,
-        require => Exec['add_32bit_libs'],
-      }
-    }
-  }
-
-  # Install dependencies
+  # Install dependencies (native architecture)
+  # Note: 32-bit compilation removed as it causes issues on modern Debian systems
+  # where i386 packages may not be available in all mirrors
   package { ['libssl-dev' ,'libpam0g-dev']:
     ensure => installed,
   }
   ensure_packages('build-essential')
-  ensure_packages('gcc-multilib')
 
   # Required directories
   file { ['/usr/share/empty','/var/ftp','/usr/local/man/man5/', '/usr/local/man/man8/']:
@@ -41,18 +29,27 @@ class vsftpd_234_backdoor::install {
     creates     => '/usr/local/src/vsftpd-2.3.4/',
   }
 
+  # Clean pre-compiled object files from tarball (they are 32-bit)
+  exec { 'clean-old-objects':
+    require     => Exec['unzip-vsftpd'],
+    command     => '/usr/bin/make clean',
+    cwd         => '/usr/local/src/vsftpd-2.3.4',
+    onlyif      => '/usr/bin/test -f /usr/local/src/vsftpd-2.3.4/main.o',
+  }
+
   # Use module Makefile
   file { ['/usr/local/src/vsftpd-2.3.4/Makefile']:
-    require  => Exec['unzip-vsftpd'],
+    require  => Exec['clean-old-objects'],
     ensure   => file,
     content  => file('vsftpd_234_backdoor/Makefile'),
   }
 
   # Make
   exec { 'make-vsftpd':
-    require     => File['/etc/vsftpd.conf', '/usr/local/man/man5/vsftpd.conf.5', '/usr/local/man/man8/vsftpd.8'],
+    require     => File['/usr/local/src/vsftpd-2.3.4/Makefile', '/etc/vsftpd.conf', '/usr/local/man/man5/vsftpd.conf.5', '/usr/local/man/man8/vsftpd.8'],
     command     => '/usr/bin/make',
-    cwd         => '/usr/local/src/vsftpd-2.3.4'
+    cwd         => '/usr/local/src/vsftpd-2.3.4',
+    creates     => '/usr/local/src/vsftpd-2.3.4/vsftpd',
   }
 
   # Make install

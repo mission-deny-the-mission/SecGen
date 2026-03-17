@@ -69,6 +69,9 @@
     <utility module_path=".*/handy_cli_tools"/>
     <utility module_path=".*/hash_tools"/>
     <utility module_path=".*/pam_modules"/>
+    <utility module_path=".*/ldap_packages"/>
+    <utility module_path=".*/ad_packages"/>
+
 
     <utility module_path=".*/iceweasel">
       <input into="accounts">
@@ -103,7 +106,7 @@
   </system>
 
   <system>
-    <system_name>server</system_name>
+    <system_name>servr</system_name>
     <base distro="Debian 12" type="desktop" name="KDE"/>
 
     <!--Create the users-->
@@ -116,6 +119,8 @@
     <utility module_path=".*/handy_cli_tools"/>
 
     <vulnerability type="ftp"/>
+
+    <utility module_path=".*/apparmor"/>
 
     <service module_path="services/unix/http/parameterised_website">
       <input into="organisation" into_datastore="organisation">
@@ -173,6 +178,8 @@
     <utility module_path=".*/handy_cli_tools"/>
     <utility module_path=".*/hash_tools"/>
     <utility module_path=".*/pam_modules"/>
+    <utility module_path=".*/ldap_packages"/>
+    <utility module_path=".*/ad_packages"/>
 
     <utility module_path=".*/iceweasel">
       <input into="accounts">
@@ -206,7 +213,7 @@
   </system>
 
   <system>
-    <system_name>auth_server</system_name>
+    <system_name>auth_servr</system_name>
     <base distro="Debian 12" type="desktop" name="KDE"/>
 
     <!--Create the users-->
@@ -218,6 +225,30 @@
 
     <utility module_path=".*/handy_cli_tools"/>
 
+    <!-- LDAP Server with phpLDAPadmin web interface -->
+    <utility module_path=".*/ldap_server">
+      <input into="domain">
+        <value>safetynet.local</value>
+      </input>
+      <input into="organization">
+        <value>SAFETYNET</value>
+      </input>
+      <input into="admin_password" into_datastore="ldap_admin_pass">
+        <value>tiaspbiqe2r</value>
+      </input>
+    </utility>
+
+    <utility module_path=".*/iceweasel">
+      <input into="accounts">
+        <datastore>user_accounts</datastore>
+      </input>
+      <input into="autostart">
+        <value>true</value>
+      </input>
+      <input into="start_page">
+        <value>http://localhost/phpldapadmin</value>
+      </input>
+    </utility>
 
     <vulnerability module_path=".*/ssh_root_login">
       <input into="root_password">
