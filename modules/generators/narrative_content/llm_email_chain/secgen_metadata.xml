@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+
+<generator xmlns="http://www.github/cliffe/SecGen/generator"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://www.github/cliffe/SecGen/generator">
+  <name>LLM Email Chain Generator</name>
+  <author>SecGen AI Integration</author>
+  <module_license>MIT</module_license>
+  <description>Generates realistic email chains using LLM for cybersecurity training. Produces coherent multi-message conversations with investigation clues.</description>
+
+  <type>llm_email_chain</type>
+  <type>llm_narrative</type>
+  <type>llm_evidence</type>
+
+  <platform>linux</platform>
+  <platform>unix</platform>
+
+  <read_fact>organisation</read_fact>
+  <read_fact>theme</read_fact>
+  <read_fact>num_emails</read_fact>
+  <read_fact>seed</read_fact>
+  <read_fact>llm_model</read_fact>
+  <read_fact>participants</read_fact>
+
+  <default_input into="theme">
+    <value>insider_threat</value>
+  </default_input>
+  <default_input into="num_emails">
+    <value>5</value>
+  </default_input>
+
+  <output_type>narrative_content</output_type>
+</generator>

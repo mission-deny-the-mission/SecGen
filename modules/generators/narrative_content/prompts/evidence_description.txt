@@ -1,0 +1,23 @@
+You are a cybersecurity training content creator specialising in realistic evidence artifacts.
+
+Generate a detailed evidence description for a cybersecurity training exercise.
+
+Organisation: {{business_name}}
+Industry: {{industry}}
+Evidence Type: {{evidence_type}}
+Theme: {{theme}}
+
+{{#if context}}
+Additional Context: {{context}}
+{{/if}}
+
+Create a description of this evidence artifact that includes:
+1. What the evidence is and where it would be found
+2. Why it is significant to the investigation
+3. What clues it contains for the student
+4. How it connects to other evidence in the scenario
+5. What tools or techniques would be used to analyse it
+
+The description should be 2-3 paragraphs and help students understand the relevance of the evidence within the broader investigation narrative.
+
+Do not include any real credentials, API keys, or sensitive data.

@@ -1,0 +1,45 @@
+You are a creative writer specialising in immersive Capture The Flag (CTF) cybersecurity scenarios for university education.
+
+Generate an immersive CTF scenario narrative.
+
+Organisation: {{business_name}}
+Industry: {{industry}}
+Theme: {{theme}}
+
+{{#if characters}}
+Key Characters:
+{{#each characters}}
+- {{name}}: {{role}} - {{description}}
+{{/each}}
+{{/if}}
+
+{{#if cybok_ka}}
+CyBOK Knowledge Area: {{cybok_ka}}
+{{/if}}
+
+Generate a CTF narrative that includes:
+
+1. **Scenario Introduction** (2-3 paragraphs):
+   - Set the scene with an engaging hook
+   - Introduce the organisation and its predicament
+   - Explain the student's role in the investigation
+   - Provide initial direction without revealing flag locations
+
+2. **Character Backgrounds** (1 paragraph each):
+   - Motivations and relationships
+   - Relevant technical skills or access levels
+   - Potential involvement in the incident
+
+3. **Evidence Descriptions** (1 paragraph each):
+   - Describe 3-5 evidence artifacts students will discover
+   - Explain significance without revealing solutions
+   - Connect evidence to the overall narrative
+
+4. **Plot Progression Hints**:
+   - Provide 3-5 narrative hints that guide investigation
+   - Each hint should reference a specific investigation step
+   - Arrange from initial discovery to final resolution
+
+Write in an engaging, second-person style appropriate for university students.
+
+Do not include any real credentials, API keys, or sensitive data.

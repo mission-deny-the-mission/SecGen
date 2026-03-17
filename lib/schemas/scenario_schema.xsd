@@ -17,6 +17,7 @@
         <xs:element name="video" type="VideoType" minOccurs="0" maxOccurs="unbounded" />
         <xs:element name="reading" type="ReadingType" minOccurs="0" maxOccurs="unbounded" />
 
+        <xs:element name='narrative' type='NarrativeType' minOccurs='0' maxOccurs='unbounded' />
         <xs:element name='system' type='SystemType' minOccurs='0' maxOccurs='unbounded' />
       </xs:sequence>
     </xs:complexType>
@@ -192,6 +193,39 @@
         <xs:attribute name="access_json" type="xs:string"/>
       </xs:extension>
     </xs:simpleContent>
+  </xs:complexType>
+
+  <!-- Narrative element for LLM-generated narrative content -->
+  <xs:complexType name="NarrativeType">
+    <xs:sequence>
+      <xs:element name="introduction" type="NarrativeContentType" minOccurs="0" maxOccurs="1"/>
+      <xs:element name="documents" type="NarrativeDocumentsType" minOccurs="0" maxOccurs="1"/>
+    </xs:sequence>
+    <xs:attribute name="theme" type="xs:string"/>
+    <xs:attribute name="cybok_ka" type="xs:string"/>
+    <xs:attribute name="cybok_topic" type="xs:string"/>
+  </xs:complexType>
+
+  <xs:complexType name="NarrativeContentType">
+    <xs:sequence>
+      <xs:element name="generator" type="ServiceUtilityBuildEncoderGeneratorType" minOccurs="0" maxOccurs="1"/>
+      <xs:element name="value" type="xs:string" minOccurs="0" maxOccurs="1"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="NarrativeDocumentsType">
+    <xs:sequence>
+      <xs:element name="document" type="NarrativeDocumentType" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="NarrativeDocumentType">
+    <xs:sequence>
+      <xs:element name="generator" type="ServiceUtilityBuildEncoderGeneratorType" minOccurs="0" maxOccurs="1"/>
+      <xs:element name="value" type="xs:string" minOccurs="0" maxOccurs="1"/>
+    </xs:sequence>
+    <xs:attribute name="type" type="xs:string"/>
+    <xs:attribute name="name" type="xs:string"/>
   </xs:complexType>
 
 </xs:schema>

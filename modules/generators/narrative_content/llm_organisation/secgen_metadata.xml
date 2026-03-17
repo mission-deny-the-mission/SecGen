@@ -1,0 +1,34 @@
+<?xml version="1.0"?>
+
+<generator xmlns="http://www.github/cliffe/SecGen/generator"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://www.github/cliffe/SecGen/generator">
+  <name>LLM Organisation Generator</name>
+  <author>SecGen AI Integration</author>
+  <module_license>MIT</module_license>
+  <description>Generates complete organisation profiles using LLM for immersive cybersecurity training scenarios. Produces JSON output compatible with existing organisation schema.</description>
+
+  <type>organisation</type>
+  <type>llm_organisation</type>
+  <type>llm_narrative</type>
+
+  <platform>linux</platform>
+  <platform>unix</platform>
+
+  <read_fact>industry</read_fact>
+  <read_fact>theme</read_fact>
+  <read_fact>seed</read_fact>
+  <read_fact>llm_provider</read_fact>
+  <read_fact>llm_model</read_fact>
+  <read_fact>business_name</read_fact>
+  <read_fact>num_employees</read_fact>
+
+  <default_input into="industry">
+    <value>Technology</value>
+  </default_input>
+  <default_input into="theme">
+    <value>investigation</value>
+  </default_input>
+
+  <output_type>organisation</output_type>
+</generator>

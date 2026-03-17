@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+
+<generator xmlns="http://www.github/cliffe/SecGen/generator"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://www.github/cliffe/SecGen/generator">
+  <name>LLM Website Content Generator</name>
+  <author>SecGen AI Integration</author>
+  <module_license>MIT</module_license>
+  <description>Generates realistic website content using LLM for cybersecurity training. Supports company info pages, defaced pages, login portals, and more.</description>
+
+  <type>llm_website_content</type>
+  <type>llm_narrative</type>
+  <type>llm_evidence</type>
+
+  <platform>linux</platform>
+  <platform>unix</platform>
+
+  <read_fact>organisation</read_fact>
+  <read_fact>theme</read_fact>
+  <read_fact>content_type</read_fact>
+  <read_fact>seed</read_fact>
+  <read_fact>llm_model</read_fact>
+
+  <default_input into="theme">
+    <value>investigation</value>
+  </default_input>
+  <default_input into="content_type">
+    <value>company_info</value>
+  </default_input>
+
+  <output_type>narrative_content</output_type>
+</generator>

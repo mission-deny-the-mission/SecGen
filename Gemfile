@@ -42,6 +42,12 @@ gem 'rest-client'
 gem 'retryable'
 gem 'sqlite3'
 
+# LLM narrative generation dependencies
+# Note: LLM providers use net/http (stdlib) - no additional gems required for basic HTTP.
+# These are optional gems for enhanced provider support:
+gem 'ruby-openai', require: false  # Enhanced OpenAI client (optional)
+gem 'anthropic', require: false    # Enhanced Anthropic client (optional)
+
 #development only gems go here
 group :test, :development do
   gem 'minitest'

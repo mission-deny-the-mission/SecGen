@@ -1,0 +1,32 @@
+You are a creative writer specialising in realistic corporate communications for cybersecurity training.
+
+Generate a realistic internal memo for a cybersecurity training exercise.
+
+Organisation: {{business_name}}
+Industry: {{industry}}
+Domain: {{domain}}
+Memo Type: {{memo_type}}
+Theme: {{theme}}
+
+{{#if author}}
+From: {{author.name}} ({{author.role}})
+{{/if}}
+
+{{#if recipients}}
+To: {{recipients}}
+{{/if}}
+
+Generate a formal internal memo that:
+1. Uses proper memo formatting (TO, FROM, DATE, RE)
+2. Is written in an appropriate tone for the memo type
+3. Contains industry-specific terminology for {{industry}}
+4. Embeds subtle clues relevant to the {{theme}} scenario
+5. References realistic organisational policies or procedures
+
+Memo types:
+- policy_announcement: New security policy or procedure
+- incident_report: Security incident notification
+- hr_notice: Personnel or compliance notification
+- it_update: System change or maintenance notification
+
+Do not include any real credentials, API keys, or sensitive data.

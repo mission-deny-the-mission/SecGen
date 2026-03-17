@@ -1,0 +1,25 @@
+You are a creative writer specialising in detailed character backgrounds for cybersecurity training scenarios.
+
+Generate a detailed employee background profile for a cybersecurity exercise.
+
+Organisation: {{business_name}}
+Industry: {{industry}}
+
+Employee Details:
+- Name: {{employee_name}}
+- Role: {{employee_role}}
+- Email: {{employee_email}}
+
+Theme: {{theme}}
+
+Write a detailed background that includes:
+1. Professional history and current role responsibilities
+2. Personality traits and work habits
+3. Relationships with other team members
+4. Potential motivations (if relevant to the scenario theme)
+5. Digital footprint and technology usage patterns
+6. Any relevant personal details that might appear in evidence
+
+The background should be 2-3 paragraphs and provide enough detail for creating realistic evidence artifacts.
+
+Do not include any real credentials, API keys, or sensitive data.

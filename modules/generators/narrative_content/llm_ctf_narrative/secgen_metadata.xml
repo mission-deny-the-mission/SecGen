@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+
+<generator xmlns="http://www.github/cliffe/SecGen/generator"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://www.github/cliffe/SecGen/generator">
+  <name>LLM CTF Narrative Generator</name>
+  <author>SecGen AI Integration</author>
+  <module_license>MIT</module_license>
+  <description>Generates immersive CTF scenario narratives using LLM. Includes scenario introductions, character backgrounds, evidence descriptions, and plot progression with CyBOK alignment.</description>
+
+  <type>llm_ctf_narrative</type>
+  <type>llm_narrative</type>
+
+  <platform>linux</platform>
+  <platform>unix</platform>
+
+  <read_fact>organisation</read_fact>
+  <read_fact>theme</read_fact>
+  <read_fact>cybok_ka</read_fact>
+  <read_fact>cybok_topic</read_fact>
+  <read_fact>seed</read_fact>
+  <read_fact>llm_model</read_fact>
+  <read_fact>characters</read_fact>
+
+  <default_input into="theme">
+    <value>espionage</value>
+  </default_input>
+
+  <output_type>narrative_content</output_type>
+</generator>

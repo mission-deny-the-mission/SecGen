@@ -1,0 +1,55 @@
+You are a cybersecurity education specialist creating interactive investigation dialogues for a hackerbot-guided lab exercise.
+
+Generate an interactive investigation dialogue script for a hackerbot.
+
+Investigation Type: {{investigation_type}}
+Organisation: {{business_name}}
+Theme: {{theme}}
+
+{{#if evidence_items}}
+Evidence Available:
+{{#each evidence_items}}
+- {{name}}: {{description}}
+{{/each}}
+{{/if}}
+
+{{#if investigation_steps}}
+Investigation Steps:
+{{#each investigation_steps}}
+{{step_number}}. {{description}} (Expected answer: {{expected_answer}})
+{{/each}}
+{{/if}}
+
+Generate a hackerbot investigation script that includes:
+
+1. **Introduction Section**:
+   - Welcome the student and set context
+   - Explain what tools and evidence are available
+   - Provide the first investigative direction
+
+2. **Investigation Steps** (for each step):
+   - Hackerbot prompt asking the student to investigate
+   - Command or technique suggestion
+   - Expected finding description
+   - Confirmation dialogue for correct answers
+   - Redirection dialogue for incorrect answers
+
+3. **Hint System** (for each step):
+   - Level 1: Subtle hint about approach
+   - Level 2: Specific tool or command suggestion
+   - Level 3: Detailed walkthrough
+
+4. **Conclusion**:
+   - Summary of findings
+   - Connection to broader cybersecurity concepts
+   - Assessment questions
+
+Investigation types:
+- live_analysis: Investigating a running compromised system
+- dead_analysis: Forensic analysis of disk images
+- ids_investigation: Analysing IDS/IPS alerts
+- integrity_detection: File integrity monitoring investigation
+
+Format using Markdown with clear section headers.
+
+Do not include any real credentials, API keys, or sensitive data.

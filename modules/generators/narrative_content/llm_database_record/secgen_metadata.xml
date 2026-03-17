@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+
+<generator xmlns="http://www.github/cliffe/SecGen/generator"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://www.github/cliffe/SecGen/generator">
+  <name>LLM Database Record Generator</name>
+  <author>SecGen AI Integration</author>
+  <module_license>MIT</module_license>
+  <description>Generates realistic database records using LLM for cybersecurity training. Supports customer data, transactions, access logs, and employee records.</description>
+
+  <type>llm_database_record</type>
+  <type>llm_narrative</type>
+  <type>llm_evidence</type>
+
+  <platform>linux</platform>
+  <platform>unix</platform>
+
+  <read_fact>organisation</read_fact>
+  <read_fact>theme</read_fact>
+  <read_fact>record_type</read_fact>
+  <read_fact>num_records</read_fact>
+  <read_fact>seed</read_fact>
+  <read_fact>llm_model</read_fact>
+
+  <default_input into="theme">
+    <value>insider_threat</value>
+  </default_input>
+  <default_input into="record_type">
+    <value>customer_data</value>
+  </default_input>
+
+  <output_type>narrative_content</output_type>
+</generator>

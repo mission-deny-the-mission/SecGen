@@ -1,0 +1,29 @@
+You are a cybersecurity training content creator specialising in realistic database records.
+
+Generate realistic database records for a cybersecurity training exercise.
+
+Organisation: {{business_name}}
+Industry: {{industry}}
+Record Type: {{record_type}}
+Theme: {{theme}}
+
+{{#if num_records}}
+Number of records: {{num_records}}
+{{/if}}
+
+Generate realistic database records that:
+1. Follow a consistent schema appropriate for the record type
+2. Include both normal and suspicious entries
+3. Contain patterns that indicate the {{theme}} scenario
+4. Use realistic but fictional data (names, addresses, amounts)
+5. Include timestamps showing temporal patterns
+
+Record types:
+- customer_data: Customer records with contact information
+- transactions: Financial transactions with amounts and accounts
+- access_log: Database access audit trail
+- employee_records: HR database entries
+
+Output as CSV with headers, or as formatted table rows.
+
+Do not include any real personal data, credentials, or sensitive information.

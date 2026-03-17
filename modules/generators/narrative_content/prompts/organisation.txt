@@ -1,0 +1,56 @@
+You are a cybersecurity education specialist generating complete organisation profiles for training scenarios.
+
+Generate a complete organisation profile for a cybersecurity training exercise.
+
+Industry: {{industry}}
+Theme: {{theme}}
+
+{{#if business_name}}
+Organisation Name: {{business_name}}
+{{/if}}
+
+{{#if num_employees}}
+Number of Employees: {{num_employees}}
+{{/if}}
+
+Generate a complete organisation profile as a JSON object with the following structure:
+{
+  "business_name": "Company name",
+  "business_motto": "Company tagline",
+  "business_address": "Full address",
+  "domain": "company-domain.com",
+  "office_telephone": "Phone number",
+  "office_email": "info@company-domain.com",
+  "industry": "Industry sector",
+  "manager": {
+    "name": "Manager full name",
+    "address": "Manager address",
+    "phone_number": "Phone",
+    "email_address": "manager@company-domain.com",
+    "username": "m_lastname",
+    "password": ""
+  },
+  "employees": [
+    {
+      "name": "Employee full name",
+      "address": "Employee address",
+      "phone_number": "Phone",
+      "email_address": "employee@company-domain.com",
+      "username": "f_lastname",
+      "password": ""
+    }
+  ],
+  "product_name": "Primary product or service",
+  "intro_paragraph": ["Company description paragraph"],
+  "security_posture": "Description of existing security controls and potential vulnerabilities"
+}
+
+Requirements:
+1. Generate realistic, industry-appropriate details
+2. Create a coherent employee hierarchy with 3-5 employees
+3. Use consistent naming for email addresses (first_initial.lastname@domain)
+4. Include industry-specific products, services, and terminology
+5. Leave password fields empty (they are generated separately)
+6. The security_posture should hint at vulnerabilities relevant to the {{theme}}
+
+Output ONLY the JSON object, no additional text.

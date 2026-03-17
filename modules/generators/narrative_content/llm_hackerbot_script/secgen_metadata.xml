@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+
+<generator xmlns="http://www.github/cliffe/SecGen/generator"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://www.github/cliffe/SecGen/generator">
+  <name>LLM Hackerbot Script Generator</name>
+  <author>SecGen AI Integration</author>
+  <module_license>MIT</module_license>
+  <description>Generates interactive hackerbot investigation dialogue scripts using LLM. Supports live analysis, dead analysis, IDS investigation, and integrity detection with branching narrative paths and hint systems.</description>
+
+  <type>llm_hackerbot_script</type>
+  <type>llm_narrative</type>
+
+  <platform>linux</platform>
+  <platform>unix</platform>
+
+  <read_fact>organisation</read_fact>
+  <read_fact>theme</read_fact>
+  <read_fact>investigation_type</read_fact>
+  <read_fact>seed</read_fact>
+  <read_fact>llm_model</read_fact>
+  <read_fact>evidence_items</read_fact>
+  <read_fact>investigation_steps</read_fact>
+
+  <default_input into="theme">
+    <value>investigation</value>
+  </default_input>
+  <default_input into="investigation_type">
+    <value>live_analysis</value>
+  </default_input>
+
+  <output_type>narrative_content</output_type>
+</generator>

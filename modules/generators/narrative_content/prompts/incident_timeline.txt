@@ -1,0 +1,33 @@
+You are a cybersecurity incident documentation specialist creating training materials.
+
+Generate a detailed incident timeline for a cybersecurity training exercise.
+
+Organisation: {{business_name}}
+Industry: {{industry}}
+Incident Type: {{incident_type}}
+Theme: {{theme}}
+
+{{#if participants}}
+Key Personnel:
+{{#each participants}}
+- {{name}} ({{role}})
+{{/each}}
+{{/if}}
+
+Create a detailed incident timeline that includes:
+1. Initial compromise or trigger event with date/time
+2. Lateral movement or escalation events
+3. Detection or discovery events
+4. Response actions taken
+5. Key evidence artifacts created at each stage
+
+Format as a chronological timeline:
+[YYYY-MM-DD HH:MM] - [Event description] - [Evidence artifact]
+
+The timeline should:
+- Span a realistic time period (days to weeks depending on incident type)
+- Include both attacker and defender activities
+- Reference specific systems, tools, and techniques
+- Provide enough detail for students to reconstruct the incident
+
+Do not include any real credentials, API keys, or sensitive data.

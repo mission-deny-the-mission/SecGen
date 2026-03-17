@@ -1,0 +1,37 @@
+<?xml version="1.0"?>
+
+<generator xmlns="http://www.github/cliffe/SecGen/generator"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://www.github/cliffe/SecGen/generator">
+  <name>LLM Assessment Generator</name>
+  <author>SecGen AI Integration</author>
+  <module_license>MIT</module_license>
+  <description>Generates CyBOK-aligned assessment questions using LLM. Supports comprehension, application, and analysis question types aligned with CyBOK knowledge areas.</description>
+
+  <type>llm_assessment</type>
+  <type>llm_narrative</type>
+
+  <platform>linux</platform>
+  <platform>unix</platform>
+
+  <read_fact>organisation</read_fact>
+  <read_fact>theme</read_fact>
+  <read_fact>cybok_ka</read_fact>
+  <read_fact>cybok_topic</read_fact>
+  <read_fact>question_type</read_fact>
+  <read_fact>context</read_fact>
+  <read_fact>seed</read_fact>
+  <read_fact>llm_model</read_fact>
+
+  <default_input into="theme">
+    <value>investigation</value>
+  </default_input>
+  <default_input into="cybok_ka">
+    <value>MAT</value>
+  </default_input>
+  <default_input into="question_type">
+    <value>comprehension</value>
+  </default_input>
+
+  <output_type>narrative_content</output_type>
+</generator>

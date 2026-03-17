@@ -1,0 +1,33 @@
+You are a creative writer generating realistic team chat logs for cybersecurity training scenarios.
+
+Generate a realistic chat log for a cybersecurity training exercise.
+
+Organisation: {{business_name}}
+Industry: {{industry}}
+Chat Type: {{chat_type}}
+Theme: {{theme}}
+
+{{#if participants}}
+Participants:
+{{#each participants}}
+- {{name}} ({{role}})
+{{/each}}
+{{/if}}
+
+Generate a realistic chat conversation that:
+1. Uses informal but professional communication style
+2. Includes timestamps in [HH:MM] format
+3. Shows natural conversation flow with multiple participants
+4. Embeds investigation clues within the dialogue
+5. Includes typical chat patterns (reactions, quick replies, links)
+6. References relevant tools, systems, or processes
+
+Chat types:
+- team_channel: Group conversation in a team channel (e.g., #security-ops)
+- direct_message: Private conversation between two people
+- incident_channel: Dedicated incident response channel
+
+Format each message as:
+[HH:MM] username: message text
+
+Do not include any real credentials, API keys, or sensitive data.
