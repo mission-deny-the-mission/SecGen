@@ -71,6 +71,20 @@ def usage
    --esxi-no-hostname
               (Setting the hostname on some boxes can cause 'vagrant up' to fail if the network configuration wasn't previously cleaned up.)
 
+   HACKERBOT 2 LLM OPTIONS:
+   --hb2-llm-provider [provider]: LLM provider for Hackerbot 2 (ollama, openai, vllm, sglang)
+              (overrides value in scenario config, env: HB2_LLM_PROVIDER)
+   --hb2-llm-host [host]: LLM server host for Hackerbot 2
+              (overrides value in scenario config, env: HB2_LLM_HOST)
+   --hb2-llm-port [port]: LLM server port for Hackerbot 2
+              (overrides value in scenario config, env: HB2_LLM_PORT)
+   --hb2-llm-model [model]: LLM model name for Hackerbot 2
+              (overrides value in scenario config, env: HB2_LLM_MODEL)
+   --hb2-openai-api-key [key]: OpenAI API key for Hackerbot 2
+              (env: HB2_OPENAI_API_KEY)
+   --hb2-openai-base-url [url]: OpenAI API base URL for Hackerbot 2
+              (env: HB2_OPENAI_BASE_URL)
+
    PROXMOX OPTIONS:
    --proxmoxuser [username]
    --proxmoxpass [password]
@@ -513,11 +527,26 @@ opts = GetoptLong.new(
     ['--esxi-disktype', GetoptLong::REQUIRED_ARGUMENT],
     ['--esxi-guest-nictype', GetoptLong::REQUIRED_ARGUMENT],
     ['--esxi-no-hostname', GetoptLong::NO_ARGUMENT],
+    ['--hb2-llm-provider', GetoptLong::REQUIRED_ARGUMENT],
+    ['--hb2-llm-host', GetoptLong::REQUIRED_ARGUMENT],
+    ['--hb2-llm-port', GetoptLong::REQUIRED_ARGUMENT],
+    ['--hb2-llm-model', GetoptLong::REQUIRED_ARGUMENT],
+    ['--hb2-openai-api-key', GetoptLong::REQUIRED_ARGUMENT],
+    ['--hb2-openai-base-url', GetoptLong::REQUIRED_ARGUMENT],
 )
 
 scenario = SCENARIO_XML
 project_dir = nil
 options = {}
+
+# Read Hackerbot 2 LLM settings from environment variables (CLI args take precedence)
+# Defaults to an OpenAI-compatible server (LiteLLM/local) on localhost:4000
+options[:hb2_llm_provider]    = ENV['HB2_LLM_PROVIDER']    if ENV['HB2_LLM_PROVIDER']
+options[:hb2_llm_host]        = ENV['HB2_LLM_HOST']        if ENV['HB2_LLM_HOST']
+options[:hb2_llm_port]        = ENV['HB2_LLM_PORT']        if ENV['HB2_LLM_PORT']
+options[:hb2_llm_model]       = ENV['HB2_LLM_MODEL']       if ENV['HB2_LLM_MODEL']
+options[:hb2_openai_api_key]  = ENV['HB2_OPENAI_API_KEY']  if ENV['HB2_OPENAI_API_KEY']
+options[:hb2_openai_base_url] = ENV['HB2_OPENAI_BASE_URL'] if ENV['HB2_OPENAI_BASE_URL']
 
 # process option arguments
 opts.each do |opt, arg|
@@ -675,6 +704,25 @@ opts.each do |opt, arg|
   when '--retries'
     Print.info "Number of retries to build vms : #{arg}"
     options[:retries] = arg
+  # Hackerbot 2 LLM options
+  when '--hb2-llm-provider'
+    Print.info "Hackerbot 2 LLM provider: #{arg}"
+    options[:hb2_llm_provider] = arg
+  when '--hb2-llm-host'
+    Print.info "Hackerbot 2 LLM host: #{arg}"
+    options[:hb2_llm_host] = arg
+  when '--hb2-llm-port'
+    Print.info "Hackerbot 2 LLM port: #{arg}"
+    options[:hb2_llm_port] = arg
+  when '--hb2-llm-model'
+    Print.info "Hackerbot 2 LLM model: #{arg}"
+    options[:hb2_llm_model] = arg
+  when '--hb2-openai-api-key'
+    Print.info "Hackerbot 2 OpenAI API key: ********"
+    options[:hb2_openai_api_key] = arg
+  when '--hb2-openai-base-url'
+    Print.info "Hackerbot 2 OpenAI base URL: #{arg}"
+    options[:hb2_openai_base_url] = arg
   else
     Print.err "Argument not valid: #{arg}"
     usage

@@ -21,6 +21,15 @@
   $root_password = self.root_password
   $flags = self.flags
 
+  # Allow CLI/env overrides for LLM configuration
+  # Defaults to an OpenAI-compatible server (e.g. LiteLLM) on localhost:4000
+  $hb2_llm_provider    = ENV['HB2_LLM_PROVIDER']    || 'openai'
+  $hb2_llm_host        = ENV['HB2_LLM_HOST']        || 'localhost'
+  $hb2_llm_port        = ENV['HB2_LLM_PORT']        || '4000'
+  $hb2_llm_model       = ENV['HB2_LLM_MODEL']       || 'gpt-4o-mini'
+  $hb2_openai_api_key  = ENV['HB2_OPENAI_API_KEY']  || 'no-key-needed'
+  $hb2_openai_base_url = ENV['HB2_OPENAI_BASE_URL'] || 'http://localhost:4000'
+
   REQUIRED_FLAGS = 4
   while $flags.length < REQUIRED_FLAGS
     $flags << "flag{#{SecureRandom.hex}}"
@@ -40,10 +49,12 @@
 	<name>Hackerbot</name>
 
   <!-- LLM Provider Configuration -->
-  <llm_provider>ollama</llm_provider>
-  <ollama_model>gemma3:1b</ollama_model>
-  <ollama_host>localhost</ollama_host>
-  <ollama_port>11434</ollama_port>
+  <llm_provider><%= $hb2_llm_provider %></llm_provider>
+  <ollama_model><%= $hb2_llm_model %></ollama_model>
+  <ollama_host><%= $hb2_llm_host %></ollama_host>
+  <ollama_port><%= $hb2_llm_port %></ollama_port>
+  <openai_api_key><%= $hb2_openai_api_key %></openai_api_key>
+  <openai_base_url><%= $hb2_openai_base_url %></openai_base_url>
   <system_prompt>You are a cybersecurity training assistant conducting a live system analysis and incident response lab. A server has been compromised and students must investigate it using forensic techniques. Guide students through collecting volatile data such as running processes, open network connections, and kernel modules. Help them understand how to use static binaries to avoid tampered tools, how to detect rootkits with Chkrootkit, and how to identify hidden ports and processes. Provide hints about forensic methodology and the importance of evidence integrity. Be precise, educational, and encourage methodical investigation. Students earn flags by correctly completing each forensic challenge.</system_prompt>
   <max_tokens>200</max_tokens>
   <model_temperature>0.7</model_temperature>

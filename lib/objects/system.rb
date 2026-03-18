@@ -335,7 +335,15 @@ class System
         # execute calculation script and format output to an array of Base64 strings
         Print.verbose "Running: ruby #{selected.local_calc_file} #{args_string[0..200]} ..."
         command = "bundle exec ruby #{selected.local_calc_file}"
-        stdout, stderr, status = Open3.capture3(command, :stdin_data => args_string)
+        # Pass Hackerbot 2 LLM options as environment variables to the subprocess
+        hb2_env = {}
+        hb2_env['HB2_LLM_PROVIDER']    = options[:hb2_llm_provider]    if options[:hb2_llm_provider]
+        hb2_env['HB2_LLM_HOST']        = options[:hb2_llm_host]        if options[:hb2_llm_host]
+        hb2_env['HB2_LLM_PORT']        = options[:hb2_llm_port].to_s   if options[:hb2_llm_port]
+        hb2_env['HB2_LLM_MODEL']       = options[:hb2_llm_model]       if options[:hb2_llm_model]
+        hb2_env['HB2_OPENAI_API_KEY']  = options[:hb2_openai_api_key]  if options[:hb2_openai_api_key]
+        hb2_env['HB2_OPENAI_BASE_URL'] = options[:hb2_openai_base_url] if options[:hb2_openai_base_url]
+        stdout, stderr, status = Open3.capture3(hb2_env, command, :stdin_data => args_string)
         puts stderr
         outputs = stdout.chomp
 
