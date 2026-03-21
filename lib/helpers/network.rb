@@ -192,8 +192,9 @@ class NetworkFunctions
 
   def self.compute_vlan(mod, base_vlan)
     vlan_index = mod.received_inputs['vlan']&.first&.to_i || 1
-
-    base_vlan + (vlan_index * 100)
+    vlan = base_vlan + (vlan_index * 100)
+    # Wrap into valid 802.1Q range (1–4094)
+    ((vlan - 1) % 4094) + 1
   end
 
 end
