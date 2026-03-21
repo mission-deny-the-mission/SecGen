@@ -48,12 +48,12 @@
 
     IP_address and range are mutually exclusive on a single network module.
 
-    The --network-ranges command line option overrides all subnets in the
+    The - -network-ranges command line option overrides all subnets in the
     scenario, in VLAN order (sorted numerically). Supply one replacement
     subnet per distinct subnet in the scenario, each ending in .0.
     Example:
-      ruby secgen.rb --scenario scenarios/dev/network_updates.xml \
-        --network-ranges 192.168.1.0,192.168.2.0,192.168.3.0,192.168.5.0,192.168.6.0 \
+      ruby secgen.rb - -scenario scenarios/dev/network_updates.xml \
+        - -network-ranges 192.168.1.0,192.168.2.0,192.168.3.0,192.168.5.0,192.168.6.0 \
         build-project
 
     IP_address entries sourced from datastores are also overridden — the
