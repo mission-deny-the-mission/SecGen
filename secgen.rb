@@ -581,6 +581,7 @@ opts.each do |opt, arg|
     options[:shutdown] = true
   when '--network-ranges'
     Print.info 'Overriding Network Ranges'
+    Print.warn '--network-ranges is deprecated and will be ignored when using Proxmox. Network ranges are now defined in the scenario XML.'
     options[:ip_ranges] = arg.split(',')
   when '--forensic-image-type'
     Print.info "Image output type set to #{arg}"

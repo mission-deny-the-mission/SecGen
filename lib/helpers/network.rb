@@ -105,7 +105,7 @@ class NetworkFunctions
     # Each distinct subnet in the map (sorted by VLAN) is substituted with the
     # corresponding CLI-provided range in order. Both IP_address and range entries
     # are remapped since we're rewriting IPs directly in the map.
-    if options[:ip_ranges]
+    if options[:ip_ranges] && !options[:proxmoxuser]  # TODO: re-enable proxmox later
       subnets_in_vlan_order = options[:network_map].keys.sort.map { |vlan| options[:network_map][vlan][:subnet] }.uniq
 
       if options[:ip_ranges].size > subnets_in_vlan_order.size

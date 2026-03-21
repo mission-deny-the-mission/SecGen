@@ -54,7 +54,10 @@ class System
     begin
       selected_modules = []
       self.num_actioned_module_conflicts = 0
-      replace_datastore_ips(options) unless options[:ip_ranges]
+      if options[:ip_ranges] && !options[:proxmoxuser]
+        replace_datastore_ips(options)
+      end
+
 
       # for each module specified in the scenario
       module_selectors.each do |module_filter|
