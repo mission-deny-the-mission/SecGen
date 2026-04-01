@@ -38,21 +38,21 @@ class hackerbot2::install {
     'require'  => Package['build-essential'],
   })
 
-  # Remove problematic nokogiri installation first
+  # Remove problematic nokogiri installation first (tolerant of "not installed")
   exec { 'remove nokogiri for hackerbot2':
-    command => 'gem uninstall nokogiri -a -x',
+    command => 'gem uninstall nokogiri -a -x --force 2>/dev/null; /bin/true',
     path    => [ '/usr/bin', '/bin', '/usr/sbin' ],
-    onlyif  => 'gem list | grep -q "^nokogiri"',
+    onlyif  => 'gem list nokogiri -i',
   }
 
-  # Install nokogiri with system libraries and specific platform
+  # Install nokogiri with system libraries
   exec { 'install nokogiri for hackerbot2':
-    command => 'gem install nokogiri -v 1.15.5',
+    command => 'gem install nokogiri -v 1.15.5 --no-document',
     path    => [ '/usr/bin', '/bin', '/usr/sbin' ],
     require => [
       Package[$system_packages],
       Exec['remove nokogiri for hackerbot2']
     ],
-    unless  => 'gem list | grep -q "^nokogiri"',
+    unless  => 'gem list nokogiri -i',
   }
 }
