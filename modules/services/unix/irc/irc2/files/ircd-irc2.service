@@ -1,0 +1,14 @@
+[Unit]
+Description=IRC Server (ircd-irc2)
+After=network.target
+
+[Service]
+Type=forking
+User=irc
+Group=irc
+ExecStart=/usr/sbin/ircd
+PIDFile=/run/ircd.pid
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

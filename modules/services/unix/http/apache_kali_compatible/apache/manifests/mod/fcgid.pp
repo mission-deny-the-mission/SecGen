@@ -39,7 +39,7 @@ class apache::mod::fcgid (
   $options = {},
 ) {
   include apache
-  if ($::osfamily == 'RedHat' and $::operatingsystemmajrelease >= '7') or $::osfamily == 'FreeBSD' {
+  if ($facts["os"]["family"] == 'RedHat' and $facts["os"]["release"]["major"] >= '7') or $facts["os"]["family"] == 'FreeBSD' {
     $loadfile_name = 'unixd_fcgid.load'
     $conf_name = 'unixd_fcgid.conf'
   } else {

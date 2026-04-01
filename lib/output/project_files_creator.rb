@@ -61,6 +61,13 @@ class ProjectFilesCreator
     FileUtils.mkpath "#{@out_dir}/puppet/" unless File.exist?("#{@out_dir}/puppet/")
     FileUtils.mkpath "#{@out_dir}/environments/production/" unless File.exist?("#{@out_dir}/environments/production/")
 
+    # Create a minimal Gemfile to prevent Vagrant's embedded Ruby from walking up
+    # to the SecGen root and loading its Gemfile (which causes bundler conflicts)
+    gemfile_path = "#{@out_dir}/Gemfile"
+    unless File.exist?(gemfile_path)
+      File.write(gemfile_path, "# placeholder - prevents bundler walk-up into SecGen root\n")
+    end
+
     # for each system, create a puppet modules directory using librarian-puppet
     @systems.each do |system|
       @currently_processing_system = system # for template access

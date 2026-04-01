@@ -1,11 +1,11 @@
 class irc2::config {
-  file { '/etc/ircd.conf':
+  file { '/etc/ircd/ircd.conf':
     ensure => present,
     source => 'puppet:///modules/irc2/ircd.conf',
     before => Package['ircd-irc2'],
   }
 
-  file { '/etc/ircd.motd':
+  file { '/etc/ircd/ircd.motd':
     ensure => present,
     source => 'puppet:///modules/irc2/ircd.motd',
     before => Package['ircd-irc2'],
