@@ -16,8 +16,8 @@ class hackerbot2::install {
   }
 
   # System dependencies required for nokogiri and other gems
+  # Note: zlibc is not available on Kali, excluded
   $system_packages = [
-    'zlibc',
     'zlib1g',
     'zlib1g-dev',
     'sshpass',
