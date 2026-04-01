@@ -277,7 +277,7 @@
 #   [Filters](https://httpd.apache.org/docs/current/mod/mod_filter.html) enable smart, 
 #   context-sensitive configuration of output content filters.
 #   ``` puppet
-#   apache::vhost { "$::fqdn":
+#   apache::vhost { "$facts["networking"]["fqdn"]":
 #     filters => [
 #       'FilterDeclare   COMPRESS',
 #       'FilterProvider  COMPRESS DEFLATE resp=Content-Type $text/html',

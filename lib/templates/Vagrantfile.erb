@@ -119,8 +119,13 @@ end
       proxmox.vm_id_range = 1000..999999999
       proxmox.vm_memory = 4096
       proxmox.selected_node = '<%= @options[:proxmoxnode] %>'
+      <% if @options[:proxmoxbridge] %>
+      proxmox.qemu_bridge = '<%= @options[:proxmoxbridge] %>'
+      <% end %>
       proxmox.disable_adjust_forwarded_port = true
     end
+    # Disable default synced folder (SMB requires TTY on macOS; not needed for Proxmox)
+    <%= system.name %>.vm.synced_folder '.', '/vagrant', disabled: true
     # Proxmox provider end
 <%
     when "esxi"
@@ -225,6 +230,15 @@ end
 %>
       <%= system.name %>.vm.box = 'dummy'
       <%= system.name %>.vm.box_url = 'https://github.com/myoung34/vagrant-ovirt4/blob/master/example_box/dummy.box?raw=true'
+
+      <% if selected_module.module_path_name.include?('bookworm') || selected_module.module_path_name.include?('kali') %>
+      # template lacks reliable vagrant insecure-key auth on Proxmox
+      # use password auth, then let Vagrant insert a key
+      <%= system.name %>.ssh.username = 'vagrant'
+      <%= system.name %>.ssh.password = 'vagrant'
+      <%= system.name %>.ssh.insert_key = true
+      <%= system.name %>.ssh.keys_only = false
+      <% end %>
 
       <% if selected_module.attributes['platform'].first.downcase != 'windows' %>
         # Set hostname for Linux systems (as an extra step on Proxmox)
