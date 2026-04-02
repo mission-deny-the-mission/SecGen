@@ -119,9 +119,6 @@ end
       proxmox.vm_id_range = 1000..999999999
       proxmox.vm_memory = 4096
       proxmox.selected_node = '<%= @options[:proxmoxnode] %>'
-      <% if @options[:proxmoxbridge] %>
-      proxmox.qemu_bridge = '<%= @options[:proxmoxbridge] %>'
-      <% end %>
       proxmox.disable_adjust_forwarded_port = true
     end
     # Disable default synced folder (SMB requires TTY on macOS; not needed for Proxmox)

@@ -79,8 +79,6 @@ def usage
    --proxmox-node [node]
    --proxmox-network [proxmox network name]
    --proxmox-vlan [vlan number]
-   --proxmox-bridge [bridge name]
-
    COMMANDS:
    run, r: Builds project and then builds the VMs
    build-project, p: Builds project (vagrant and puppet config), but does not build VMs
@@ -527,7 +525,6 @@ opts = GetoptLong.new(
     ['--proxmox-node', GetoptLong::REQUIRED_ARGUMENT],
     ['--proxmox-network', GetoptLong::REQUIRED_ARGUMENT],
     ['--proxmox-vlan', GetoptLong::REQUIRED_ARGUMENT],
-    ['--proxmox-bridge', GetoptLong::REQUIRED_ARGUMENT],
     ['--proxmox-post-boot', GetoptLong::NO_ARGUMENT],
     ['--esxiuser', GetoptLong::REQUIRED_ARGUMENT],
     ['--esxipass', GetoptLong::REQUIRED_ARGUMENT],
@@ -650,9 +647,6 @@ opts.each do |opt, arg|
   when '--proxmox-vlan'
     Print.info "Proxmox Network VLAN : #{arg}"
     options[:proxmoxvlan] = arg.to_i
-  when '--proxmox-bridge'
-    Print.info "Proxmox Bridge : #{arg}"
-    options[:proxmoxbridge] = arg
   when '--proxmox-post-boot'
     Print.info "Proxmox start all VMs post provision"
     options[:proxmox_post_boot] = true
