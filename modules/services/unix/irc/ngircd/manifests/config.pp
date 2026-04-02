@@ -1,4 +1,4 @@
-class irc2::service {
+class ngircd::config {
   service { 'ngircd':
     enable  => true,
     ensure  => 'running',

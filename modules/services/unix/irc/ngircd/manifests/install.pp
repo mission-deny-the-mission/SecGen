@@ -1,4 +1,4 @@
-class irc2::install {
+class ngircd::install {
   package { 'ngircd':
     ensure => 'installed',
   }

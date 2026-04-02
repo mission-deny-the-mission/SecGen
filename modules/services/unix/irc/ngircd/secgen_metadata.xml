@@ -3,29 +3,21 @@
 <service xmlns="http://www.github/cliffe/SecGen/service"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://www.github/cliffe/SecGen/service">
-  <name>IRC Server ircd-hybrid</name>
+  <name>IRC Server ngIRCd</name>
   <author>Z. Cliffe Schreuders</author>
   <module_license>MIT</module_license>
-  <description>A lightweight, high-performance internet relay chat daemon.
+  <description>A lightweight, portable Internet Relay Chat daemon. ngIRCd is a free, modern and flexible IRC server designed for easy configuration and operation.
   </description>
 
   <type>ircd</type>
   <platform>linux</platform>
 
   <!--optional details-->
-  <software_name>ircd-hybrid</software_name>
-  <software_license>MIT</software_license>
+  <software_name>ngircd</software_name>
+  <software_license>GPL-2+</software_license>
 
   <conflict>
     <type>ircd</type>
-  </conflict>
-  <conflict>
-    <!-- install stalls and times out on Kali -->
-    <name>.*Kali.*</name>
-  </conflict>
-  <conflict>
-    <!-- Service start returns 1 on Wheezy -->
-    <name>.*Wheezy.*</name>
   </conflict>
   <requires>
     <type>update</type>
