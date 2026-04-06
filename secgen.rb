@@ -39,6 +39,7 @@ def usage
    --no-destroy-on-failure: Don't delete VMs that fail to build (except when retrying).
    --retries [number]: Retry building vms that fail to build this many attempts.
    --no-parallel: Build one VM at a time.
+   --verbose: Show full Vagrant log output as VMs are being built.
 
    VIRTUALBOX OPTIONS:
    --gui-output, -g: Show the running VM (not headless)
@@ -511,6 +512,7 @@ opts = GetoptLong.new(
     ['--no-tests', GetoptLong::NO_ARGUMENT],
     ['--no-destroy-on-failure', GetoptLong::NO_ARGUMENT],
     ['--no-parallel', GetoptLong::NO_ARGUMENT],
+    ['--verbose', GetoptLong::NO_ARGUMENT],
     ['--retries', GetoptLong::REQUIRED_ARGUMENT],
     ['--ovirtuser', GetoptLong::REQUIRED_ARGUMENT],
     ['--ovirtpass', GetoptLong::REQUIRED_ARGUMENT],
@@ -697,6 +699,10 @@ opts.each do |opt, arg|
   when '--no-parallel'
     Print.info "Will not build VMs in parallel"
     options[:noparallel] = true
+  when '--verbose'
+    Print.info "Verbose mode enabled: full Vagrant output will be displayed"
+    options[:verbose] = true
+    GemExec.verbose = true
   when '--retries'
     Print.info "Number of retries to build vms : #{arg}"
     options[:retries] = arg

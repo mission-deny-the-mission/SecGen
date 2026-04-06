@@ -2,6 +2,15 @@ require 'rubygems'
 require 'process_helper'
 
 class GemExec
+  @@verbose = false
+
+  def self.verbose=(value)
+    @@verbose = value
+  end
+
+  def self.verbose
+    @@verbose
+  end
 
   # Gems that include executables (vagrant and librarian-puppet) don't always have
   # predictable executable names
@@ -114,8 +123,19 @@ class GemExec
 
     # Parent process
     writer.close
-    output = reader.read
-    reader.close
+    if @@verbose
+      # Stream output line-by-line to stdout in real-time
+      output = ''
+      reader.each_line do |line|
+        output << line
+        $stdout.print(line)
+        $stdout.flush
+      end
+      reader.close
+    else
+      output = reader.read
+      reader.close
+    end
     Process.wait(pid)
     exitstatus = $?.exitstatus
 
