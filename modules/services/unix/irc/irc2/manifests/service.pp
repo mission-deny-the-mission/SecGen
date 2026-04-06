@@ -1,7 +1,8 @@
 class irc2::service {
-  service { 'ircd-irc2':
-    enable  => true,
-    ensure  => 'running',
-    require => Package['ircd-irc2'],
+  service { 'ngircd':
+    enable   => true,
+    ensure   => 'running',
+    provider => systemd,
+    require  => Package['ngircd'],
   }
 }

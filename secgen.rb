@@ -13,6 +13,7 @@ require_relative 'lib/helpers/proxmox.rb'
 require_relative 'lib/readers/system_reader.rb'
 require_relative 'lib/readers/module_reader.rb'
 require_relative 'lib/output/project_files_creator.rb'
+require_relative 'lib/helpers/network.rb'
 
 # Displays secgen usage data
 def usage
@@ -38,6 +39,7 @@ def usage
    --no-destroy-on-failure: Don't delete VMs that fail to build (except when retrying).
    --retries [number]: Retry building vms that fail to build this many attempts.
    --no-parallel: Build one VM at a time.
+   --verbose: Show full Vagrant log output as VMs are being built.
 
    VIRTUALBOX OPTIONS:
    --gui-output, -g: Show the running VM (not headless)
@@ -92,8 +94,6 @@ def usage
    --proxmox-node [node]
    --proxmox-network [proxmox network name]
    --proxmox-vlan [vlan number]
-   --proxmox-bridge [bridge name]
-
    COMMANDS:
    run, r: Builds project and then builds the VMs
    build-project, p: Builds project (vagrant and puppet config), but does not build VMs
@@ -129,6 +129,9 @@ def build_config(scenario, out_dir, options)
     system.module_selections = system.resolve_module_selection(all_available_modules, options)
     system
   }
+
+  Print.info 'Configuring networks...'
+  NetworkFunctions.build_network_map(systems, options)
 
   Print.info "Creating project: #{out_dir}..."
   # creates Vagrantfile and other outputs and starts the vagrant installation
@@ -278,15 +281,32 @@ end
 # this includes networking and snapshots
 def proxmox_post_build(options, scenario, project_dir)
   Print.std 'Taking Proxmox post-build actions...'
-  if options[:proxmoxnetwork]
-    Print.info 'Assigning network(s) of VM(s)'
-    ProxmoxFunctions::assign_networks(project_dir, get_vm_names(scenario), options)
+
+Print.info 'Removing provisioning NIC'
+retries = 3
+begin
+  ProxmoxFunctions::teardown_provisioning_nic(project_dir, get_vm_names(scenario), options)
+rescue Proxmox::ApiError::ConnectionError => e
+  retries -= 1
+  if retries > 0
+    Print.err "Connection error during NIC teardown, retrying in 30s... (#{retries} attempts left)"
+    sleep(30)
+    retry
+  else
+    Print.err "Failed to remove provisioning NIC after retries: #{e.message}"
+    exit 1
   end
-  if options[:snapshot]
-    Print.info 'Creating a snapshot of VM(s)'
-    sleep(1) # give oVirt/Virtualbox a chance to save any VM config changes before creating the snapshot
-    ProxmoxFunctions::create_snapshot(project_dir, get_vm_names(scenario), options)
-  end
+end
+
+if options[:snapshot]
+  Print.info 'Creating a snapshot of VM(s)'
+  sleep(1)
+  ProxmoxFunctions::create_snapshot(project_dir, get_vm_names(scenario), options)
+end
+
+if options[:proxmox_post_boot]
+  ProxmoxFunctions::start_vms(project_dir, get_vm_names(scenario), options)
+end
 end
 
 # Make forensic image helper methods
@@ -506,6 +526,7 @@ opts = GetoptLong.new(
     ['--no-tests', GetoptLong::NO_ARGUMENT],
     ['--no-destroy-on-failure', GetoptLong::NO_ARGUMENT],
     ['--no-parallel', GetoptLong::NO_ARGUMENT],
+    ['--verbose', GetoptLong::NO_ARGUMENT],
     ['--retries', GetoptLong::REQUIRED_ARGUMENT],
     ['--ovirtuser', GetoptLong::REQUIRED_ARGUMENT],
     ['--ovirtpass', GetoptLong::REQUIRED_ARGUMENT],
@@ -520,7 +541,7 @@ opts = GetoptLong.new(
     ['--proxmox-node', GetoptLong::REQUIRED_ARGUMENT],
     ['--proxmox-network', GetoptLong::REQUIRED_ARGUMENT],
     ['--proxmox-vlan', GetoptLong::REQUIRED_ARGUMENT],
-    ['--proxmox-bridge', GetoptLong::REQUIRED_ARGUMENT],
+    ['--proxmox-post-boot', GetoptLong::NO_ARGUMENT],
     ['--esxiuser', GetoptLong::REQUIRED_ARGUMENT],
     ['--esxipass', GetoptLong::REQUIRED_ARGUMENT],
     ['--esxi-hostname', GetoptLong::REQUIRED_ARGUMENT],
@@ -608,6 +629,7 @@ opts.each do |opt, arg|
     options[:shutdown] = true
   when '--network-ranges'
     Print.info 'Overriding Network Ranges'
+    Print.warn '--network-ranges is deprecated and will be ignored when using Proxmox. Network ranges are now defined in the scenario XML.'
     options[:ip_ranges] = arg.split(',')
   when '--forensic-image-type'
     Print.info "Image output type set to #{arg}"
@@ -655,10 +677,10 @@ opts.each do |opt, arg|
     options[:proxmoxnetwork] = arg
   when '--proxmox-vlan'
     Print.info "Proxmox Network VLAN : #{arg}"
-    options[:proxmoxvlan] = arg
-  when '--proxmox-bridge'
-    Print.info "Proxmox Bridge : #{arg}"
-    options[:proxmoxbridge] = arg
+    options[:proxmoxvlan] = arg.to_i
+  when '--proxmox-post-boot'
+    Print.info "Proxmox start all VMs post provision"
+    options[:proxmox_post_boot] = true
   # ESXi options
   when '--esxiuser'
     Print.info "ESXi Username : #{arg}"
@@ -706,6 +728,10 @@ opts.each do |opt, arg|
   when '--no-parallel'
     Print.info "Will not build VMs in parallel"
     options[:noparallel] = true
+  when '--verbose'
+    Print.info "Verbose mode enabled: full Vagrant output will be displayed"
+    options[:verbose] = true
+    GemExec.verbose = true
   when '--retries'
     Print.info "Number of retries to build vms : #{arg}"
     options[:retries] = arg

@@ -22,4 +22,10 @@
   <conflict>
     <module_path>.*bases/.*buster.*</module_path>
   </conflict>
+  <conflict>
+    <module_path>.*bases/.*bookworm.*</module_path>
+  </conflict>
+  <conflict>
+    <module_path>.*bases/.*windows.*</module_path>
+  </conflict>
 </utility>
