@@ -32,6 +32,19 @@ class hackerbot2::config{
       content => $parsed_pair['html_lab_sheet'],
     }
 
+    # Write hb2.env from the first config's hb2_env (LLM settings for the service)
+    if $counter == 0 and $parsed_pair['hb2_env'] {
+      $hb2_env_content = $parsed_pair['hb2_env'].map |$key, $value| {
+        "${key}=${value}"
+      }.join("\n")
+      file { '/opt/hackerbot2/config/hb2.env':
+        ensure  => present,
+        content => "${hb2_env_content}\n",
+        mode    => '0600',
+        owner   => 'root',
+        group   => 'root',
+      }
+    }
   }
 
   class { '::apache':

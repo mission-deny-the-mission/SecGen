@@ -105,7 +105,17 @@ class HackerbotConfigGenerator < StringGenerator
     html_template_out = ERB.new(File.read(self.html_template_path), 0, '<>-')
     html_out = html_template_out.result(self.get_binding)
 
-    json = {'xml_config' => xml_config.force_encoding('UTF-8'), 'html_lab_sheet' => html_out.force_encoding('UTF-8')}.to_json.force_encoding('UTF-8')
+    hb2_env = {
+      'HB2_LLM_PROVIDER'    => ENV['HB2_LLM_PROVIDER'],
+      'HB2_LLM_HOST'        => ENV['HB2_LLM_HOST'],
+      'HB2_LLM_PORT'        => ENV['HB2_LLM_PORT'],
+      'HB2_LLM_MODEL'       => ENV['HB2_LLM_MODEL'],
+      'HB2_OPENAI_API_KEY'  => ENV['HB2_OPENAI_API_KEY'],
+      'HB2_OPENAI_BASE_URL' => ENV['HB2_OPENAI_BASE_URL'],
+      'HB2_EMBEDDING_MODEL' => ENV['HB2_EMBEDDING_MODEL'],
+    }.compact
+
+    json = {'xml_config' => xml_config.force_encoding('UTF-8'), 'html_lab_sheet' => html_out.force_encoding('UTF-8'), 'hb2_env' => hb2_env}.to_json.force_encoding('UTF-8')
     self.outputs << json.to_s
   end
 

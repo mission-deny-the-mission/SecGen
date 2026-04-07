@@ -75,17 +75,19 @@ def usage
 
    HACKERBOT 2 LLM OPTIONS:
    --hb2-llm-provider [provider]: LLM provider for Hackerbot 2 (ollama, openai, vllm, sglang)
-              (overrides value in scenario config, env: HB2_LLM_PROVIDER)
+              (default: openai, env: HB2_LLM_PROVIDER)
    --hb2-llm-host [host]: LLM server host for Hackerbot 2
-              (overrides value in scenario config, env: HB2_LLM_HOST)
+              (default: localhost, env: HB2_LLM_HOST)
    --hb2-llm-port [port]: LLM server port for Hackerbot 2
-              (overrides value in scenario config, env: HB2_LLM_PORT)
+              (default: 4000, env: HB2_LLM_PORT)
    --hb2-llm-model [model]: LLM model name for Hackerbot 2
-              (overrides value in scenario config, env: HB2_LLM_MODEL)
+              (default: gpt-4o-mini, env: HB2_LLM_MODEL)
    --hb2-openai-api-key [key]: OpenAI API key for Hackerbot 2
-              (env: HB2_OPENAI_API_KEY)
+              (default: no-key-needed, env: HB2_OPENAI_API_KEY)
    --hb2-openai-base-url [url]: OpenAI API base URL for Hackerbot 2
-              (env: HB2_OPENAI_BASE_URL)
+              (default: http://localhost:4000, env: HB2_OPENAI_BASE_URL)
+   --hb2-embedding-model [model]: Embedding model name for Hackerbot 2 RAG
+              (default: text-embedding-ada-002, env: HB2_EMBEDDING_MODEL)
 
    PROXMOX OPTIONS:
    --proxmoxuser [username]
@@ -556,6 +558,7 @@ opts = GetoptLong.new(
     ['--hb2-llm-model', GetoptLong::REQUIRED_ARGUMENT],
     ['--hb2-openai-api-key', GetoptLong::REQUIRED_ARGUMENT],
     ['--hb2-openai-base-url', GetoptLong::REQUIRED_ARGUMENT],
+    ['--hb2-embedding-model', GetoptLong::REQUIRED_ARGUMENT],
 )
 
 scenario = SCENARIO_XML
@@ -563,13 +566,14 @@ project_dir = nil
 options = {}
 
 # Read Hackerbot 2 LLM settings from environment variables (CLI args take precedence)
-# Defaults to an OpenAI-compatible server (LiteLLM/local) on localhost:4000
-options[:hb2_llm_provider]    = ENV['HB2_LLM_PROVIDER']    if ENV['HB2_LLM_PROVIDER']
-options[:hb2_llm_host]        = ENV['HB2_LLM_HOST']        if ENV['HB2_LLM_HOST']
-options[:hb2_llm_port]        = ENV['HB2_LLM_PORT']        if ENV['HB2_LLM_PORT']
-options[:hb2_llm_model]       = ENV['HB2_LLM_MODEL']       if ENV['HB2_LLM_MODEL']
-options[:hb2_openai_api_key]  = ENV['HB2_OPENAI_API_KEY']  if ENV['HB2_OPENAI_API_KEY']
-options[:hb2_openai_base_url] = ENV['HB2_OPENAI_BASE_URL'] if ENV['HB2_OPENAI_BASE_URL']
+# Defaults to an OpenAI-compatible server (e.g. LiteLLM) on localhost:4000
+options[:hb2_llm_provider]      = ENV['HB2_LLM_PROVIDER']      || 'openai'
+options[:hb2_llm_host]          = ENV['HB2_LLM_HOST']          || 'localhost'
+options[:hb2_llm_port]          = ENV['HB2_LLM_PORT']          || '4000'
+options[:hb2_llm_model]         = ENV['HB2_LLM_MODEL']         || 'gpt-4o-mini'
+options[:hb2_openai_api_key]    = ENV['HB2_OPENAI_API_KEY']    || 'no-key-needed'
+options[:hb2_openai_base_url]   = ENV['HB2_OPENAI_BASE_URL']   || "http://#{options[:hb2_llm_host]}:#{options[:hb2_llm_port]}"
+options[:hb2_embedding_model]   = ENV['HB2_EMBEDDING_MODEL']   || 'text-embedding-ada-002'
 
 # process option arguments
 opts.each do |opt, arg|
@@ -754,11 +758,21 @@ opts.each do |opt, arg|
   when '--hb2-openai-base-url'
     Print.info "Hackerbot 2 OpenAI base URL: #{arg}"
     options[:hb2_openai_base_url] = arg
+    options[:hb2_openai_base_url_explicit] = true
+  when '--hb2-embedding-model'
+    Print.info "Hackerbot 2 embedding model: #{arg}"
+    options[:hb2_embedding_model] = arg
   else
     Print.err "Argument not valid: #{arg}"
     usage
     exit 1
   end
+end
+
+# Recompute openai_base_url from host/port if not explicitly set via CLI or env var
+# This ensures CLI overrides to --hb2-llm-host / --hb2-llm-port are reflected in the base URL
+unless ENV['HB2_OPENAI_BASE_URL'] || options[:hb2_openai_base_url_explicit]
+  options[:hb2_openai_base_url] = "http://#{options[:hb2_llm_host]}:#{options[:hb2_llm_port]}"
 end
 
 # at least one command

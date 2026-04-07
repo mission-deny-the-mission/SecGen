@@ -5,7 +5,7 @@ require_relative './llm_client.rb'
 # Default configuration constants for OpenAI
 DEFAULT_OPENAI_HOST = 'api.openai.com'
 DEFAULT_OPENAI_MODEL = 'gpt-3.5-turbo'
-DEFAULT_OPENAI_MAX_TOKENS = 150
+DEFAULT_OPENAI_MAX_TOKENS = 32768
 DEFAULT_OPENAI_TEMPERATURE = 0.7
 
 # OpenAI API client for LLM integration
@@ -46,16 +46,19 @@ class OpenAIClient < LLMClient
         { role: 'user', content: prompt }
       ]
 
+      # Don't set max_tokens for reasoning models (e.g., qwen3.5) — they use tokens
+      # for both reasoning and content. Setting max_tokens too low causes the model to
+      # exhaust all tokens on reasoning_content with nothing left for content.
+      # Omitting max_tokens lets the model use its full capacity.
       request_body = {
         model: @model,
         messages: messages,
-        max_tokens: @max_tokens,
         temperature: @temperature,
         stream: false
       }
 
       http = Net::HTTP.new(uri.host, uri.port)
-      http.use_ssl = true
+      http.use_ssl = (uri.scheme == 'https')
       http.open_timeout = 10
       http.read_timeout = 300
       request = Net::HTTP::Post.new(uri)
@@ -66,8 +69,15 @@ class OpenAIClient < LLMClient
       response = http.request(request)
       if response.code == '200'
         result = JSON.parse(response.body)
-        response_text = result['choices'][0]['message']['content'].strip
-        return response_text
+        message = result['choices'][0]['message']
+        # Handle reasoning models (e.g., qwen3.5) where content may be nil
+        # and the actual thinking is in reasoning_content
+        response_text = message['content']
+        if response_text.nil? && message['reasoning_content']
+          Print.info "Note: Model returned reasoning_content but no content. Using reasoning as fallback."
+          response_text = message['reasoning_content']
+        end
+        return response_text&.strip
       else
         Print.err "OpenAI API error: #{response.code} - #{response.body}"
         return nil
@@ -92,16 +102,16 @@ class OpenAIClient < LLMClient
         { role: 'user', content: prompt }
       ]
 
+      # Don't set max_tokens for reasoning models — see non-streaming method for explanation
       request_body = {
         model: @model,
         messages: messages,
-        max_tokens: @max_tokens,
         temperature: @temperature,
         stream: true
       }
 
       http = Net::HTTP.new(uri.host, uri.port)
-      http.use_ssl = true
+      http.use_ssl = (uri.scheme == 'https')
       http.open_timeout = 10
       http.read_timeout = 300
       request = Net::HTTP::Post.new(uri)
@@ -123,18 +133,27 @@ class OpenAIClient < LLMClient
                 data_str = event[6..-1] # Remove "data: " prefix
                 begin
                   data = JSON.parse(data_str)
-                  if data['choices'] && data['choices'][0] && data['choices'][0]['delta'] && data['choices'][0]['delta']['content']
-                    text_chunk = data['choices'][0]['delta']['content']
-                    full_response << text_chunk
-                    current_line << text_chunk
-
-                    if stream_callback && !text_chunk.empty?
-                      stream_callback.call(text_chunk)
+                  if data['choices'] && data['choices'][0] && data['choices'][0]['delta']
+                    delta = data['choices'][0]['delta']
+                    # Handle reasoning models where content may be nil
+                    # and reasoning_content is streamed instead
+                    text_chunk = delta['content']
+                    if text_chunk.nil? && delta['reasoning_content']
+                      # Skip reasoning tokens in streaming mode - we only want the final content
+                      next
                     end
+                    if text_chunk
+                      full_response << text_chunk
+                      current_line << text_chunk
 
-                    if current_line.include?("\n")
-                      lines = current_line.split("\n", -1)
-                      current_line = lines.last
+                      if stream_callback && !text_chunk.empty?
+                        stream_callback.call(text_chunk)
+                      end
+
+                      if current_line.include?("\n")
+                        lines = current_line.split("\n", -1)
+                        current_line = lines.last
+                      end
                     end
                   end
                 rescue JSON::ParserError => e
@@ -166,7 +185,7 @@ class OpenAIClient < LLMClient
     begin
       uri = URI("#{@base_url}/models")
       http = Net::HTTP.new(uri.host, uri.port)
-      http.use_ssl = true
+      http.use_ssl = (uri.scheme == 'https')
       http.open_timeout = 5
       http.read_timeout = 10
       request = Net::HTTP::Get.new(uri)

@@ -1,8 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <hackerbot>
   <name>CybersecurityTeachingAssistant</name>
-  <llm_provider>ollama</llm_provider>
-  <ollama_model>gemma3:1b</ollama_model>
   <get_shell>false</get_shell>
 
   <!-- RAG + CAG Configuration -->

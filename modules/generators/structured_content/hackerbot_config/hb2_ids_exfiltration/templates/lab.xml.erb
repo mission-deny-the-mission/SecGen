@@ -47,7 +47,8 @@
   $hb2_llm_port        = ENV['HB2_LLM_PORT']        || '4000'
   $hb2_llm_model       = ENV['HB2_LLM_MODEL']       || 'gpt-4o-mini'
   $hb2_openai_api_key  = ENV['HB2_OPENAI_API_KEY']  || 'no-key-needed'
-  $hb2_openai_base_url = ENV['HB2_OPENAI_BASE_URL'] || 'http://localhost:4000'
+  $hb2_openai_base_url = ENV['HB2_OPENAI_BASE_URL'] || "http://#$hb2_llm_host:#$hb2_llm_port"
+  $hb2_embedding_model = ENV['HB2_EMBEDDING_MODEL'] || 'text-embedding-ada-002'
 
   REQUIRED_FLAGS = 4
   while $flags.length < REQUIRED_FLAGS
@@ -74,6 +75,7 @@
   <ollama_port><%= $hb2_llm_port %></ollama_port>
   <openai_api_key><%= $hb2_openai_api_key %></openai_api_key>
   <openai_base_url><%= $hb2_openai_base_url %></openai_base_url>
+  <embedding_model><%= $hb2_embedding_model %></embedding_model>
   <system_prompt>You are a cybersecurity training assistant conducting a Data Loss Prevention (DLP) and exfiltration detection lab. Students must configure Snort IDS rules to detect the unauthorised transfer of sensitive data such as credit card details and national insurance numbers. Guide students through writing text-based, regular expression-based, and hash-based Snort rules. Explain when each matching technique is most appropriate and the trade-offs between them. Help students understand data exfiltration attack vectors and how network-based DLP works in practice. Be encouraging but rigorous - students must correctly configure and trigger Snort rules to earn flags.</system_prompt>
   <max_tokens>200</max_tokens>
   <model_temperature>0.7</model_temperature>

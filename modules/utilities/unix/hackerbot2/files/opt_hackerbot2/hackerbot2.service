@@ -10,6 +10,11 @@ WorkingDirectory=/opt/hackerbot2
 Restart=always
 Environment="SHELL=/bin/bash"
 Environment="HOME=/root"
+# Bypass proxy for local/private network traffic (LLM servers, IRC, etc.)
+Environment="no_proxy=localhost,127.0.0.1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
+Environment="NO_PROXY=localhost,127.0.0.1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
+# LLM configuration (read by hackerbot.rb from HB2_* env vars)
+EnvironmentFile=/opt/hackerbot2/config/hb2.env
 
 [Install]
 WantedBy=multi-user.target

@@ -37,16 +37,17 @@ Print.std ' '*19 + 'Hackerbot'
 Print.std '~'*47
 
 $irc_server_ip_address = 'localhost'
-$llm_provider = 'ollama'  # Default provider
-$ollama_host = 'localhost'
-$ollama_port = 11434
-$ollama_model = 'gemma3:1b'
-$openai_api_key = nil
-$openai_base_url = nil
-$vllm_host = 'localhost'
-$vllm_port = 8000
-$sglang_host = 'localhost'
-$sglang_port = 30000
+$llm_provider = ENV['HB2_LLM_PROVIDER'] || 'ollama'  # Default provider
+$ollama_host = ENV['HB2_LLM_HOST'] || 'localhost'
+$ollama_port = (ENV['HB2_LLM_PORT'] || '11434').to_i
+$ollama_model = ENV['HB2_LLM_MODEL'] || 'gemma3:1b'
+$openai_api_key = ENV['HB2_OPENAI_API_KEY'] || nil
+$openai_base_url = ENV['HB2_OPENAI_BASE_URL'] || nil
+$vllm_host = ENV['HB2_VLLM_HOST'] || 'localhost'
+$vllm_port = (ENV['HB2_VLLM_PORT'] || '8000').to_i
+$sglang_host = ENV['HB2_SGLANG_HOST'] || 'localhost'
+$sglang_port = (ENV['HB2_SGLANG_PORT'] || '30000').to_i
+$embedding_model = ENV['HB2_EMBEDDING_MODEL'] || nil
 $enable_rag = true
 $rag_only = false
 $offline_mode = 'auto'  # 'auto', 'offline', 'online'
@@ -65,6 +66,7 @@ opts = GetoptLong.new(
     [ '--vllm-port', GetoptLong::REQUIRED_ARGUMENT ],
     [ '--sglang-host', GetoptLong::REQUIRED_ARGUMENT ],
     [ '--sglang-port', GetoptLong::REQUIRED_ARGUMENT ],
+    [ '--embedding-model', GetoptLong::REQUIRED_ARGUMENT ],
     [ '--streaming', '-s', GetoptLong::REQUIRED_ARGUMENT ],
     [ '--enable-rag-cag', GetoptLong::NO_ARGUMENT ],
     [ '--rag-only', GetoptLong::NO_ARGUMENT ],
@@ -103,6 +105,8 @@ begin
       $sglang_host = arg;
     when '--sglang-port'
       $sglang_port = arg.to_i;
+    when '--embedding-model'
+      $embedding_model = arg;
     when '--streaming'
       streaming_arg = arg.downcase
       if streaming_arg == 'true' || streaming_arg == 'false'
@@ -181,7 +185,7 @@ if __FILE__ == $0
     ]
   }
 
-  bot_manager = BotManager.new($irc_server_ip_address, $llm_provider, $ollama_host, $ollama_port, $ollama_model, $openai_api_key, $openai_base_url, $vllm_host, $vllm_port, $sglang_host, $sglang_port, $enable_rag, rag_config)
+  bot_manager = BotManager.new($irc_server_ip_address, $llm_provider, $ollama_host, $ollama_port, $ollama_model, $openai_api_key, $openai_base_url, $vllm_host, $vllm_port, $sglang_host, $sglang_port, $enable_rag, rag_config, $embedding_model)
   bots = bot_manager.read_bots
   bot_manager.start_bots
 end

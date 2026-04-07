@@ -28,7 +28,8 @@
   $hb2_llm_port        = ENV['HB2_LLM_PORT']        || '4000'
   $hb2_llm_model       = ENV['HB2_LLM_MODEL']       || 'gpt-4o-mini'
   $hb2_openai_api_key  = ENV['HB2_OPENAI_API_KEY']  || 'no-key-needed'
-  $hb2_openai_base_url = ENV['HB2_OPENAI_BASE_URL'] || 'http://localhost:4000'
+  $hb2_openai_base_url = ENV['HB2_OPENAI_BASE_URL'] || "http://#$hb2_llm_host:#$hb2_llm_port"
+  $hb2_embedding_model = ENV['HB2_EMBEDDING_MODEL'] || 'text-embedding-ada-002'
 
   REQUIRED_FLAGS = 4
   while $flags.length < REQUIRED_FLAGS
@@ -55,6 +56,7 @@
   <ollama_port><%= $hb2_llm_port %></ollama_port>
   <openai_api_key><%= $hb2_openai_api_key %></openai_api_key>
   <openai_base_url><%= $hb2_openai_base_url %></openai_base_url>
+  <embedding_model><%= $hb2_embedding_model %></embedding_model>
   <system_prompt>You are a cybersecurity training assistant conducting a live system analysis and incident response lab. A server has been compromised and students must investigate it using forensic techniques. Guide students through collecting volatile data such as running processes, open network connections, and kernel modules. Help them understand how to use static binaries to avoid tampered tools, how to detect rootkits with Chkrootkit, and how to identify hidden ports and processes. Provide hints about forensic methodology and the importance of evidence integrity. Be precise, educational, and encourage methodical investigation. Students earn flags by correctly completing each forensic challenge.</system_prompt>
   <max_tokens>200</max_tokens>
   <model_temperature>0.7</model_temperature>

@@ -346,6 +346,7 @@ class System
         hb2_env['HB2_LLM_MODEL']       = options[:hb2_llm_model]       if options[:hb2_llm_model]
         hb2_env['HB2_OPENAI_API_KEY']  = options[:hb2_openai_api_key]  if options[:hb2_openai_api_key]
         hb2_env['HB2_OPENAI_BASE_URL'] = options[:hb2_openai_base_url] if options[:hb2_openai_base_url]
+        hb2_env['HB2_EMBEDDING_MODEL'] = options[:hb2_embedding_model] if options[:hb2_embedding_model]
         stdout, stderr, status = Open3.capture3(hb2_env, command, :stdin_data => args_string)
         puts stderr
         outputs = stdout.chomp

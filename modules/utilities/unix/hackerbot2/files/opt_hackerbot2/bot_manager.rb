@@ -7,7 +7,7 @@ require_relative './rag_manager.rb'
 require_relative './vm_context_manager.rb'
 
 class BotManager
-  def initialize(irc_server_ip_address, llm_provider = 'ollama', ollama_host = 'localhost', ollama_port = 11434, ollama_model = 'gemma3:1b', openai_api_key = nil, openai_base_url = nil, vllm_host = 'localhost', vllm_port = 8000, sglang_host = 'localhost', sglang_port = 30000, enable_rag = false, rag_config = {})
+  def initialize(irc_server_ip_address, llm_provider = 'ollama', ollama_host = 'localhost', ollama_port = 11434, ollama_model = 'gemma3:1b', openai_api_key = nil, openai_base_url = nil, vllm_host = 'localhost', vllm_port = 8000, sglang_host = 'localhost', sglang_port = 30000, enable_rag = false, rag_config = {}, embedding_model = nil)
     @irc_server_ip_address = irc_server_ip_address
     @llm_provider = llm_provider
     @ollama_host = ollama_host
@@ -19,6 +19,7 @@ class BotManager
     @vllm_port = vllm_port
     @sglang_host = sglang_host
     @sglang_port = sglang_port
+    @embedding_model = embedding_model
     @bots = {}
     @user_chat_histories = Hash.new { |h, k| h[k] = {} } # {bot_name => {user_id => [history]}}
     # Enhanced IRC message history for full context capture
@@ -103,12 +104,7 @@ class BotManager
           host: 'localhost',
           port: 8000
         },
-        embedding_service: {
-          provider: 'ollama',
-          host: @ollama_host,
-          port: @ollama_port,
-          model: 'nomic-embed-text'
-        },
+        embedding_service: determine_embedding_service_config,
         rag_settings: {
           max_results: 5,
           similarity_threshold: 0.7,
@@ -149,6 +145,50 @@ class BotManager
     
     # Store knowledge source manager reference for explicit context access
     @knowledge_source_manager = @rag_manager.knowledge_source_manager if @rag_manager
+  end
+
+  # Determine embedding service configuration based on LLM provider
+  # When using OpenAI-compatible providers (including LiteLLM), use the OpenAI embedding client
+  # When using Ollama, use the Ollama embedding client
+  def determine_embedding_service_config
+    case @llm_provider.downcase
+    when 'openai'
+      {
+        provider: 'openai',
+        base_url: @openai_base_url,
+        api_key: @openai_api_key || 'no-key-needed',
+        model: @embedding_model || 'text-embedding-ada-002'
+      }
+    when 'ollama'
+      {
+        provider: 'ollama',
+        host: @ollama_host,
+        port: @ollama_port,
+        model: @embedding_model || 'nomic-embed-text'
+      }
+    when 'vllm'
+      {
+        provider: 'openai',
+        base_url: "http://#{@vllm_host}:#{@vllm_port}/v1",
+        api_key: 'no-key-needed',
+        model: @embedding_model || 'text-embedding-ada-002'
+      }
+    when 'sglang'
+      {
+        provider: 'openai',
+        base_url: "http://#{@sglang_host}:#{@sglang_port}/v1",
+        api_key: 'no-key-needed',
+        model: @embedding_model || 'text-embedding-ada-002'
+      }
+    else
+      # Default to Ollama for unknown providers
+      {
+        provider: 'ollama',
+        host: @ollama_host,
+        port: @ollama_port,
+        model: @embedding_model || 'nomic-embed-text'
+      }
+    end
   end
 
   # Initialize knowledge sources only (without RAG similarity search)
@@ -1390,6 +1430,7 @@ class BotManager
         vllm_port_config = (hackerbot.at_xpath('vllm_port')&.text || @vllm_port.to_s).to_i
         sglang_host_config = hackerbot.at_xpath('sglang_host')&.text || @sglang_host
         sglang_port_config = (hackerbot.at_xpath('sglang_port')&.text || @sglang_port.to_s).to_i
+        embedding_model_config = hackerbot.at_xpath('embedding_model')&.text || nil
 
         system_prompt = hackerbot.at_xpath('system_prompt')&.text || DEFAULT_SYSTEM_PROMPT
 
@@ -2575,8 +2616,7 @@ class BotManager
               end
             end
           rescue Exception => e
-            puts e.message
-            puts e.backtrace.inspect
+            Print.err "Exception in fallback handler for bot #{bot_name}: #{e.message}"
             if m.message.include?('?')
               m.reply get_personality_messages.call(bot_name, user_id, 'non_answer')
             end

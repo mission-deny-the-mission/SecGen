@@ -21,8 +21,7 @@ class OpenAIEmbeddingClient < EmbeddingServiceInterface
     end
 
     unless @api_key
-      Print.err "OpenAI API key is required"
-      raise ArgumentError, "OpenAI API key is required"
+      Print.warn "No OpenAI API key provided, using without authentication (for local/self-hosted servers)"
     end
   end
 
@@ -64,16 +63,17 @@ class OpenAIEmbeddingClient < EmbeddingServiceInterface
 
       request_body = {
         input: text,
-        model: @model
+        model: @model,
+        encoding_format: 'float'
       }
 
       http = Net::HTTP.new(uri.host, uri.port)
-      http.use_ssl = true
+      http.use_ssl = (uri.scheme == 'https')
       http.open_timeout = 10
       http.read_timeout = 60
       request = Net::HTTP::Post.new(uri)
       request['Content-Type'] = 'application/json'
-      request['Authorization'] = "Bearer #{@api_key}"
+      request['Authorization'] = "Bearer #{@api_key}" if @api_key
       request.body = request_body.to_json
 
       response = http.request(request)
@@ -111,16 +111,17 @@ class OpenAIEmbeddingClient < EmbeddingServiceInterface
 
       request_body = {
         input: texts,
-        model: @model
+        model: @model,
+        encoding_format: 'float'
       }
 
       http = Net::HTTP.new(uri.host, uri.port)
-      http.use_ssl = true
+      http.use_ssl = (uri.scheme == 'https')
       http.open_timeout = 10
       http.read_timeout = 120
       request = Net::HTTP::Post.new(uri)
       request['Content-Type'] = 'application/json'
-      request['Authorization'] = "Bearer #{@api_key}"
+      request['Authorization'] = "Bearer #{@api_key}" if @api_key
       request.body = request_body.to_json
 
       response = http.request(request)
@@ -148,11 +149,11 @@ class OpenAIEmbeddingClient < EmbeddingServiceInterface
     begin
       uri = URI("#{@base_url}/models")
       http = Net::HTTP.new(uri.host, uri.port)
-      http.use_ssl = true
+      http.use_ssl = (uri.scheme == 'https')
       http.open_timeout = 5
       http.read_timeout = 10
       request = Net::HTTP::Get.new(uri)
-      request['Authorization'] = "Bearer #{@api_key}"
+      request['Authorization'] = "Bearer #{@api_key}" if @api_key
 
       response = http.request(request)
       success = response.code == '200'
