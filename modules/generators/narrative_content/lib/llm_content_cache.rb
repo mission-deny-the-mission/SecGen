@@ -1,6 +1,7 @@
 require 'digest'
 require 'json'
 require 'fileutils'
+require 'time'
 
 # Caches LLM-generated content for reproducibility and cost reduction.
 # Cache keys are derived from prompt content hash + generation parameters.

@@ -29,7 +29,8 @@ class LlmOrganisationGeneratorLocal < StringEncoder
       'seed' => self.seed,
       'model' => self.llm_model.empty? ? nil : self.llm_model,
       'theme' => self.theme,
-      'content_type' => 'organisation'
+      'content_type' => 'organisation',
+      'response_format' => { 'type' => 'json_object' }
     }
 
     generator = LlmOrganisationNarrativeGenerator.new(options)
@@ -82,27 +83,22 @@ class LlmOrganisationNarrativeGenerator < LlmNarrativeGenerator
   end
 
   def parse_response(raw_content)
-    # Extract JSON from response (LLM may include surrounding text)
-    json_match = raw_content.match(/\{[\s\S]*\}/)
-    if json_match
-      json_str = json_match[0]
-      # Validate it's parseable JSON
-      parsed = JSON.parse(json_str)
-      # Ensure required fields
-      required = %w[business_name business_motto domain industry manager employees]
-      missing = required - parsed.keys
-      unless missing.empty?
-        raise "Generated organisation missing required fields: #{missing.join(', ')}"
-      end
-      # Ensure passwords are empty for security
-      parsed['manager']['password'] = '' if parsed['manager']
-      if parsed['employees'].is_a?(Array)
-        parsed['employees'].each { |e| e['password'] = '' }
-      end
-      parsed.to_json
-    else
-      raise "LLM did not return valid JSON for organisation generation"
+    # With response_format: json_object, the API guarantees valid JSON
+    parsed = JSON.parse(raw_content)
+    # Ensure required fields
+    required = %w[business_name business_motto domain industry manager employees]
+    missing = required - parsed.keys
+    unless missing.empty?
+      raise "Generated organisation missing required fields: #{missing.join(', ')}"
     end
+    # Ensure passwords are empty for security
+    parsed['manager']['password'] = '' if parsed['manager']
+    if parsed['employees'].is_a?(Array)
+      parsed['employees'].each { |e| e['password'] = '' }
+    end
+    parsed.to_json
+  rescue JSON::ParserError => e
+    raise "LLM did not return valid JSON for organisation generation: #{e.message}"
   end
 end
 

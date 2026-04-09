@@ -74,7 +74,21 @@ class LlmProviderConfig
   end
 
   def config_search_paths(config_path)
-    root_dir = File.expand_path('../../../../../../', __FILE__)
+    # Walk upward from this file to find the SecGen project root (contains secgen.rb)
+    dir = File.dirname(__FILE__)
+    root_dir = nil
+    10.times do
+      if File.exist?(File.join(dir, 'secgen.rb'))
+        root_dir = dir
+        break
+      end
+      parent = File.dirname(dir)
+      break if parent == dir # reached filesystem root
+      dir = parent
+    end
+    # Fallback to relative path if secgen.rb not found
+    root_dir ||= File.expand_path('../../../../..', __FILE__)
+
     paths = []
     paths << config_path if config_path
     paths << File.join(root_dir, CONFIG_FILENAME)

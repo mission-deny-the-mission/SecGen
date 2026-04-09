@@ -1,5 +1,6 @@
 require 'json'
 require 'fileutils'
+require 'time'
 
 # Security audit logging for LLM usage in SecGen.
 # Logs all LLM API calls for compliance, cost tracking, and security review.

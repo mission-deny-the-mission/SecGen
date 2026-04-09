@@ -14,6 +14,7 @@ class LlmNarrativeGenerator
   attr_accessor :cybok_ka, :cybok_topic
   attr_accessor :organisation_data
   attr_accessor :narrative_theme, :content_type
+  attr_accessor :response_format
 
   def initialize(options = {})
     @seed = options['seed']
@@ -25,11 +26,13 @@ class LlmNarrativeGenerator
     @organisation_data = options['organisation'] || {}
     @narrative_theme = options['theme'] || 'investigation'
     @content_type = options['content_type']
+    @response_format = options['response_format']
 
     provider_config = LlmProviderConfig.new(options['config_path'])
     @provider = provider_config.create_provider
     @cache = LlmContentCache.new
-    @config = provider_config.config
+    # Use the provider's merged config (includes provider-specific model, endpoint, etc.)
+    @config = @provider.config
   end
 
   # Main generation entry point - handles caching, generation, sanitization
@@ -120,11 +123,13 @@ class LlmNarrativeGenerator
   end
 
   def generation_params
-    {
+    params = {
       'seed' => @seed,
       'temperature' => @temperature,
       'max_tokens' => @max_tokens,
       'model' => @model || @config['model']
     }.compact
+    params['response_format'] = @response_format if @response_format
+    params
   end
 end
