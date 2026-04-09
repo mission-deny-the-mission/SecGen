@@ -123,6 +123,35 @@
       </generator>
     </input>
 
+    <!-- Deploy LLM-generated narrative documents onto the healthcare server -->
+    <utility module_path=".*/narrative_email_deploy">
+      <input into="file_content">
+        <datastore>narrative_document_breach_communications</datastore>
+      </input>
+      <input into="filename">
+        <value>breach_emails.mbox</value>
+      </input>
+    </utility>
+    <utility module_path=".*/narrative_document_deploy">
+      <input into="file_content">
+        <datastore>narrative_document_incident_channel</datastore>
+      </input>
+      <input into="filename">
+        <value>incident_chat_log.txt</value>
+      </input>
+      <input into="deploy_path">
+        <value>/home</value>
+      </input>
+    </utility>
+    <utility module_path=".*/narrative_log_deploy">
+      <input into="file_content">
+        <datastore>narrative_document_auth_logs</datastore>
+      </input>
+      <input into="filename">
+        <value>auth.log</value>
+      </input>
+    </utility>
+
     <utility module_path=".*/parameterised_accounts">
       <input into="accounts">
         <generator type="account">

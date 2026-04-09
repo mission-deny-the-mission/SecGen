@@ -117,6 +117,27 @@
       </generator>
     </input>
 
+    <!-- Deploy LLM-generated narrative documents onto the target server -->
+    <utility module_path=".*/narrative_email_deploy">
+      <input into="file_content">
+        <datastore>narrative_document_suspicious_emails</datastore>
+      </input>
+      <input into="filename">
+        <value>suspicious_emails.mbox</value>
+      </input>
+    </utility>
+    <utility module_path=".*/narrative_document_deploy">
+      <input into="file_content">
+        <datastore>narrative_document_security_policy</datastore>
+      </input>
+      <input into="filename">
+        <value>security_policy_memo.txt</value>
+      </input>
+      <input into="deploy_path">
+        <value>/home</value>
+      </input>
+    </utility>
+
     <utility module_path=".*/parameterised_accounts">
       <input into="accounts">
         <generator type="account">
