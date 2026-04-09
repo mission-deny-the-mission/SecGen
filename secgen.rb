@@ -150,7 +150,9 @@ end
 def resolve_narratives(scenario, all_available_modules, options)
   return if $narrative_configs.nil? || $narrative_configs.empty?
 
+  seed = options[:narrative_seed]
   Print.info "Resolving #{$narrative_configs.size} narrative configuration(s)..."
+  Print.info "Narrative seed: #{seed} (use --narrative-seed #{seed} to reproduce this scenario)"
 
   # Create a virtual system to use for resolving narrative generators.
   # Narrative generators don't belong to any real system, but we need the
@@ -161,6 +163,12 @@ def resolve_narratives(scenario, all_available_modules, options)
     narrative_config.generators.each do |gen_info|
       module_selector = gen_info[:module_selector]
       datastore_key = gen_info[:datastore_key]
+
+      # Inject the run-level seed so each generator produces unique content.
+      # Skipped if the scenario XML already specifies an explicit seed.
+      unless module_selector.received_inputs.key?('seed')
+        module_selector.received_inputs['seed'] = [seed.to_s]
+      end
 
       Print.std "Resolving narrative generator: #{gen_info[:document_type]}/#{gen_info[:document_name]} -> $datastore['#{datastore_key}']"
 
@@ -187,17 +195,8 @@ def resolve_narratives(scenario, all_available_modules, options)
           Print.std "Narrative generator resolved: #{resolved.last.printable_name}"
         end
       rescue RuntimeError => e
-        error_msg = e.message
-        if error_msg.include?('LLM') || error_msg.include?('provider') || error_msg.include?('connection') || error_msg.include?('timeout')
-          Print.warn "LLM provider error for #{gen_info[:document_name]}: #{error_msg}"
-          Print.warn "Narrative content may be incomplete. Ensure an LLM provider is running or use --no-narrative to skip."
-          # Store a placeholder so downstream consumers don't crash on missing keys
-          ($datastore[datastore_key] ||= []).push("[LLM generation failed: #{error_msg}]")
-        else
-          Print.err "Failed to resolve narrative generator for #{gen_info[:document_name]}: #{error_msg}"
-          Print.err "Check that the generator type '#{module_selector.attributes['type']}' matches an available module"
-          raise
-        end
+        Print.err "Failed to resolve narrative generator for #{gen_info[:document_name]}: #{e.message}"
+        raise
       end
     end
   end
@@ -615,11 +614,12 @@ opts = GetoptLong.new(
     ['--esxi-guest-nictype', GetoptLong::REQUIRED_ARGUMENT],
     ['--esxi-no-hostname', GetoptLong::NO_ARGUMENT],
     ['--no-narrative', GetoptLong::NO_ARGUMENT],
+    ['--narrative-seed', GetoptLong::REQUIRED_ARGUMENT],
 )
 
 scenario = SCENARIO_XML
 project_dir = nil
-options = {}
+options = {narrative_seed: rand(2**31)}
 
 # process option arguments
 opts.each do |opt, arg|
@@ -772,6 +772,9 @@ opts.each do |opt, arg|
   when '--no-narrative'
     Print.info "Skipping LLM narrative content generation"
     options[:no_narrative] = true
+  when '--narrative-seed'
+    options[:narrative_seed] = arg.to_i
+    Print.info "Using fixed narrative seed: #{options[:narrative_seed]}"
   when '--no-tests'
     Print.info "Not running post-provision tests"
     options[:notests] = true

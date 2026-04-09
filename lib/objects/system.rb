@@ -326,7 +326,6 @@ class System
         # build arguments
         args_string = "--b64 " # Sets the flag for decoding base64
         selected.received_inputs.each do |input_key, input_values|
-          puts input_values.inspect
           input_values.each do |input_element|
             if input_key == ''
               Print.warn "Warning: output values not directed to module input"
