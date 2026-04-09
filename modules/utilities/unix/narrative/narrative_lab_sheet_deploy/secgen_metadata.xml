@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+
+<utility xmlns="http://www.github/cliffe/SecGen/utility"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://www.github/cliffe/SecGen/utility">
+  <name>Narrative Lab Sheet Web Server</name>
+  <author>SecGen AI Integration</author>
+  <module_license>MIT</module_license>
+  <description>Serves the LLM-generated HTML lab sheet to students via Apache on port 80.
+    Configures an Apache vhost with the scenario briefing, objectives, and hints
+    so students can browse to the VM's IP address to read their lab instructions.
+    Mirrors the hackerbot lab sheet serving approach for non-hackerbot CTF scenarios.
+  </description>
+
+  <type>narrative_lab_sheet_deploy</type>
+  <platform>linux</platform>
+
+  <read_fact>narrative_lab_sheet_content</read_fact>
+
+</utility>
