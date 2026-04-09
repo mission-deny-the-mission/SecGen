@@ -126,6 +126,30 @@ class ProjectFilesCreator
     Print.std "Creating Puppet Environent file: #{efile}"
     FileUtils.touch(efile)
 
+    # Pre-generate narrative lab sheet HTML and inject into narrative_lab_sheet_deploy
+    # module inputs before the Vagrantfile is written, so the content is encoded into
+    # the module's JSON parameter file and available to Puppet at provisioning time.
+    narrative_keys_precheck = $datastore.keys.select { |k| k.start_with?('narrative_') }
+    if !narrative_keys_precheck.empty? && !$datastore.has_key?("hackerbot_instructions")
+      begin
+        scenario_full_path = File.join(ROOT_DIR, @scenario)
+        scenario_full_path = @scenario unless File.exist?(scenario_full_path)
+        lab_sheet_gen = LabSheetGenerator.new(@systems, scenario_full_path, $datastore)
+        @generated_lab_sheet_html = lab_sheet_gen.render
+        @systems.each do |system|
+          system.module_selections.each do |mod|
+            if mod.module_type == 'utility' && mod.module_path_end == 'narrative_lab_sheet_deploy'
+              mod.received_inputs['narrative_lab_sheet_content'] = [@generated_lab_sheet_html]
+              Print.std "Injecting lab sheet HTML into #{system.name}/narrative_lab_sheet_deploy parameters"
+            end
+          end
+        end
+      rescue => e
+        Print.warn "Failed to pre-generate narrative lab sheet: #{e.message}"
+        Print.warn e.backtrace.first(3).join("\n")
+      end
+    end
+
     vfile = "#{@out_dir}/Vagrantfile"
     Print.std "Creating Vagrant file: #{vfile}"
     template_based_file_write(VAGRANT_TEMPLATE_FILE, vfile)
@@ -208,21 +232,21 @@ class ProjectFilesCreator
       write_data_to_file(pass_notes, pfile)
     end
 
-    # Generate narrative lab sheet when narrative content exists
+    # Write narrative lab sheet to project directory for local/instructor access
     # (separate from hackerbot lab sheets, which use a different pipeline)
     narrative_keys = $datastore.keys.select { |k| k.start_with?('narrative_') }
     if !narrative_keys.empty? && !$datastore.has_key?("hackerbot_instructions")
       jfile = "#{@out_dir}/instructions.html"
-      Print.std "Generating narrative lab sheet: #{jfile}"
+      Print.std "Saving narrative lab sheet: #{jfile}"
       begin
-        # Reconstruct full scenario path for metadata parsing
-        scenario_full_path = File.join(ROOT_DIR, @scenario)
-        scenario_full_path = @scenario unless File.exist?(scenario_full_path)
-        lab_sheet_gen = LabSheetGenerator.new(@systems, scenario_full_path, $datastore)
-        html = lab_sheet_gen.render
+        html = @generated_lab_sheet_html || begin
+          scenario_full_path = File.join(ROOT_DIR, @scenario)
+          scenario_full_path = @scenario unless File.exist?(scenario_full_path)
+          LabSheetGenerator.new(@systems, scenario_full_path, $datastore).render
+        end
         write_data_to_file(html, jfile)
       rescue => e
-        Print.warn "Failed to generate narrative lab sheet: #{e.message}"
+        Print.warn "Failed to save narrative lab sheet: #{e.message}"
         Print.warn e.backtrace.first(3).join("\n")
       end
     end

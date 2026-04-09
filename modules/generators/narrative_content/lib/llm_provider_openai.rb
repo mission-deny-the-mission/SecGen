@@ -41,13 +41,15 @@ class LlmProviderOpenai < LlmProvider
   def validate_config
     super
     config['endpoint'] ||= 'https://api.openai.com'
-    unless config['api_key'] && !config['api_key'].empty?
-      raise "OpenAI provider requires 'api_key' in configuration"
+    # Only require API key for official OpenAI endpoint
+    if config['endpoint'] == 'https://api.openai.com' && !(config['api_key'] && !config['api_key'].empty?)
+      raise "OpenAI provider requires 'api_key' in configuration when using official OpenAI endpoint"
     end
   end
 
   def available?
-    config['api_key'] && !config['api_key'].empty?
+    # Available if using custom endpoint OR has valid API key for official endpoint
+    config['endpoint'] != 'https://api.openai.com' || (config['api_key'] && !config['api_key'].empty?)
   end
 
   protected

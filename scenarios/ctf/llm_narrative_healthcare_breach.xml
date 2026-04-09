@@ -81,6 +81,10 @@
       </input>
     </utility>
 
+    <!-- Serve the LLM-generated lab sheet via Apache on port 80 -->
+    <service type="httpd"/>
+    <utility module_path=".*/narrative_lab_sheet_deploy"/>
+
     <network type="private_network">
       <input into="IP_address">
         <datastore access="0">IP_addresses</datastore>
