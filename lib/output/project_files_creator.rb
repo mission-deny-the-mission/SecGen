@@ -161,6 +161,27 @@ class ProjectFilesCreator
     json = JSON.generate($datastore)
     write_data_to_file(json, jfile)
 
+    # Save narrative content to project directory
+    narrative_dir = "#{@out_dir}/narrative"
+    narrative_keys = $datastore.keys.select { |k| k.start_with?('narrative_') }
+    unless narrative_keys.empty?
+      Print.std "Saving narrative content to: #{narrative_dir}"
+      FileUtils.mkpath(narrative_dir)
+      narrative_keys.each do |key|
+        content = $datastore[key]
+        # Narrative content may be a string or array of strings
+        if content.is_a?(Array)
+          content.each_with_index do |item, idx|
+            filename = key.gsub(/^narrative_/, '')
+            filename = "#{filename}_#{idx}" if content.size > 1
+            write_data_to_file(item.to_s, "#{narrative_dir}/#{filename}")
+          end
+        else
+          write_data_to_file(content.to_s, "#{narrative_dir}/#{key.gsub(/^narrative_/, '')}")
+        end
+      end
+    end
+
     if @options[:network_map]
       system_ips = {}
       @systems.each do |system|

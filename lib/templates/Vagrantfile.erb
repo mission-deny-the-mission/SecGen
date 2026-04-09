@@ -376,6 +376,40 @@ end
       <%=module_name%>.manifests_path = "<%="puppet/#{system.name}/modules/#{selected_module.module_path_end}"%>"
       <%=module_name%>.manifest_file = "<%="#{selected_module.module_path_end}.pp"%>"
     end
+<%   when 'generator' -%>
+<%    # Generators with Puppet files (e.g., narrative deployment utilities) need provisioning.
+    # Generators without Puppet files only produce output during build via secgen_local/local.rb.
+    # Check that the .pp file exists AND has content (some generators have empty placeholder .pp files).
+    if selected_module.puppet_file && File.file?(selected_module.puppet_file) && File.size(selected_module.puppet_file) > 0 -%>
+<%     module_name = selected_module.module_path_name -%>
+    <%= system.name %>.vm.provision "puppet" do | <%=module_name%> |
+<%     # if there are facter variables to define
+      if selected_module.received_inputs != {} -%>
+      <% json_inputs = JSON.generate(selected_module.received_inputs)
+         b64_json_inputs = Base64.strict_encode64(json_inputs)
+         json_inputs_filename = "#{selected_module.module_path_end}_#{SecureRandom.hex(15).to_s}"
+         dir = "#{@out_dir}/puppet/#{system.name}/modules/secgen_functions/files/json_inputs"
+         FileUtils.mkdir_p(dir) unless File.exist?(dir)
+         Print.verbose "Writing #{selected_module.module_path_name} input to: #{dir}/#{json_inputs_filename}"
+         File.write("#{dir}/#{json_inputs_filename}", b64_json_inputs)
+      -%>
+<%=   module_name%>.facter = {
+        "base64_inputs_file" => '<%= json_inputs_filename %>',
+      }
+<%    end -%>
+      <%=module_name%>.module_path = "<%="puppet/#{system.name}/modules"%>"
+<%    if selected_module.attributes['platform'].first.downcase == 'windows' || @base_template =~ /win/i %>
+      <%=module_name%>.temp_dir = "/cygdrive/c/vagrant/"
+<%    else -%>
+      <%=module_name%>.environment_path = "environments/"
+      <%=module_name%>.environment_variables = {'RUBYOPT' => '-W0'}
+      <%=module_name%>.environment = "production"
+<%    end -%>
+      <%=module_name%>.synced_folder_type = "rsync"
+      <%=module_name%>.manifests_path = "<%="puppet/#{system.name}/modules/#{selected_module.module_path_end}"%>"
+      <%=module_name%>.manifest_file = "<%="#{selected_module.module_path_end}.pp"%>"
+    end
+<%    end -%>
 <%   end -%>
 <% end -%>
 

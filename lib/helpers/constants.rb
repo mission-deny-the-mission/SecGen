@@ -2,6 +2,7 @@
 $datastore = {}
 $datastore_iterators = {} # keeps track of previous access to datastore elements datastorevariablename => prev_index_accessed
 $cybok_coverage = [] # array of XML nodes
+$narrative_configs = [] # array of NarrativeConfig objects from <narrative> scenario elements
 
 ## FILE / DIR CONSTANTS ##
 

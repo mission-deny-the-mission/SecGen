@@ -90,9 +90,11 @@ class ModuleReader < XMLReader
     return read_modules('utility', UTILITIES_DIR, UTILITY_SCHEMA_FILE, true)
   end
 
-  # reads in all utilities
+  # reads in all generators
+  # Generators produce output via secgen_local/local.rb scripts, not Puppet manifests,
+  # so require_puppet is false. Generators that also have Puppet files work fine without this check.
   def self.read_generators
-    return read_modules('generator', GENERATORS_DIR, GENERATOR_SCHEMA_FILE, true)
+    return read_modules('generator', GENERATORS_DIR, GENERATOR_SCHEMA_FILE, false)
   end
 
   # reads in all utilities

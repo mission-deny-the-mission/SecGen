@@ -40,6 +40,7 @@ def usage
    --retries [number]: Retry building vms that fail to build this many attempts.
    --no-parallel: Build one VM at a time.
    --verbose: Show full Vagrant log output as VMs are being built.
+   --no-narrative: Skip LLM narrative content generation (useful when no LLM provider is available).
 
    VIRTUALBOX OPTIONS:
    --gui-output, -g: Show the running VM (not headless)
@@ -109,6 +110,17 @@ def build_config(scenario, out_dir, options)
 
   all_available_modules = ModuleReader.get_all_available_modules
 
+  # Resolve narrative generators FIRST (scenario-level, not system-level)
+  # Narrative generators produce content stored in $datastore for cross-system access.
+  # Must run before system resolution because system-level modules may consume
+  # narrative content from $datastore (e.g., narrative_email_deploy reads
+  # narrative_document_suspicious_emails).
+  unless options[:no_narrative]
+    resolve_narratives(scenario, all_available_modules, options)
+  else
+    Print.std 'Skipping narrative content generation (--no-narrative flag set)'
+  end
+
   Print.info 'Resolving systems: randomising scenario...'
   # update systems with module selections
   systems.map! {|system|
@@ -125,6 +137,72 @@ def build_config(scenario, out_dir, options)
   creator.write_files
 
   Print.info 'Project files created.'
+end
+
+# Resolves narrative generators from <narrative> scenario elements.
+# Each narrative generator is resolved through the module selection pipeline,
+# and the generated content is stored in $datastore under keys like
+# 'narrative_introduction' and 'narrative_document_{name}'.
+#
+# @param scenario [String] path to the scenario file
+# @param all_available_modules [Array] all available modules for selection
+# @param options [Hash] command line options
+def resolve_narratives(scenario, all_available_modules, options)
+  return if $narrative_configs.nil? || $narrative_configs.empty?
+
+  Print.info "Resolving #{$narrative_configs.size} narrative configuration(s)..."
+
+  # Create a virtual system to use for resolving narrative generators.
+  # Narrative generators don't belong to any real system, but we need the
+  # System.select_modules pipeline for module matching and local_calc execution.
+  narrative_system = System.new('narrative_virtual', {}, [], scenario, options)
+
+  $narrative_configs.each do |narrative_config|
+    narrative_config.generators.each do |gen_info|
+      module_selector = gen_info[:module_selector]
+      datastore_key = gen_info[:datastore_key]
+
+      Print.std "Resolving narrative generator: #{gen_info[:document_type]}/#{gen_info[:document_name]} -> $datastore['#{datastore_key}']"
+
+      begin
+        # Resolve the generator module selector against available modules
+        # using System.select_modules directly (not resolve_module_selection)
+        # because we have individual selectors, not a system-level list.
+        resolved = narrative_system.select_modules(
+          module_selector.module_type,
+          module_selector.attributes,
+          all_available_modules,
+          [], # no previously selected modules
+          module_selector.unique_id,
+          nil, # write_output_variable (not needed, we use datastore)
+          '',  # write_to_module_with_id
+          module_selector.received_inputs,
+          module_selector.default_inputs_literals,
+          datastore_key, # write_to_datastore — stores output in $datastore
+          module_selector.received_datastores,
+          nil  # write_module_path_to_datastore
+        )
+
+        if resolved && !resolved.empty?
+          Print.std "Narrative generator resolved: #{resolved.last.printable_name}"
+        end
+      rescue RuntimeError => e
+        error_msg = e.message
+        if error_msg.include?('LLM') || error_msg.include?('provider') || error_msg.include?('connection') || error_msg.include?('timeout')
+          Print.warn "LLM provider error for #{gen_info[:document_name]}: #{error_msg}"
+          Print.warn "Narrative content may be incomplete. Ensure an LLM provider is running or use --no-narrative to skip."
+          # Store a placeholder so downstream consumers don't crash on missing keys
+          ($datastore[datastore_key] ||= []).push("[LLM generation failed: #{error_msg}]")
+        else
+          Print.err "Failed to resolve narrative generator for #{gen_info[:document_name]}: #{error_msg}"
+          Print.err "Check that the generator type '#{module_selector.attributes['type']}' matches an available module"
+          raise
+        end
+      end
+    end
+  end
+
+  Print.info 'Narrative content generation complete.'
 end
 
 # Builds the vm via the vagrant file in the project dir
@@ -536,6 +614,7 @@ opts = GetoptLong.new(
     ['--esxi-disktype', GetoptLong::REQUIRED_ARGUMENT],
     ['--esxi-guest-nictype', GetoptLong::REQUIRED_ARGUMENT],
     ['--esxi-no-hostname', GetoptLong::NO_ARGUMENT],
+    ['--no-narrative', GetoptLong::NO_ARGUMENT],
 )
 
 scenario = SCENARIO_XML
@@ -690,6 +769,9 @@ opts.each do |opt, arg|
   when '--esxi-no-hostname'
     Print.info "Not setting hostnames when VMs are created"
     options[:esxinohostname] = true
+  when '--no-narrative'
+    Print.info "Skipping LLM narrative content generation"
+    options[:no_narrative] = true
   when '--no-tests'
     Print.info "Not running post-provision tests"
     options[:notests] = true
