@@ -5,6 +5,7 @@ require_relative 'xml_scenario_generator.rb'
 require_relative 'xml_marker_generator.rb'
 require_relative 'xml_cybok_generator.rb'
 require_relative 'ctfd_generator.rb'
+require_relative 'lab_sheet_generator.rb'
 require 'fileutils'
 require 'librarian'
 require 'zip/zip'
@@ -205,6 +206,25 @@ class ProjectFilesCreator
       Print.std "Saving spoiler/admin passwords: #{pfile}"
       pass_notes = $datastore["spoiler_admin_pass"].join("\n")
       write_data_to_file(pass_notes, pfile)
+    end
+
+    # Generate narrative lab sheet when narrative content exists
+    # (separate from hackerbot lab sheets, which use a different pipeline)
+    narrative_keys = $datastore.keys.select { |k| k.start_with?('narrative_') }
+    if !narrative_keys.empty? && !$datastore.has_key?("hackerbot_instructions")
+      jfile = "#{@out_dir}/instructions.html"
+      Print.std "Generating narrative lab sheet: #{jfile}"
+      begin
+        # Reconstruct full scenario path for metadata parsing
+        scenario_full_path = File.join(ROOT_DIR, @scenario)
+        scenario_full_path = @scenario unless File.exist?(scenario_full_path)
+        lab_sheet_gen = LabSheetGenerator.new(@systems, scenario_full_path, $datastore)
+        html = lab_sheet_gen.render
+        write_data_to_file(html, jfile)
+      rescue => e
+        Print.warn "Failed to generate narrative lab sheet: #{e.message}"
+        Print.warn e.backtrace.first(3).join("\n")
+      end
     end
 
     if $datastore.has_key? "hackerbot_instructions"
