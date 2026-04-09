@@ -1,0 +1,33 @@
+{
+  "provider": "openai",
+  "temperature": 0.7,
+  "max_tokens": 2048,
+  "seed": null,
+  "timeout": 300,
+
+  "ollama": {
+    "endpoint": "http://localhost:11434",
+    "model": "llama3"
+  },
+
+  "openai": {
+    "endpoint": "https://api.openai.com",
+    "model": "gpt-5.4-mini",
+    "api_key": null
+  },
+
+  "anthropic": {
+    "endpoint": "https://api.anthropic.com",
+    "model": "claude-3-haiku-20240307",
+    "api_key": null
+  },
+
+  "llama_cpp": {
+    "endpoint": "http://localhost:8080"
+  },
+
+  "lm_studio": {
+    "endpoint": "http://localhost:1234",
+    "model": "local-model"
+  }
+}

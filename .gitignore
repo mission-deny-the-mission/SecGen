@@ -22,3 +22,4 @@ rgloader
 .ruby-version
 vendor/**
 vagrant-proxmox
+llm_config.json
