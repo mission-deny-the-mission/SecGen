@@ -128,6 +128,7 @@ SecGen accepts arguments to change the way that it behaves, the currently implem
       --system, -y [system_name]: Only build this system_name from the scenario
       --snapshot: Creates a snapshot of VMs once built
       --no-tests: Prevent post-provisioning tests from running.
+      --no-narrative: Skip LLM narrative content generation.
 
       VIRTUALBOX OPTIONS:
       --gui-output, -g: Show the running VM (not headless)
@@ -260,6 +261,67 @@ BASE64 Encoder
 ```
 ![gify goodness](lib/resources/images/readme_gifs/base64_encoder_run.gif  "secgen_local.rb scripts can be executed directly")
 ![gify goodness](lib/resources/images/readme_gifs/base64_encoder_code.gif  "Coding a generator or encoder is easy!")
+
+## LLM Narrative Content Generation
+
+SecGen supports LLM-powered narrative content generation, which creates immersive, unique scenario content such as email chains, internal memos, chat logs, system logs, and organisation profiles. This makes each generated scenario unique while maintaining educational alignment with CyBOK knowledge areas.
+
+### Quick Start
+
+1. Install and start an LLM provider (e.g., [Ollama](https://ollama.ai/)):
+```bash
+ollama pull llama3
+ollama serve
+```
+
+2. Build a scenario with narrative content:
+```bash
+ruby secgen.rb --scenario scenarios/ctf/llm_narrative_demo.xml run
+```
+
+3. To skip narrative generation (when no LLM is available):
+```bash
+ruby secgen.rb --scenario scenarios/ctf/llm_narrative_demo.xml --no-narrative run
+```
+
+### Supported LLM Providers
+
+| Provider | Type | Default Endpoint |
+|----------|------|-----------------|
+| Ollama | Local | `http://localhost:11434` |
+| LM Studio | Local | `http://localhost:1234` |
+| llama.cpp | Local | `http://localhost:8080` |
+| OpenAI | Cloud | `https://api.openai.com` |
+| Anthropic | Cloud | `https://api.anthetic.com` |
+
+Configuration is via `llm_config.json` or environment variables (`SECGEN_LLM_PROVIDER`, `SECGEN_LLM_MODEL`, etc.). Local providers are tried first by auto-detection.
+
+### Narrative Content Types
+
+The following LLM generators are available:
+
+- **llm_organisation** - Generates realistic organisation profiles with employees, managers, and domain info
+- **llm_email_chain** - Creates multi-message email conversations
+- **llm_memo** - Produces internal policy memos and incident reports
+- **llm_chat_log** - Generates team channel and incident chat logs
+- **llm_log_entry** - Creates authentication and system log entries
+- **llm_database_record** - Generates customer data and audit trail records
+- **llm_website_content** - Creates company website pages
+- **llm_ctf_narrative** - Generates full CTF scenario introductions
+- **llm_hackerbot_script** - Creates interactive investigation dialogues
+- **llm_assessment** - Generates CyBOK-aligned assessment questions
+
+### Narrative Deployment Utilities
+
+Generated content is deployed onto VMs using Puppet utilities:
+
+- **narrative_deploy** - Generic file deployment with configurable path and permissions
+- **narrative_email_deploy** - Deploys email content to `/var/mail/`
+- **narrative_log_deploy** - Deploys log entries to `/var/log/`
+- **narrative_document_deploy** - Deploys documents to `/home/` (configurable)
+- **narrative_website_deploy** - Deploys website content to `/var/www/`
+
+For detailed documentation see **[README-LLM-Narrative-Generation.md](README-LLM-Narrative-Generation.md)**.
 
 ## Puppet is used to provision the VMs
 Each vulnerability, service, and utility module contains Puppet files which are used to provision the software and configuration changes onto the VMs. By the time Puppet is executed to provision VMs, all randomisation has previously taken place at build time.

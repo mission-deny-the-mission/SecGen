@@ -1,163 +1,129 @@
 # Using LLMs for Narrative Content Generation in SecGen
 
-This document outlines how Large Language Models (LLMs) can be integrated into SecGen to generate narrative content for cybersecurity lab VMs and CTF scenarios.
+This document describes the LLM-powered narrative content generation system integrated into SecGen. The system generates immersive, unique scenario content such as email chains, internal memos, chat logs, system logs, and organisation profiles, while maintaining educational alignment with CyBOK knowledge areas.
 
 ---
 
 ## Table of Contents
 
 1. [Overview](#overview)
-2. [How to Use LLMs for Narrative Generation](#how-to-use-llms-for-narrative-generation)
-3. [Scenarios with Existing Narrative Content](#scenarios-with-existing-narrative-content)
-4. [Recommended Integration Points](#recommended-integration-points)
-5. [Example Implementation](#example-implementation)
+2. [Architecture](#architecture)
+3. [Configuration](#configuration)
+4. [Available Generators](#available-generators)
+5. [Scenario XML Usage](#scenario-xml-usage)
+6. [Deployment Utilities](#deployment-utilities)
+7. [Demo Scenarios](#demo-scenarios)
+8. [Testing](#testing)
+9. [Implementation Considerations](#implementation-considerations)
+10. [Scenarios with Existing Narrative Content](#scenarios-with-existing-narrative-content)
 
 ---
 
 ## Overview
 
-SecGen already has infrastructure for structured content generation including:
-- Organisation data (`lib/resources/structured_content/organisations/`)
-- Scenario XML definitions (`scenarios/`)
-- Generator modules (`modules/generators/`)
-- Hackerbot investigation templates (`modules/generators/structured_content/hackerbot_config/`)
+SecGen's LLM narrative system generates unique, context-rich content for cybersecurity training scenarios. Each time a scenario is built, the LLM creates fresh narrative content that:
 
-LLMs can extend this infrastructure to generate immersive, coherent narratives that enhance the educational value of cybersecurity exercises.
+- Produces realistic organisation profiles with employees, managers, and domain info
+- Creates email chains, memos, chat logs, and system logs with embedded evidence
+- Aligns content with CyBOK knowledge areas for educational value
+- Caches generated content for reproducibility
+- Sanitises output to remove private keys, AI meta-commentary, and student data
+
+The system supports both local LLM providers (Ollama, LM Studio, llama.cpp) for offline use and cloud providers (OpenAI, Anthropic) for higher quality output.
+
+---
+
+## Architecture
+
+The implementation follows a Strategy + Template Method pattern:
+
+```
+Scenario XML (<narrative>)
+    |
+    v
+SystemReader.read_narratives()  -->  NarrativeConfig objects
+    |
+    v
+secgen.rb: resolve_narratives()  -->  System.select_modules()
+    |
+    v
+LlmNarrativeGenerator.build_prompt()  -->  Prompt template rendering
+    |
+    v
+LlmProvider.generate()  -->  LLM API call (or cache hit)
+    |
+    v
+LlmContentSanitizer.sanitize()  -->  Content cleaning
+    |
+    v
+$datastore['narrative_document_*']  -->  Puppet deployment utilities
+```
+
+### Key Components
+
+| Component | Location | Purpose |
+|-----------|----------|---------|
+| LLM Provider abstraction | `modules/generators/narrative_content/lib/llm_provider*.rb` | 5 provider backends (Ollama, OpenAI, Anthropic, llama.cpp, LM Studio) |
+| Provider config & auto-detection | `modules/generators/narrative_content/lib/llm_provider_config.rb` | Config resolution, env vars, auto-detection |
+| Base narrative generator | `modules/generators/narrative_content/lib/llm_narrative_generator.rb` | Template method for prompt/parse/sanitize pipeline |
+| Prompt template engine | `modules/generators/narrative_content/lib/llm_prompt_template.rb` | Handlebars-style templating |
+| Content caching | `modules/generators/narrative_content/lib/llm_content_cache.rb` | SHA256-based cache for reproducibility |
+| Content sanitization | `modules/generators/narrative_content/lib/llm_content_sanitizer.rb` | Removes private keys, AI commentary, student data |
+| CyBOK alignment | `modules/generators/narrative_content/lib/llm_cybok.rb` | Maps knowledge areas to learning objectives |
+| Audit logging | `modules/generators/narrative_content/lib/llm_audit_logger.rb` | Logs all LLM API calls |
+| NarrativeConfig object | `lib/objects/narrative_config.rb` | Parsed narrative XML configuration |
+| Narrative parser | `lib/readers/system_reader.rb` | Parses `<narrative>` elements from scenario XML |
+| Narrative resolver | `secgen.rb:resolve_narratives()` | Resolves generators through module selection pipeline |
 
 ---
 
 ## How to Use LLMs for Narrative Generation
+## Configuration
 
-### 1. Organisation/Fictional Company Generation
+### Configuration File (`llm_config.json`)
 
-**Location:** `lib/resources/structured_content/organisations/`
-
-LLMs can generate complete organisation profiles with:
-- Company backstories and history
-- Industry-specific context (healthcare, finance, education, etc.)
-- Employee relationships and organisational dynamics
-- Security policies and culture descriptions
-
-**Example JSON structure enhancement:**
 ```json
 {
-  "business_name": "Northern Banking",
-  "business_motto": "We'll keep your money safe!",
-  "company_history": "Founded in 1805 in Huddersfield...",
-  "recent_events": "Recently experienced a phishing campaign targeting...",
-  "security_posture": "Basic security controls in place but...",
-  "industry": "Finance",
-  "manager": {...},
-  "employees": [...]
+  "provider": "ollama",
+  "temperature": 0.7,
+  "max_tokens": 2048,
+  "seed": null,
+  "timeout": 120,
+  "ollama": { "endpoint": "http://localhost:11434", "model": "llama3" },
+  "openai": { "endpoint": "https://api.openai.com", "model": "gpt-4o-mini", "api_key": null },
+  "anthropic": { "endpoint": "https://api.anthropic.com", "model": "claude-3-haiku-20240307", "api_key": null },
+  "llama_cpp": { "endpoint": "http://localhost:8080" },
+  "lm_studio": { "endpoint": "http://localhost:1234", "model": "local-model" }
 }
 ```
 
----
+### Environment Variables
 
-### 2. CTF Challenge Narratives
+| Variable | Description |
+|----------|-------------|
+| `SECGEN_LLM_PROVIDER` | Override provider selection |
+| `SECGEN_LLM_MODEL` | Override model name |
+| `SECGEN_LLM_ENDPOINT` | Override API endpoint |
+| `SECGEN_LLM_TEMPERATURE` | Override temperature |
+| `SECGEN_LLM_MAX_TOKENS` | Override max tokens |
+| `SECGEN_LLM_SEED` | Set seed for reproducibility |
+| `SECGEN_LLM_*_API_KEY` | API key for specific provider |
 
-**Location:** `scenarios/ctf/*.xml`
+### Auto-Detection
 
-LLMs can generate immersive scenario descriptions including:
-- Scenario introductions and context
-- Character backgrounds and motivations
-- Plot progression hints
-- Evidence descriptions and document content
+If no provider is configured, auto-detection tries: `ollama -> lm_studio -> llama_cpp -> openai -> anthropic`
 
-**Current example from `agent001.xml`:**
-```xml
-<description>
-In this scenario, as a secret agent analyst specializing in cyber security, 
-you are authorized to conduct offensive operations against those who threaten 
-the digital safety and security of your country.
+### Skipping Narrative Generation
 
-You have been tasked with conducting a penetration test and to investigate 
-the operations of 'The Organization' in order to discover their evil plans...
-</description>
+Use `--no-narrative` to skip LLM generation when no provider is available:
+```bash
+ruby secgen.rb --scenario scenarios/ctf/llm_narrative_demo.xml --no-narrative run
 ```
-
----
-
-### 3. Evidence & Document Generation
-
-LLMs can create realistic content for:
-
-| Content Type | Example Use |
-|--------------|-------------|
-| Email chains | Communication between suspicious employees |
-| Internal memos | Policy announcements, incident reports |
-| Log entries | System logs with narrative context |
-| Database records | Customer data telling a story |
-| Website content | Compromised organisation web presence |
-| Chat logs | Slack/Teams conversations revealing evidence |
-
-**Integration point:** Use datastores to pass organisation context:
-```xml
-<input into_datastore="organisation">
-  <encoder type="line_selector">
-    <input into="file_path">
-      <value>lib/resources/structured_content/organisations/json_organisations</value>
-    </input>
-  </encoder>
-</input>
-
-<!-- Then use in vulnerability/service content -->
-<vulnerability module_path=".*email_server">
-  <input into="emails">
-    <generator type="llm_email_generator">
-      <input into="organisation">
-        <datastore>organisation</datastore>
-      </input>
-      <input into="scenario_theme">
-        <value>insider_threat</value>
-      </input>
-    </generator>
-  </input>
-</vulnerability>
-```
-
----
-
-### 4. Hackerbot/Chatbot Scripts
-
-**Location:** `modules/generators/structured_content/hackerbot_config/`
-
-LLMs can generate:
-- Interactive investigation dialogues
-- Branching narrative paths based on student actions
-- Dynamic clues and feedback
-- Personalised hints based on progress
-
-**Template files:**
-- `live_analysis/templates/live_investigation.md`
-- `dead_analysis/templates/dead_investigation.md`
-- `integrity_detection/templates/integrity.md`
-- `ids/templates/IDS.md`
-
----
-
-### 5. CyBOK-Aligned Learning Narratives
-
-Scenarios are tagged with CyBOK (Cyber Security Body of Knowledge) metadata. LLMs can:
-- Generate narratives aligned with specific CyBOK knowledge areas
-- Create learning objectives embedded in storylines
-- Produce assessment questions based on scenario events
-
-**Example CyBOK tags from scenarios:**
-```xml
-<CyBOK KA="MAT" topic="Attacks and exploitation">
-  <keyword>EXPLOITATION</keyword>
-</CyBOK>
-<CyBOK KA="SOIM" topic="PENETRATION TESTING">
-  <keyword>PENETRATION TESTING - ACTIVE PENETRATION</keyword>
-</CyBOK>
-```
-
 ---
 
 ## Scenarios with Existing Narrative Content
 
-### Strong Narrative Scenarios
+### Strong Narrative Scenarios (non-LLM)
 
 | Scenario | Location | Narrative Elements |
 |----------|----------|-------------------|
@@ -209,190 +175,157 @@ Scenarios are tagged with CyBOK (Cyber Security Body of Knowledge) metadata. LLM
 
 ---
 
-## Recommended Integration Points
+## Available Generators
 
-### 1. New Generator Module Structure
+All 10 generator modules are in `modules/generators/narrative_content/`:
 
-```
-modules/generators/narrative_content/
-├── llm_narrative_generator.rb
-├── templates/
-│   ├── email_chain.erb
-│   ├── memo.erb
-│   ├── chat_log.erb
-│   ├── incident_report.erb
-│   └── scenario_introduction.erb
-└── secgen_metadata.xml
-```
+| Generator | Module Path | Content Type |
+|-----------|-------------|-------------|
+| Organisation profiles | `llm_organisation/` | JSON org data with employees, manager, domain |
+| Email chains | `llm_email_chain/` | Multi-message email conversations |
+| Internal memos | `llm_memo/` | Policy announcements, incident reports |
+| Chat logs | `llm_chat_log/` | Team channel, DM, incident channel |
+| System logs | `llm_log_entry/` | Auth logs, system events |
+| Database records | `llm_database_record/` | Customer data, audit trails |
+| Website content | `llm_website_content/` | Company pages, portals |
+| CTF narratives | `llm_ctf_narrative/` | Full scenario introductions |
+| Hackerbot scripts | `llm_hackerbot_script/` | Interactive investigation dialogues |
+| Assessment questions | `llm_assessment/` | CyBOK-aligned questions |
 
-### 2. Extended Scenario XML Schema
+13 prompt templates are in `modules/generators/narrative_content/prompts/`.
 
-Add `<narrative>` element support:
+---
+
+## Scenario XML Usage
+
+### Narrative Element
+
+The `<narrative>` element is a scenario-level element (peer of `<system>`) that defines LLM-generated content:
+
 ```xml
 <scenario>
-  <name>Example Scenario</name>
-  <description>...</description>
-  
-  <!-- New narrative section -->
-  <narrative>
-    <introduction generator="llm_narrative_generator">
-      <input into="theme">
-        <value>insider_threat</value>
-      </input>
-      <input into="organisation">
-        <datastore>organisation</datastore>
-      </input>
+  <narrative theme="espionage" cybok_ka="MAT">
+    <introduction>
+      <generator type="llm_ctf_narrative">
+        <input into="theme"><value>espionage</value></input>
+        <input into="cybok_ka"><value>MAT</value></input>
+      </generator>
     </introduction>
-    
     <documents>
-      <document type="email" generator="llm_email_generator">
-        <input into="participants">
-          <datastore>employees</datastore>
-        </input>
+      <document type="email_chain" name="suspicious_emails">
+        <generator type="llm_email_chain">
+          <input into="theme"><value>insider_threat</value></input>
+          <input into="num_emails"><value>5</value></input>
+        </generator>
       </document>
     </documents>
   </narrative>
-  
+
   <system>...</system>
 </scenario>
 ```
 
-### 3. LLM Provider Integration
+Narrative content is stored in `$datastore` under keys like `narrative_introduction` and `narrative_document_{name}`. Any system in the scenario can access this content via `<datastore>narrative_document_suspicious_emails</datastore>`.
 
-Options for LLM integration:
-- **Local models** (Ollama, LM Studio, llama.cpp) for offline use
-- **API-based** (OpenAI, Anthropic, etc.) for cloud generation
-- **Hybrid** (cache generated content for reuse)
+### System-Level Generators
 
-### 4. Prompt Template System
+LLM generators can also be used within `<system>` blocks like any other generator:
 
-Create reusable prompt templates:
-```
-modules/generators/narrative_content/prompts/
-├── scenario_introduction.txt
-├── email_chain.txt
-├── employee_background.txt
-├── incident_timeline.txt
-└── evidence_description.txt
+```xml
+<system>
+  <system_name>target_server</system_name>
+  <input into_datastore="organisation">
+    <generator type="llm_organisation">
+      <input into="industry"><value>Finance</value></input>
+      <input into="theme"><value>espionage</value></input>
+    </generator>
+  </input>
+</system>
 ```
 
 ---
 
-## Example Implementation
+## Deployment Utilities
 
-### Creating an LLM-Generated Email Chain
+Generated content is deployed onto VMs using Puppet utility modules in `modules/utilities/unix/narrative/`:
+
+| Utility | Default Deploy Path | Purpose |
+|---------|-------------------|---------|
+| `narrative_deploy` | Configurable | Generic file deployment |
+| `narrative_email_deploy` | `/var/mail/` | Email content deployment |
+| `narrative_log_deploy` | `/var/log/` | Log entry deployment |
+| `narrative_document_deploy` | `/home/` | Document file deployment |
+| `narrative_website_deploy` | `/var/www/` | Website content deployment |
+
+Example usage in scenario XML:
 
 ```xml
-<?xml version="1.0"?>
-<scenario xmlns="http://www.github/cliffe/SecGen/scenario"
-          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-
-  <name>Insider Threat Investigation</name>
-  <description>Investigate a potential insider threat at a fictional organisation.</description>
-  
-  <system>
-    <system_name>mail_server</system_name>
-    <base distro="Debian 12" type="server"/>
-    
-    <!-- Generate organisation context -->
-    <input into_datastore="organisation">
-      <encoder type="line_selector">
-        <input into="file_path">
-          <value>lib/resources/structured_content/organisations/json_organisations</value>
-        </input>
-      </encoder>
-    </input>
-    
-    <!-- Generate email chain narrative -->
-    <utility module_path=".*/mail_server">
-      <input into="emails">
-        <generator type="llm_email_chain_generator">
-          <input into="organisation">
-            <datastore>organisation</datastore>
-          </input>
-          <input into="narrative_theme">
-            <value>data_exfiltration</value>
-          </input>
-          <input into="participants">
-            <datastore access_json="['employees']">organisation</datastore>
-          </input>
-          <input into="num_emails">
-            <value>5</value>
-          </input>
-        </generator>
-      </input>
-    </utility>
-    
-    <network type="private_network"/>
-  </system>
-</scenario>
+<utility module_path=".*/narrative_email_deploy">
+  <input into="file_content">
+    <datastore>narrative_document_suspicious_emails</datastore>
+  </input>
+  <input into="filename">
+    <value>suspicious_emails.mbox</value>
+  </input>
+</utility>
 ```
 
-### Sample LLM Prompt Template
+---
 
+## Demo Scenarios
+
+Two demo scenarios showcase the full narrative integration:
+
+| Scenario | File | Difficulty | CyBOK |
+|----------|------|-----------|-------|
+| Corporate Espionage Investigation | `scenarios/ctf/llm_narrative_demo.xml` | Medium | MAT/SOIM |
+| Healthcare Data Breach Investigation | `scenarios/ctf/llm_narrative_healthcare_breach.xml` | Hard | SOIM |
+
+Both demonstrate the `<narrative>` XML element, LLM organisation generation, email/memo/log deployment, and multiple document types.
+
+---
+
+## Testing
+
+84 tests with 369 assertions cover the full narrative system:
+
+```bash
+cd /path/to/SecGen
+ruby -Ilib -Imodules/generators/narrative_content/lib -e "Dir.glob('spec/narrative_content/test_*.rb').each { |f| require_relative f }"
 ```
-You are generating email content for a cybersecurity training scenario.
 
-Organisation: {{organisation.business_name}}
-Industry: {{organisation.industry}}
-Theme: {{narrative_theme}}
-
-Participants:
-{{#each participants}}
-- {{name}} ({{email_address}}) - {{job_title}}
-{{/each}}
-
-Generate {{num_emails}} emails that tell a coherent story related to {{narrative_theme}}.
-Include subtle clues that students can discover during their investigation.
-
-Format each email as:
-From: <email>
-To: <email>
-Date: <timestamp>
-Subject: <subject>
-
-<email body>
-```
+Test files are in `spec/narrative_content/`:
+- `test_providers.rb` - Provider instantiation and configuration
+- `test_provider_config.rb` - Config resolution and env var overrides
+- `test_content_cache.rb` - Caching, invalidation, and stats
+- `test_content_sanitizer.rb` - Sanitization and quality validation
+- `test_prompt_template.rb` - Template rendering and validation
+- `test_cybok.rb` - CyBOK alignment and coverage validation
+- `test_end_to_end.rb` - Full pipeline integration with mock provider
+- `test_narrative_parsing.rb` - Narrative XML parsing and NarrativeConfig
 
 ---
 
 ## Implementation Considerations
 
 ### Security
-- Never send real student data to external LLM APIs
-- Use local models for sensitive deployments
-- Sanitise all generated content before VM deployment
+- Student data protection: prompts are checked for student emails/IDs before sending to LLM
+- Content sanitization: removes accidentally generated private keys and shell injection
+- Quality validation: detects LLM refusals and AI meta-commentary
+- Audit logging: all LLM API calls logged with provider, model, prompt hash, duration
+- Local-only mode: prioritizes local providers to prevent data from leaving the system
 
 ### Quality Control
-- Implement validation for generated content
-- Ensure CyBOK alignment is maintained
-- Test narratives for educational effectiveness
+- Content validation checks minimum/maximum length
+- CyBOK alignment validation ensures coverage of target knowledge areas
+- Seed-based reproducibility for deterministic output
+- Caching reduces API costs and ensures consistent results
 
 ### Performance
-- Cache generated narratives for reuse
-- Pre-generate common scenario types
-- Use streaming for real-time generation where appropriate
-
-### Reproducibility
-- Seed LLM generation for deterministic output
-- Store generation parameters with scenarios
-- Version control generated content
+- Content caching with SHA256-based keys avoids redundant LLM calls
+- Local providers (Ollama, LM Studio) provide fast offline generation
+- Graceful degradation when no LLM provider is available
 
 ---
 
-## Next Steps
-
-1. **Prototype** a simple LLM generator module
-2. **Test** with existing scenario types
-3. **Evaluate** educational effectiveness
-4. **Document** best practices for narrative design
-5. **Integrate** with CyBOK learning outcomes
-
----
-
-## References
-
-- CyBOK (Cyber Security Body of Knowledge): https://www.cybok.org/
-- SecGen Documentation: `README.md`, `README-Creating-Scenarios.md`
-- Existing narrative scenarios: `scenarios/ctf/`, `scenarios/security_audit/`
-- Structured content: `lib/resources/structured_content/`
+## Scenarios with Existing Narrative Content
