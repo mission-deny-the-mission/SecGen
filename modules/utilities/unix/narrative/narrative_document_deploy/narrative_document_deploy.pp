@@ -1,0 +1,1 @@
+require narrative_document_deploy::init

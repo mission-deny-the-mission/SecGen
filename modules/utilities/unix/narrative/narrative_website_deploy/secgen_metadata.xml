@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+
+<utility xmlns="http://www.github/cliffe/SecGen/utility"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://www.github/cliffe/SecGen/utility">
+  <name>Narrative Website Deployer</name>
+  <author>SecGen AI Integration</author>
+  <module_license>MIT</module_license>
+  <description>Deploys LLM-generated website content onto the VM.
+    Places HTML/text content into a web server document root
+    (default /var/www/html) with appropriate permissions.
+  </description>
+
+  <type>narrative_website_deploy</type>
+  <platform>linux</platform>
+
+  <read_fact>narrative_website_content</read_fact>
+  <read_fact>web_root</read_fact>
+
+  <default_input into="web_root">
+    <value>/var/www/html</value>
+  </default_input>
+
+</utility>

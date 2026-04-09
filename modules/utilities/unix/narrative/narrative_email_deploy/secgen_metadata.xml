@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+
+<utility xmlns="http://www.github/cliffe/SecGen/utility"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://www.github/cliffe/SecGen/utility">
+  <name>Narrative Email Deployer</name>
+  <author>SecGen AI Integration</author>
+  <module_license>MIT</module_license>
+  <description>Deploys LLM-generated email chain content onto the VM.
+    Places email files into /var/mail/ or a specified directory with
+    appropriate ownership for mail spool format.
+  </description>
+
+  <type>narrative_email_deploy</type>
+  <platform>linux</platform>
+
+  <read_fact>narrative_email_content</read_fact>
+  <read_fact>mail_directory</read_fact>
+  <read_fact>mail_user</read_fact>
+
+  <default_input into="mail_directory">
+    <value>/var/mail</value>
+  </default_input>
+  <default_input into="mail_user">
+    <value>root</value>
+  </default_input>
+
+</utility>

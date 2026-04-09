@@ -1,0 +1,1 @@
+require narrative_website_deploy::init

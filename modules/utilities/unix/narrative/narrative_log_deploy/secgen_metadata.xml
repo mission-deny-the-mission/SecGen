@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+
+<utility xmlns="http://www.github/cliffe/SecGen/utility"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://www.github/cliffe/SecGen/utility">
+  <name>Narrative Log Deployer</name>
+  <author>SecGen AI Integration</author>
+  <module_license>MIT</module_license>
+  <description>Deploys LLM-generated log entries onto the VM.
+    Appends narrative log content to system log files such as
+    /var/log/auth.log, /var/log/syslog, or custom log paths.
+  </description>
+
+  <type>narrative_log_deploy</type>
+  <platform>linux</platform>
+
+  <read_fact>narrative_log_content</read_fact>
+  <read_fact>log_file</read_fact>
+
+  <default_input into="log_file">
+    <value>/var/log/narrative.log</value>
+  </default_input>
+
+</utility>

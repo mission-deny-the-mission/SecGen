@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+
+<utility xmlns="http://www.github/cliffe/SecGen/utility"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://www.github/cliffe/SecGen/utility">
+  <name>Narrative Document Deployer</name>
+  <author>SecGen AI Integration</author>
+  <module_license>MIT</module_license>
+  <description>Deploys LLM-generated documents (memos, reports, policies) onto the VM.
+    Places document content as text files in a specified directory with
+    configurable ownership and permissions.
+  </description>
+
+  <type>narrative_document_deploy</type>
+  <platform>linux</platform>
+
+  <read_fact>narrative_document_content</read_fact>
+  <read_fact>document_path</read_fact>
+  <read_fact>document_name</read_fact>
+
+  <default_input into="document_path">
+    <value>/opt/documents</value>
+  </default_input>
+
+</utility>

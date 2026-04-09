@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+
+<utility xmlns="http://www.github/cliffe/SecGen/utility"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://www.github/cliffe/SecGen/utility">
+  <name>Narrative Content Deployer</name>
+  <author>SecGen AI Integration</author>
+  <module_license>MIT</module_license>
+  <description>Deploys LLM-generated narrative content files onto the VM.
+    Accepts a JSON array of file specifications (path, content, owner, group, mode)
+    and creates each file at the specified location. Used to place email chains,
+    memos, log entries, website content, and other narrative documents onto VMs.
+  </description>
+
+  <type>narrative_deploy</type>
+  <platform>linux</platform>
+
+  <read_fact>narrative_files</read_fact>
+
+</utility>
