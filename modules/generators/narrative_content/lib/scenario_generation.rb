@@ -1,3 +1,4 @@
 require_relative 'scenario_generation/intent'
 require_relative 'scenario_generation/harness_adapter'
 require_relative 'scenario_generation/opencode_adapter'
+require_relative 'scenario_generation/template_metadata'

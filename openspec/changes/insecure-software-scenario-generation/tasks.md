@@ -16,7 +16,7 @@
 
 ## 3. Template Catalog
 
-- [ ] 3.1 Define the approved vulnerable software template metadata format, including vulnerability class, platform support, parameters, required files, flags, and test expectations.
+- [x] 3.1 Define the approved vulnerable software template metadata format, including vulnerability class, platform support, parameters, required files, flags, and test expectations.
 - [ ] 3.2 Add initial approved templates for a small web-focused set such as SQL injection, XSS, broken access control, command injection, and path traversal.
 - [ ] 3.3 Implement template catalog loading and compatibility matching from scenario intent.
 - [ ] 3.4 Implement early failure when no approved template supports the requested intent.
