@@ -1,0 +1,61 @@
+id: xss-search-page
+name: Reflected XSS Search Page
+version: 1.0.0
+approved: true
+description: Generates a search page that reflects user input without context-aware escaping.
+vulnerability_class: xss
+supported_platforms:
+  - linux
+  - debian
+  - web
+difficulties:
+  - easy
+  - medium
+module:
+  module_type: vulnerability
+  module_path: modules/vulnerabilities/generated/xss_search_page
+  puppet_entry: xss_search_page.pp
+  metadata_path: secgen_metadata.xml
+  requires:
+    - apache
+    - php
+parameters:
+  - name: route_path
+    type: string
+    target: template_variable
+    default: /search
+  - name: reflected_parameter
+    type: string
+    target: template_variable
+    default: q
+  - name: flag_name
+    type: flag
+    target: strings_to_leak
+    required: true
+  - name: difficulty
+    type: enum
+    target: template_variable
+    values:
+      - easy
+      - medium
+required_files:
+  - secgen_metadata.xml
+  - xss_search_page.pp
+  - manifests/install.pp
+  - templates/search.php.erb
+flags:
+  - name: reflected_page_flag
+    target: strings_to_leak
+tests:
+  exploit_expectation: Supplying a script-like value in the configured search parameter is reflected in the page response near the flag evidence.
+  validation_hooks:
+    - name: metadata exists
+      command:
+        - test
+        - -f
+        - secgen_metadata.xml
+    - name: puppet entry exists
+      command:
+        - test
+        - -f
+        - xss_search_page.pp

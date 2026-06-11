@@ -1,0 +1,65 @@
+id: command-injection-admin-tool
+name: Command Injection Admin Tool
+version: 1.0.0
+approved: true
+description: Generates an administrative diagnostics page that passes request input to a shell command unsafely.
+vulnerability_class: command_injection
+supported_platforms:
+  - linux
+  - debian
+  - web
+difficulties:
+  - medium
+  - hard
+module:
+  module_type: vulnerability
+  module_path: modules/vulnerabilities/generated/command_injection_admin_tool
+  puppet_entry: command_injection_admin_tool.pp
+  metadata_path: secgen_metadata.xml
+  requires:
+    - apache
+    - php
+parameters:
+  - name: route_path
+    type: string
+    target: template_variable
+    default: /admin/diagnostics
+  - name: command_parameter
+    type: string
+    target: template_variable
+    default: host
+  - name: flag_file_path
+    type: string
+    target: template_variable
+    default: /var/www/flag.txt
+  - name: flag_name
+    type: flag
+    target: file_content
+    required: true
+  - name: difficulty
+    type: enum
+    target: template_variable
+    values:
+      - medium
+      - hard
+required_files:
+  - secgen_metadata.xml
+  - command_injection_admin_tool.pp
+  - manifests/install.pp
+  - templates/diagnostics.php.erb
+flags:
+  - name: command_output_flag
+    target: file_content
+tests:
+  exploit_expectation: Appending a command separator to the diagnostics parameter can read the configured flag file.
+  validation_hooks:
+    - name: metadata exists
+      command:
+        - test
+        - -f
+        - secgen_metadata.xml
+    - name: puppet entry exists
+      command:
+        - test
+        - -f
+        - command_injection_admin_tool.pp

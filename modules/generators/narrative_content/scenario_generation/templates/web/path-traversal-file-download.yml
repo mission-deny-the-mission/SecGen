@@ -1,0 +1,69 @@
+id: path-traversal-file-download
+name: Path Traversal File Download
+version: 1.0.0
+approved: true
+description: Generates a file download endpoint that joins request input to a filesystem path without canonical path checks.
+vulnerability_class: path_traversal
+supported_platforms:
+  - linux
+  - debian
+  - web
+difficulties:
+  - easy
+  - medium
+module:
+  module_type: vulnerability
+  module_path: modules/vulnerabilities/generated/path_traversal_file_download
+  puppet_entry: path_traversal_file_download.pp
+  metadata_path: secgen_metadata.xml
+  requires:
+    - apache
+    - php
+parameters:
+  - name: route_path
+    type: string
+    target: template_variable
+    default: /download
+  - name: file_parameter
+    type: string
+    target: template_variable
+    default: file
+  - name: document_root
+    type: string
+    target: template_variable
+    default: /var/www/html/files
+  - name: flag_file_path
+    type: string
+    target: template_variable
+    default: /var/www/private/flag.txt
+  - name: flag_name
+    type: flag
+    target: file_content
+    required: true
+  - name: difficulty
+    type: enum
+    target: template_variable
+    values:
+      - easy
+      - medium
+required_files:
+  - secgen_metadata.xml
+  - path_traversal_file_download.pp
+  - manifests/install.pp
+  - templates/download.php.erb
+flags:
+  - name: private_file_flag
+    target: file_content
+tests:
+  exploit_expectation: Requesting a traversal path through the file parameter returns the configured private flag file.
+  validation_hooks:
+    - name: metadata exists
+      command:
+        - test
+        - -f
+        - secgen_metadata.xml
+    - name: puppet entry exists
+      command:
+        - test
+        - -f
+        - path_traversal_file_download.pp

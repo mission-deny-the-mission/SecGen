@@ -1,0 +1,68 @@
+id: broken-access-control-product
+name: Broken Access Control Product Detail
+version: 1.0.0
+approved: true
+description: Generates a product detail endpoint with predictable object identifiers and missing authorization checks.
+vulnerability_class: broken_access_control
+supported_platforms:
+  - linux
+  - debian
+  - web
+difficulties:
+  - easy
+  - medium
+  - hard
+module:
+  module_type: vulnerability
+  module_path: modules/vulnerabilities/generated/broken_access_control_product
+  puppet_entry: broken_access_control_product.pp
+  metadata_path: secgen_metadata.xml
+  requires:
+    - apache
+    - php
+    - sqlite
+parameters:
+  - name: route_path
+    type: string
+    target: template_variable
+    default: /product
+  - name: object_id_parameter
+    type: string
+    target: template_variable
+    default: id
+  - name: protected_record_id
+    type: datastore
+    target: generator_input
+    required: true
+  - name: flag_name
+    type: flag
+    target: strings_to_leak
+    required: true
+  - name: difficulty
+    type: enum
+    target: template_variable
+    values:
+      - easy
+      - medium
+      - hard
+required_files:
+  - secgen_metadata.xml
+  - broken_access_control_product.pp
+  - manifests/install.pp
+  - templates/product.php.erb
+flags:
+  - name: hidden_product_flag
+    target: strings_to_leak
+tests:
+  exploit_expectation: Changing the object identifier to the protected record returns content containing the configured flag.
+  validation_hooks:
+    - name: metadata exists
+      command:
+        - test
+        - -f
+        - secgen_metadata.xml
+    - name: puppet entry exists
+      command:
+        - test
+        - -f
+        - broken_access_control_product.pp

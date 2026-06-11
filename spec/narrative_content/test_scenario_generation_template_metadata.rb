@@ -4,6 +4,15 @@ require 'json'
 require 'scenario_generation'
 
 class TestScenarioGenerationTemplateMetadata < Minitest::Test
+  TEMPLATE_CATALOG_ROOT = File.expand_path('../../modules/generators/narrative_content/scenario_generation/templates', __dir__)
+  INITIAL_WEB_VULNERABILITY_CLASSES = %w[
+    sql_injection
+    xss
+    broken_access_control
+    command_injection
+    path_traversal
+  ].freeze
+
   def valid_metadata
     {
       'id' => 'SQL Injection Web Form',
@@ -142,6 +151,40 @@ class TestScenarioGenerationTemplateMetadata < Minitest::Test
       metadata = ScenarioGeneration::TemplateMetadata.load(path)
 
       assert_equal 'sql-injection-web-form', metadata['id']
+    end
+  end
+
+  def test_initial_web_template_catalog_loads_approved_templates
+    templates = initial_web_templates
+
+    assert_equal 5, templates.length
+    assert templates.all?(&:approved?)
+    assert_equal INITIAL_WEB_VULNERABILITY_CLASSES.sort, templates.map { |template| template['vulnerability_class'] }.sort
+
+    templates.each do |template|
+      assert_includes template['supported_platforms'], 'web'
+      refute_empty template['module']['module_path']
+      refute_empty template['parameters']
+      refute_empty template['required_files']
+      refute_empty template['flags']
+      refute_empty template['tests']['validation_hooks']
+    end
+  end
+
+  def test_initial_web_templates_declare_secgen_module_files
+    initial_web_templates.each do |template|
+      assert_includes template['required_files'], 'secgen_metadata.xml'
+      assert_includes template['required_files'], template['module']['puppet_entry']
+      assert_equal 'secgen_metadata.xml', template['module']['metadata_path']
+      assert_equal 'vulnerability', template['module']['module_type']
+    end
+  end
+
+  private
+
+  def initial_web_templates
+    Dir[File.join(TEMPLATE_CATALOG_ROOT, 'web', '*.yml')].sort.map do |path|
+      ScenarioGeneration::TemplateMetadata.load(path)
     end
   end
 end

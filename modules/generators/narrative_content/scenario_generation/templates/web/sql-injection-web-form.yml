@@ -1,0 +1,62 @@
+id: sql-injection-web-form
+name: SQL Injection Web Form
+version: 1.0.0
+approved: true
+description: Generates a PHP web form with intentionally unsafe SQL query construction.
+vulnerability_class: sql_injection
+supported_platforms:
+  - linux
+  - debian
+  - web
+difficulties:
+  - easy
+  - medium
+module:
+  module_type: vulnerability
+  module_path: modules/vulnerabilities/generated/sql_injection_web_form
+  puppet_entry: sql_injection_web_form.pp
+  metadata_path: secgen_metadata.xml
+  requires:
+    - apache
+    - php
+    - mysql
+parameters:
+  - name: route_path
+    type: string
+    target: template_variable
+    default: /products
+  - name: table_name
+    type: datastore
+    target: generator_input
+    required: true
+  - name: flag_name
+    type: flag
+    target: strings_to_leak
+    required: true
+  - name: difficulty
+    type: enum
+    target: template_variable
+    values:
+      - easy
+      - medium
+required_files:
+  - secgen_metadata.xml
+  - sql_injection_web_form.pp
+  - manifests/install.pp
+  - templates/index.php.erb
+flags:
+  - name: database_record_flag
+    target: strings_to_leak
+tests:
+  exploit_expectation: A crafted query parameter exposes data from a table row that includes the configured flag.
+  validation_hooks:
+    - name: metadata exists
+      command:
+        - test
+        - -f
+        - secgen_metadata.xml
+    - name: puppet entry exists
+      command:
+        - test
+        - -f
+        - sql_injection_web_form.pp
