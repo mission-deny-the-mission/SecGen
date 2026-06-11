@@ -1,4 +1,4 @@
-$LOAD_PATH.unshift File.expand_path('../../modules/generators/narrative_content/lib', __FILE__)
+$LOAD_PATH.unshift File.expand_path('../../../modules/generators/narrative_content/lib', __FILE__)
 
 require 'minitest/autorun'
 require 'json'
