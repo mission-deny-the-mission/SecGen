@@ -29,7 +29,8 @@ class TestScenarioGenerationIntent < Minitest::Test
       'harness' => {
         'name' => 'opencode',
         'model' => 'openai/gpt-4o-mini',
-        'retry_limit' => 2
+        'retry_limit' => 2,
+        'isolation_mode' => 'docker'
       }
     }
   end
@@ -49,6 +50,7 @@ class TestScenarioGenerationIntent < Minitest::Test
     assert_equal 'opencode', intent.harness_options['name']
     assert_equal 'openai/gpt-4o-mini', intent.harness_options['model']
     assert_equal 2, intent.harness_options['retry_limit']
+    assert_equal 'docker', intent.harness_options['isolation_mode']
   end
 
   def test_alias_fields_are_accepted
@@ -101,6 +103,7 @@ class TestScenarioGenerationIntent < Minitest::Test
 
     assert_equal 'opencode', intent.harness_options['name']
     assert_equal 3, intent.harness_options['retry_limit']
+    assert_equal 'docker', intent.harness_options['isolation_mode']
   end
 
   def test_seed_must_be_integer

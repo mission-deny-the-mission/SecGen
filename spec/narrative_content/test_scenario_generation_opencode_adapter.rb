@@ -42,13 +42,16 @@ class TestScenarioGenerationOpenCodeAdapter < Minitest::Test
       policy = JSON.parse(File.read(policy_path))
       assert_equal 'customer-portal-break-in', intent_data['identifiers']['scenario_slug']
       assert_equal dir, policy['allowed_write_root']
+      assert_equal '/workspace', policy['container_write_root']
+      assert_equal 'docker', policy['isolation_mode']
       assert_equal 2, policy['retry_limit']
+      assert_equal [['test', '-f', '/workspace/opencode.policy.json'], ['test', '-f', '/workspace/intent.normalized.json']], policy['approved_validation_commands']
     end
   end
 
-  def test_plan_command_uses_opencode_plan_agent
+  def test_plan_command_uses_opencode_plan_agent_in_host_mode
     Dir.mktmpdir('secgen_opencode') do |dir|
-      adapter = ScenarioGeneration::OpenCodeAdapter.new(intent: valid_intent, staging_dir: dir)
+      adapter = ScenarioGeneration::OpenCodeAdapter.new(intent: valid_intent, staging_dir: dir, config: { 'isolation_mode' => 'host' })
       command = adapter.plan_command
 
       assert_equal 'opencode', command[0]
@@ -65,9 +68,9 @@ class TestScenarioGenerationOpenCodeAdapter < Minitest::Test
     end
   end
 
-  def test_generate_command_uses_opencode_build_agent
+  def test_generate_command_uses_opencode_build_agent_in_host_mode
     Dir.mktmpdir('secgen_opencode') do |dir|
-      adapter = ScenarioGeneration::OpenCodeAdapter.new(intent: valid_intent, staging_dir: dir)
+      adapter = ScenarioGeneration::OpenCodeAdapter.new(intent: valid_intent, staging_dir: dir, config: { 'isolation_mode' => 'host' })
       command = adapter.generate_command
 
       assert_includes command, '--agent'
@@ -76,15 +79,73 @@ class TestScenarioGenerationOpenCodeAdapter < Minitest::Test
     end
   end
 
-  def test_repair_command_embeds_validation_report
+  def test_repair_command_embeds_validation_report_in_host_mode
     Dir.mktmpdir('secgen_opencode') do |dir|
-      adapter = ScenarioGeneration::OpenCodeAdapter.new(intent: valid_intent, staging_dir: dir)
+      adapter = ScenarioGeneration::OpenCodeAdapter.new(intent: valid_intent, staging_dir: dir, config: { 'isolation_mode' => 'host' })
       command = adapter.repair_command('failures' => [{ 'code' => 'missing_metadata' }])
 
       assert_includes command, '--agent'
       assert_includes command, 'build'
       assert_includes command.last, 'missing_metadata'
       assert_includes command.last, 'Modify only files inside this staging directory'
+    end
+  end
+
+  def test_default_plan_command_runs_opencode_inside_docker
+    Dir.mktmpdir('secgen_opencode') do |dir|
+      adapter = ScenarioGeneration::OpenCodeAdapter.new(intent: valid_intent, staging_dir: dir)
+      command = adapter.plan_command
+
+      assert_equal 'docker', command[0]
+      assert_includes command, 'run'
+      assert_includes command, '--rm'
+      assert_includes command, '--network'
+      assert_includes command, 'none'
+      assert_includes command, '--cap-drop'
+      assert_includes command, 'ALL'
+      assert_includes command, '--security-opt'
+      assert_includes command, 'no-new-privileges'
+      assert_includes command, '--mount'
+      assert_includes command, "type=bind,source=#{File.expand_path(dir)},target=/workspace"
+      assert_includes command, 'opencode:latest'
+      assert_includes command, '--dir'
+      assert_includes command, '/workspace'
+      assert_includes command, '--agent'
+      assert_includes command, 'plan'
+    end
+  end
+
+  def test_validation_commands_are_docker_isolated
+    adapter = ScenarioGeneration::OpenCodeAdapter.new(intent: valid_intent, staging_dir: '/tmp/staged')
+    commands = adapter.validation_commands
+
+    assert_equal 2, commands.length
+    commands.each do |command|
+      assert_equal 'docker', command[0]
+      assert_includes command, 'opencode:latest'
+      assert_includes command, '/workspace'
+    end
+    assert_includes commands[0], 'test'
+    assert_includes commands[0], '/workspace/opencode.policy.json'
+  end
+
+  def test_optional_vm_validation_command
+    adapter = ScenarioGeneration::OpenCodeAdapter.new(
+      intent: valid_intent,
+      staging_dir: '/tmp/staged',
+      config: { 'vm_validation_command' => ['bundle', 'exec', 'ruby', 'validate_vm.rb'] }
+    )
+
+    assert_equal ['bundle', 'exec', 'ruby', 'validate_vm.rb'], adapter.vm_validation_command
+  end
+
+  def test_unknown_validation_profile_is_rejected
+    assert_raises(ScenarioGeneration::HarnessError) do
+      ScenarioGeneration::OpenCodeAdapter.new(
+        intent: valid_intent,
+        staging_dir: '/tmp/staged',
+        config: { 'validation_profile' => 'unknown' }
+      )
     end
   end
 
@@ -102,6 +163,8 @@ class TestScenarioGenerationOpenCodeAdapter < Minitest::Test
     assert_equal 'opencode', report['harness']
     assert_equal 'openai/gpt-4o-mini', report['model']
     assert_equal 2, report['retry_limit']
+    assert_equal 'docker', report['isolation_mode']
+    assert_equal 'opencode:latest', report['container_image']
     assert_equal 'plan', report['plan_agent']
     assert_equal 'build', report['build_agent']
   end

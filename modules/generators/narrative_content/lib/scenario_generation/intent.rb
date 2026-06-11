@@ -283,6 +283,7 @@ module ScenarioGeneration
       harness = value.is_a?(Hash) ? deep_stringify_keys(value) : {}
       harness['name'] = normalize_token(harness['name'] || harness['harness'] || 'opencode')
       harness['retry_limit'] = Integer(harness['retry_limit'] || 3)
+      harness['isolation_mode'] = normalize_token(harness['isolation_mode'] || 'docker')
       harness
     end
 
