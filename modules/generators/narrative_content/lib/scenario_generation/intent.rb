@@ -72,7 +72,9 @@ module ScenarioGeneration
       'type' => 'scenario_type',
       'platform' => 'target_platform',
       'vulnerabilities' => 'vulnerability_classes',
-      'learning_objectives' => 'learning_outcomes'
+      'learning_objectives' => 'learning_outcomes',
+      'agent' => 'harness',
+      'agent_generation' => 'harness'
     }.freeze
 
     attr_reader :raw, :data, :normalized, :errors
@@ -120,6 +122,10 @@ module ScenarioGeneration
       @normalized['narrative_generation'] || {}
     end
 
+    def harness_options
+      @normalized['harness'] || {}
+    end
+
     private
 
     def validate_intent
@@ -137,6 +143,7 @@ module ScenarioGeneration
       validation_errors.concat(validate_cybok)
       validation_errors.concat(validate_seed)
       validation_errors.concat(validate_narrative_generation)
+      validation_errors.concat(validate_harness)
       validation_errors.compact
     end
 
@@ -212,6 +219,25 @@ module ScenarioGeneration
       ["Unsupported narrative_generation provider: #{provider.inspect}. Supported values: #{supported.join(', ')}"]
     end
 
+    def validate_harness
+      value = @data['harness']
+      return [] if value.nil?
+      return ["harness must be an object"] unless value.is_a?(Hash)
+
+      name = value['name'] || value['harness']
+      messages = []
+      messages << "Unsupported harness: #{name.inspect}. Supported values: opencode" if !blank?(name) && normalize_token(name) != 'opencode'
+      if value.key?('retry_limit')
+        begin
+          retry_limit = Integer(value['retry_limit'])
+          messages << 'harness retry_limit must be greater than 0' if retry_limit <= 0
+        rescue ArgumentError, TypeError
+          messages << 'harness retry_limit must be an integer'
+        end
+      end
+      messages
+    end
+
     def normalize
       vulnerability_classes = Array(@data['vulnerability_classes']).map { |value| normalize_vulnerability_class(value) }
       scenario_slug = slug(@data['name'])
@@ -232,6 +258,7 @@ module ScenarioGeneration
         'datastore_prefix' => snake(@data['datastore_prefix'] || scenario_slug)
       }
       normalized_data['narrative_generation'] = normalize_narrative_generation(@data['narrative_generation'])
+      normalized_data['harness'] = normalize_harness(@data['harness'])
       normalized_data
     end
 
@@ -250,6 +277,13 @@ module ScenarioGeneration
       return {} unless value.is_a?(Hash)
 
       deep_stringify_keys(value).compact
+    end
+
+    def normalize_harness(value)
+      harness = value.is_a?(Hash) ? deep_stringify_keys(value) : {}
+      harness['name'] = normalize_token(harness['name'] || harness['harness'] || 'opencode')
+      harness['retry_limit'] = Integer(harness['retry_limit'] || 3)
+      harness
     end
 
     def apply_aliases(input)

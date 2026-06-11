@@ -25,6 +25,11 @@ class TestScenarioGenerationIntent < Minitest::Test
       'narrative_generation' => {
         'provider' => 'openai',
         'model' => 'gpt-4o-mini'
+      },
+      'harness' => {
+        'name' => 'opencode',
+        'model' => 'openai/gpt-4o-mini',
+        'retry_limit' => 2
       }
     }
   end
@@ -41,6 +46,9 @@ class TestScenarioGenerationIntent < Minitest::Test
     assert_equal 'customer_portal_break_in_target', intent.identifiers['system_name']
     assert_equal 'customer_portal_break_in', intent.identifiers['module_name']
     assert_equal 'openai', intent.llm_options['provider']
+    assert_equal 'opencode', intent.harness_options['name']
+    assert_equal 'openai/gpt-4o-mini', intent.harness_options['model']
+    assert_equal 2, intent.harness_options['retry_limit']
   end
 
   def test_alias_fields_are_accepted
@@ -71,7 +79,8 @@ class TestScenarioGenerationIntent < Minitest::Test
     data = valid_intent.merge(
       'difficulty' => 'impossible',
       'vulnerability_classes' => ['unsafe teleportation'],
-      'narrative_generation' => { 'provider' => 'unknown_api' }
+      'narrative_generation' => { 'provider' => 'unknown_api' },
+      'harness' => { 'name' => 'unknown_harness' }
     )
 
     error = assert_raises(ScenarioGeneration::IntentError) do
@@ -81,6 +90,17 @@ class TestScenarioGenerationIntent < Minitest::Test
     assert_includes error.message, 'Unsupported difficulty'
     assert_includes error.message, 'Unsupported vulnerability class'
     assert_includes error.message, 'Unsupported narrative_generation provider'
+    assert_includes error.message, 'Unsupported harness'
+  end
+
+  def test_harness_defaults_to_opencode
+    data = valid_intent
+    data.delete('harness')
+
+    intent = ScenarioGeneration::Intent.new(data)
+
+    assert_equal 'opencode', intent.harness_options['name']
+    assert_equal 3, intent.harness_options['retry_limit']
   end
 
   def test_seed_must_be_integer
@@ -115,4 +135,3 @@ class TestScenarioGenerationIntent < Minitest::Test
     end
   end
 end
-
