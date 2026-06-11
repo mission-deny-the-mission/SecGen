@@ -110,7 +110,8 @@ module ScenarioGeneration
       output_hashes.each do |relpath, expected|
         abs = File.join(staging_dir, relpath)
         unless File.exist?(abs)
-          files << { 'path' => relpath, 'reason' => 'missing', 'expected' => expected, 'actual' => nil }
+          # A file that was absent at build time (nil hash) staying absent is not drift.
+          files << { 'path' => relpath, 'reason' => 'missing', 'expected' => expected, 'actual' => nil } unless expected.nil?
           next
         end
 
@@ -119,7 +120,10 @@ module ScenarioGeneration
       end
 
       inputs = { 'tool_version_changed' => TOOL_VERSION != self['tool_version'] }
-      inputs['intent_changed'] = (intent.normalized != self['intent']['normalized']) if intent
+      if intent
+        stored_intent = self['intent'] && self['intent']['normalized']
+        inputs['intent_changed'] = (intent.normalized != stored_intent)
+      end
       inputs['templates_changed'] = (templates != self['templates']) unless templates.nil?
 
       { 'drifted' => !files.empty? || inputs.values.any? { |value| value == true }, 'files' => files, 'inputs' => inputs }

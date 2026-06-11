@@ -330,8 +330,13 @@ module ScenarioGeneration
       "Test#{@module_name.split('_').map(&:capitalize).join}"
     end
 
+    # Characters outside the XML 1.0 Char production produce malformed XML even
+    # when entity-escaped, so strip them before escaping.
+    XML_INVALID_CHARS = /[^\u0009\u000A\u000D\u0020-\uD7FF\uE000-\uFFFD\u{10000}-\u{10FFFF}]/.freeze
+
     def escape(value)
       value.to_s
+           .gsub(XML_INVALID_CHARS, '')
            .gsub('&', '&amp;')
            .gsub('<', '&lt;')
            .gsub('>', '&gt;')

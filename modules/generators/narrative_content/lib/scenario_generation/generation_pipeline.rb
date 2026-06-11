@@ -47,6 +47,13 @@ module ScenarioGeneration
       repair = RepairLoop.new(adapter: adapter, validator: validator, command_runner: @command_runner).run
 
       report = validator.validate
+      # Reflect any repair iterations in the trace so the manifest's
+      # retry.attempts / harness_trace.repair_attempts are accurate (0 on the
+      # deterministic happy path, since no repair is needed).
+      Array(repair['repair_commands']).each_with_index do |command, index|
+        trace.record_phase(phase: "repair_#{index + 1}", command: command, status: 'repaired')
+        trace.record_repair(attempt: index, report: report)
+      end
       trace.record_validation(attempt: 0, report: report)
       final_trace = trace.finalize(status: report.promotion_ready? ? 'passed' : 'failed')
 
@@ -83,11 +90,17 @@ module ScenarioGeneration
     def build_modules(selection, adapter)
       multiple = selection.length > 1
       base_name = @intent.identifiers['module_name']
-      selection.map do |entry|
-        module_name = multiple ? snake("#{base_name}_#{entry['vulnerability_class']}") : base_name
+      names = selection.map do |entry|
+        multiple ? snake("#{base_name}_#{entry['vulnerability_class']}") : base_name
+      end
+      if names.uniq.length != names.length
+        raise ModuleGenerationError, "Generated module names are not unique: #{names.join(', ')}"
+      end
+
+      selection.each_with_index.map do |entry, index|
         ModuleGenerator.new(
           intent: @intent, template: entry['template'], staging_dir: @staging_dir,
-          adapter: adapter, module_name: module_name
+          adapter: adapter, module_name: names[index]
         ).generate
       end
     end

@@ -23,6 +23,7 @@ module ScenarioGeneration
       @modules.each { |mod| check_module_metadata_schema(report, mod) }
       check_required_files_present(report)
       check_unresolved_references(report)
+      check_unique_modules(report)
       check_naming_conventions(report)
       check_test_coverage(report)
       check_doc_stub(report)
@@ -103,6 +104,25 @@ module ScenarioGeneration
                              message: "Scenario references module that was not generated: #{selector}", hint: name)
         end
       end
+    end
+
+    # Defense-in-depth: two generated modules colliding on one on-disk path (or
+    # two scenario datastores sharing a name) means a requested artifact was
+    # silently lost; block promotion rather than report a broken scenario ready.
+    def check_unique_modules(report)
+      module_paths = @modules.map { |mod| mod['module_path'] }
+      duplicate_paths = module_paths.select { |path| module_paths.count(path) > 1 }.uniq
+      unless duplicate_paths.empty?
+        report.add_failure(code: 'duplicate_module_path',
+                           message: "Duplicate generated module path(s): #{duplicate_paths.join(', ')}")
+      end
+
+      datastores = Array(@scenario['datastores'])
+      duplicate_datastores = datastores.select { |name| datastores.count(name) > 1 }.uniq
+      return if duplicate_datastores.empty?
+
+      report.add_failure(code: 'duplicate_datastore',
+                         message: "Duplicate scenario datastore name(s): #{duplicate_datastores.join(', ')}")
     end
 
     # --- 6.2 repository conventions -----------------------------------------

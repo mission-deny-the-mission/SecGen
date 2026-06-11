@@ -32,6 +32,8 @@ module ScenarioGeneration
       @opencode_bin = @config['opencode_bin']
       @model = @config['model']
       @retry_limit = Integer(@config['retry_limit'])
+      raise HarnessError, 'OpenCode retry_limit must be greater than 0' if @retry_limit <= 0
+
       @trace_dir = @config['trace_dir'] || File.join(staging_dir, 'trace', 'opencode')
       @isolation_mode = @config['isolation_mode']
       @container_image = @config['container_image']

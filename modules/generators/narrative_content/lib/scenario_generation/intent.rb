@@ -239,7 +239,7 @@ module ScenarioGeneration
     end
 
     def normalize
-      vulnerability_classes = Array(@data['vulnerability_classes']).map { |value| normalize_vulnerability_class(value) }
+      vulnerability_classes = Array(@data['vulnerability_classes']).map { |value| normalize_vulnerability_class(value) }.uniq
       scenario_slug = slug(@data['name'])
 
       normalized_data = deep_stringify_keys(@data)
