@@ -10,7 +10,7 @@
 
 - [x] 2.1 Define the external harness adapter contract for plan, generate, validate, test, repair, report, and stop conditions.
 - [x] 2.2 Verify OpenCode noninteractive invocation, model/provider configuration, staged workspace support, logs/transcripts, and CI suitability.
-- [ ] 2.3 Document why OpenCode is the first supported harness and why Pi, ForgeCode, and Forge ACP are deferred.
+- [x] 2.3 Document why OpenCode is the first supported harness and why Pi, ForgeCode, and Forge ACP are deferred.
 - [ ] 2.4 Implement Docker/container isolation, staged file-write restrictions, retry limits, optional VM validation hooks, and approved validation/test command profiles around OpenCode.
 - [ ] 2.5 Add tests for harness phase transitions, retry stopping, rejected out-of-scope writes, rejected unapproved commands, and unsupported harness selection.
 
