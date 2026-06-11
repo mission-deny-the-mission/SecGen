@@ -50,12 +50,12 @@
 
 ## 7. Reproducibility
 
-- [ ] 7.1 Create a generation manifest containing original intent, normalized intent, seed, selected templates, module names, generated paths, tool version, timestamp, harness/provider/model metadata, retry metadata, and output hashes.
+- [x] 7.1 Create a generation manifest containing original intent, normalized intent, seed, selected templates, module names, generated paths, tool version, timestamp, harness/provider/model metadata, retry metadata, and output hashes.
 - [ ] 7.2 Implement regeneration from manifest using the same templates and tool version.
-- [ ] 7.3 Implement drift detection for changed templates, changed tool version, changed intent, manual edits, and output hash mismatches.
-- [ ] 7.4 Track review and promotion status without overwriting original generation inputs.
-- [ ] 7.5 Add harness trace summaries for prompts or prompt hashes, phase decisions, validation attempts, repair attempts, and final status.
-- [ ] 7.6 Add tests for manifest creation, deterministic regeneration, matching hashes, drift reporting, review status updates, and harness trace metadata.
+- [x] 7.3 Implement drift detection for changed templates, changed tool version, changed intent, manual edits, and output hash mismatches.
+- [x] 7.4 Track review and promotion status without overwriting original generation inputs.
+- [x] 7.5 Add harness trace summaries for prompts or prompt hashes, phase decisions, validation attempts, repair attempts, and final status.
+- [x] 7.6 Add tests for manifest creation, deterministic regeneration, matching hashes, drift reporting, review status updates, and harness trace metadata.
 
 ## 8. Documentation and Examples
 
