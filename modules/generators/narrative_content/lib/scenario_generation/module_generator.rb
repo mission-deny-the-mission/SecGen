@@ -22,15 +22,18 @@ module ScenarioGeneration
       'advanced' => 'high'
     }.freeze
 
-    def initialize(intent:, template:, staging_dir:, adapter: nil, seed: nil)
+    # module_name lets a caller assign a unique on-disk identity when a single
+    # scenario generates more than one module (one per vulnerability class);
+    # it defaults to the scenario-level identifier for the single-module case.
+    def initialize(intent:, template:, staging_dir:, adapter: nil, seed: nil, module_name: nil)
       @intent = intent
       @template = template
       @staging_dir = staging_dir
       @adapter = adapter
       @seed = seed || intent.normalized['seed']
       @identifiers = intent.identifiers
-      @module_name = @identifiers['module_name']
-      @module_path = @identifiers['module_path']
+      @module_name = module_name || @identifiers['module_name']
+      @module_path = File.join('modules', 'vulnerabilities', 'generated', @module_name)
       @staged_module_dir = File.join(staging_dir, @module_path)
       @generated_files = []
     end

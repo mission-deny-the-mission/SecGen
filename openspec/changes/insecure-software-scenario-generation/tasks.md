@@ -32,12 +32,12 @@
 
 ## 5. Scenario Assembly
 
-- [ ] 5.1 Implement staged scenario XML generation from normalized intent and selected module outputs.
-- [ ] 5.2 Generate scenario metadata including name, author/source marker, description, type, difficulty, and CyBOK entries.
-- [ ] 5.3 Generate systems, bases, networks, vulnerabilities, services, utilities, generators, encoders, and datastore wiring required by the selected templates.
-- [ ] 5.4 Support optional attacker/support systems when the selected scenario pattern requires them.
-- [ ] 5.5 Generate a scenario documentation stub covering purpose, learning outcomes, systems, vulnerability classes, review status, and validation commands.
-- [ ] 5.6 Add tests for generated XML structure, generated module references, metadata, datastores, and optional support systems.
+- [x] 5.1 Implement staged scenario XML generation from normalized intent and selected module outputs.
+- [x] 5.2 Generate scenario metadata including name, author/source marker, description, type, difficulty, and CyBOK entries.
+- [x] 5.3 Generate systems, bases, networks, vulnerabilities, services, utilities, generators, encoders, and datastore wiring required by the selected templates.
+- [x] 5.4 Support optional attacker/support systems when the selected scenario pattern requires them.
+- [x] 5.5 Generate a scenario documentation stub covering purpose, learning outcomes, systems, vulnerability classes, review status, and validation commands.
+- [x] 5.6 Add tests for generated XML structure, generated module references, metadata, datastores, and optional support systems.
 
 ## 6. Validation, Repair, and Promotion Gates
 
