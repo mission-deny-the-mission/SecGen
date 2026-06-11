@@ -51,7 +51,7 @@
 ## 7. Reproducibility
 
 - [x] 7.1 Create a generation manifest containing original intent, normalized intent, seed, selected templates, module names, generated paths, tool version, timestamp, harness/provider/model metadata, retry metadata, and output hashes.
-- [ ] 7.2 Implement regeneration from manifest using the same templates and tool version.
+- [x] 7.2 Implement regeneration from manifest using the same templates and tool version.
 - [x] 7.3 Implement drift detection for changed templates, changed tool version, changed intent, manual edits, and output hash mismatches.
 - [x] 7.4 Track review and promotion status without overwriting original generation inputs.
 - [x] 7.5 Add harness trace summaries for prompts or prompt hashes, phase decisions, validation attempts, repair attempts, and final status.
@@ -59,16 +59,16 @@
 
 ## 8. Documentation and Examples
 
-- [ ] 8.1 Document the scenario intent format and supported vulnerability template metadata.
-- [ ] 8.2 Document the staged external-harness generation, container validation, repair, review, optional VM validation, and promotion workflow.
-- [ ] 8.3 Add an example intent file and expected generated artifact summary for a simple vulnerable web application scenario.
-- [ ] 8.4 Document how optional LLM narrative content can enrich generated scenarios without being required for deterministic generation.
-- [ ] 8.5 Document harness/provider selection guidance, including OpenCode, Pi, ForgeCode, local providers, Docker/VM isolation requirements, and deferral criteria.
+- [x] 8.1 Document the scenario intent format and supported vulnerability template metadata.
+- [x] 8.2 Document the staged external-harness generation, container validation, repair, review, optional VM validation, and promotion workflow.
+- [x] 8.3 Add an example intent file and expected generated artifact summary for a simple vulnerable web application scenario.
+- [x] 8.4 Document how optional LLM narrative content can enrich generated scenarios without being required for deterministic generation.
+- [x] 8.5 Document harness/provider selection guidance, including OpenCode, Pi, ForgeCode, local providers, Docker/VM isolation requirements, and deferral criteria.
 
 ## 9. End-to-End Verification
 
-- [ ] 9.1 Add an end-to-end test that generates a staged scenario from an example intent through the selected external harness adapter.
-- [ ] 9.2 Verify the generated staged scenario passes validation and produces a reproducibility manifest.
-- [ ] 9.3 Verify regeneration from the manifest produces matching output hashes.
-- [ ] 9.4 Verify a failing generated artifact is repaired by the external harness loop or reported after retry exhaustion.
-- [ ] 9.5 Run the existing relevant test suite and document any tests that cannot be run locally.
+- [x] 9.1 Add an end-to-end test that generates a staged scenario from an example intent through the selected external harness adapter.
+- [x] 9.2 Verify the generated staged scenario passes validation and produces a reproducibility manifest.
+- [x] 9.3 Verify regeneration from the manifest produces matching output hashes.
+- [x] 9.4 Verify a failing generated artifact is repaired by the external harness loop or reported after retry exhaustion.
+- [x] 9.5 Run the existing relevant test suite and document any tests that cannot be run locally.

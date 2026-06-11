@@ -1,0 +1,43 @@
+# Example scenario intent for a simple vulnerable web application.
+#
+# Loads via ScenarioGeneration::Intent.load and selects the approved
+# sql-injection-web-form template (web / easy). This is the same fixture the
+# end-to-end test (section 9) drives through the full generation pipeline.
+#
+# Field names below are the canonical schema names; aliases (e.g. title, type,
+# platform, vulnerabilities) are also accepted. See docs/intent-format.md.
+
+name: Vulnerable Web App Lab
+scenario_type: lab
+target_platform: web
+difficulty: easy
+
+vulnerability_classes:
+  - SQL injection
+
+learning_outcomes:
+  - Identify SQL injection in a web form
+  - Exfiltrate a flag using a crafted query parameter
+  - Explain a parameterised-query remediation
+
+cybok:
+  - ka: WAM
+    topic: Web & Mobile Security
+    keywords:
+      - SQL injection
+      - input validation
+
+flags:
+  - Recover the database record flag
+
+evidence:
+  - Vulnerable PHP source for the product lookup page
+  - Database table containing the seeded flag
+
+seed: 20260611
+
+# Optional: the external harness used for the staged agentic generation run.
+harness:
+  name: opencode
+  isolation_mode: docker
+  retry_limit: 3
