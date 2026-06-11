@@ -11,7 +11,7 @@
 - [x] 2.1 Define the external harness adapter contract for plan, generate, validate, test, repair, report, and stop conditions.
 - [x] 2.2 Verify OpenCode noninteractive invocation, model/provider configuration, staged workspace support, logs/transcripts, and CI suitability.
 - [ ] 2.3 Document why OpenCode is the first supported harness and why Pi, ForgeCode, and Forge ACP are deferred.
-- [ ] 2.4 Implement staged file-write restrictions, retry limits, sandbox requirements, and approved validation/test command profiles around OpenCode.
+- [ ] 2.4 Implement Docker/container isolation, staged file-write restrictions, retry limits, optional VM validation hooks, and approved validation/test command profiles around OpenCode.
 - [ ] 2.5 Add tests for harness phase transitions, retry stopping, rejected out-of-scope writes, rejected unapproved commands, and unsupported harness selection.
 
 ## 3. Template Catalog
@@ -60,10 +60,10 @@
 ## 8. Documentation and Examples
 
 - [ ] 8.1 Document the scenario intent format and supported vulnerability template metadata.
-- [ ] 8.2 Document the staged external-harness generation, validation, repair, review, and promotion workflow.
+- [ ] 8.2 Document the staged external-harness generation, container validation, repair, review, optional VM validation, and promotion workflow.
 - [ ] 8.3 Add an example intent file and expected generated artifact summary for a simple vulnerable web application scenario.
 - [ ] 8.4 Document how optional LLM narrative content can enrich generated scenarios without being required for deterministic generation.
-- [ ] 8.5 Document harness/provider selection guidance, including OpenCode, Pi, ForgeCode, local providers, sandboxing requirements, and deferral criteria.
+- [ ] 8.5 Document harness/provider selection guidance, including OpenCode, Pi, ForgeCode, local providers, Docker/VM isolation requirements, and deferral criteria.
 
 ## 9. End-to-End Verification
 

@@ -37,7 +37,7 @@ The system SHALL normalize intent values into repository-safe identifiers for sc
 - **THEN** the system derives deterministic kebab-case or snake-case identifiers suitable for generated files and XML references
 
 ### Requirement: Harness configuration capture
-The system SHALL capture optional harness configuration including harness name, provider, model, retry limit, local-only mode, staging path, sandbox mode, and approved validation profile, with OpenCode as the default harness.
+The system SHALL capture optional harness configuration including harness name, provider, model, retry limit, local-only mode, staging path, isolation mode, container image, sandbox mode, and approved validation profile, with OpenCode as the default harness and Docker/container isolation as the default isolation mode.
 
 #### Scenario: Harness configuration is available to adapter
 - **WHEN** a valid intent includes harness configuration

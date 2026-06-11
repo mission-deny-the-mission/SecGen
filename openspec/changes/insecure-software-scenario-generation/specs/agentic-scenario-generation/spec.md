@@ -22,6 +22,24 @@ The system SHALL define a harness adapter interface for configuring, invoking, m
 - **WHEN** a scenario generation run selects an unsupported harness
 - **THEN** the system fails before creating generated artifacts and reports supported harness names
 
+### Requirement: Container-first harness isolation
+The system SHALL run harness generation and validation inside an isolated Docker/container workspace by default, and SHALL treat harness-native permissions as defense in depth rather than the primary containment mechanism.
+
+#### Scenario: Harness runs in isolated workspace
+- **WHEN** a scenario generation run starts
+- **THEN** the system mounts only the staged workspace as writable for the harness container
+
+#### Scenario: Harness permissions are secondary controls
+- **WHEN** the selected harness has weak or missing native permissions
+- **THEN** the generation run remains bounded by container or VM isolation and SecGen output validation
+
+### Requirement: VM validation path
+The system SHALL allow a later VM-backed validation path for high-fidelity SecGen scenario builds after generated artifacts pass the faster container validation loop.
+
+#### Scenario: VM validation is deferred until staged output passes
+- **WHEN** generated artifacts fail container validation
+- **THEN** the system does not start VM validation for those artifacts
+
 ### Requirement: OpenCode integration verification
 The system SHALL verify OpenCode supports the required SecGen integration properties before relying on it for end-to-end scenario generation.
 
@@ -30,7 +48,7 @@ The system SHALL verify OpenCode supports the required SecGen integration proper
 - **THEN** the design or documentation records invocation mode, model/provider configuration, staged workspace behavior, log/transcript capture, and unresolved risks
 
 ### Requirement: Bounded file and command access
-The system SHALL restrict harness-generated file writes to a staging directory and restrict validation or test execution to approved commands for scenario generation.
+The system SHALL restrict harness-generated file writes to a container-mounted staging directory and restrict validation or test execution to approved commands for scenario generation.
 
 #### Scenario: Harness attempts an out-of-scope write
 - **WHEN** a harness output requests writing outside the staging directory
