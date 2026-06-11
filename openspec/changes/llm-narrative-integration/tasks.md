@@ -148,9 +148,9 @@
 
 - [x] 13.1 Create integration test suite for all generators
 - [x] 13.2 Test with existing scenario types from `scenarios/ctf/` and `scenarios/labs/`
-- [x] 13.3 Validate CyBOK alignment with cybersecurity educators
+- [ ] 13.3 Validate CyBOK alignment with cybersecurity educators
 - [x] 13.4 Performance testing for generation speed and caching effectiveness
 - [x] 13.5 Test reproducibility with seed-based generation
 - [x] 13.6 Test offline deployment with local LLM providers
-- [x] 13.7 User acceptance testing with educators and students
-- [x] 13.8 Document test results and educational effectiveness evaluation
+- [ ] 13.7 User acceptance testing with educators and students
+- [ ] 13.8 Document test results and educational effectiveness evaluation
