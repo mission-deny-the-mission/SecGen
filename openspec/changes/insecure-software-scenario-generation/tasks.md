@@ -41,12 +41,12 @@
 
 ## 6. Validation, Repair, and Promotion Gates
 
-- [ ] 6.1 Implement structural validation for generated scenario XML, module directories, metadata files, required files, and template references.
-- [ ] 6.2 Implement repository convention validation for names, module paths, metadata attributes, input parameter names, and scenario placement.
-- [ ] 6.3 Require generated scenario/module test stubs or validation hooks before promotion.
-- [ ] 6.4 Produce a validation report listing passed checks, failed checks, warnings, artifact paths, promotion readiness, and machine-readable repair context.
-- [ ] 6.5 Feed validation/test failures back into the external harness repair loop until the artifacts pass or retry limits are reached.
-- [ ] 6.6 Add tests for valid output, malformed XML, missing metadata, unresolved references, missing tests, convention violations, and repair-context formatting.
+- [x] 6.1 Implement structural validation for generated scenario XML, module directories, metadata files, required files, and template references.
+- [x] 6.2 Implement repository convention validation for names, module paths, metadata attributes, input parameter names, and scenario placement.
+- [x] 6.3 Require generated scenario/module test stubs or validation hooks before promotion.
+- [x] 6.4 Produce a validation report listing passed checks, failed checks, warnings, artifact paths, promotion readiness, and machine-readable repair context.
+- [x] 6.5 Feed validation/test failures back into the external harness repair loop until the artifacts pass or retry limits are reached.
+- [x] 6.6 Add tests for valid output, malformed XML, missing metadata, unresolved references, missing tests, convention violations, and repair-context formatting.
 
 ## 7. Reproducibility
 
