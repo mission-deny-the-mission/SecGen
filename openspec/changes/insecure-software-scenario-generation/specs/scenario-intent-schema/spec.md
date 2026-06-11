@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Structured scenario intent input
-The system SHALL accept a structured scenario intent document that captures the requested scenario name, scenario type, target platform, vulnerability classes, difficulty, learning outcomes, CyBOK alignment, flag requirements, evidence requirements, and generation seed.
+The system SHALL accept a structured scenario intent document that captures the requested scenario name, scenario type, target platform, vulnerability classes, difficulty, learning outcomes, CyBOK alignment, flag requirements, evidence requirements, generation seed, and optional harness/model configuration.
 
 #### Scenario: Valid intent is accepted
 - **WHEN** a scenario intent document contains all required fields with supported values
@@ -35,3 +35,10 @@ The system SHALL normalize intent values into repository-safe identifiers for sc
 #### Scenario: Human-readable names become safe identifiers
 - **WHEN** the intent contains a human-readable scenario title
 - **THEN** the system derives deterministic kebab-case or snake-case identifiers suitable for generated files and XML references
+
+### Requirement: Harness configuration capture
+The system SHALL capture optional harness configuration including harness name, provider, model, retry limit, local-only mode, staging path, sandbox mode, and approved validation profile, with OpenCode as the default harness.
+
+#### Scenario: Harness configuration is available to adapter
+- **WHEN** a valid intent includes harness configuration
+- **THEN** the normalized intent exposes the configuration for the harness adapter without requiring generation to start

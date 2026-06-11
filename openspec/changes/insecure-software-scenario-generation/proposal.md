@@ -4,7 +4,8 @@ SecGen can assemble scenarios from existing modules, but creating a new insecure
 
 ## What Changes
 
-- Add a workflow for generating new insecure software scenarios from structured scenario intent, such as vulnerability class, learning goals, difficulty, target platform, and flag/evidence requirements.
+- Add an agentic workflow for generating new insecure software scenarios from structured scenario intent, such as vulnerability class, learning goals, difficulty, target platform, and flag/evidence requirements.
+- Add a generate-test-repair loop that delegates code-generation work to OpenCode, while SecGen controls staged inputs, allowed outputs, validation, and review gates.
 - Add reusable templates for generating vulnerable software modules and scenario XML that conform to existing SecGen module, datastore, generator, and CyBOK conventions.
 - Add scenario assembly logic that creates complete scenario directories, module skeletons, metadata, tests, and documentation stubs.
 - Add validation for generated scenario XML, module metadata, required files, build references, and exploitability hints before generated scenarios are accepted.
@@ -16,6 +17,7 @@ SecGen can assemble scenarios from existing modules, but creating a new insecure
 ### New Capabilities
 
 - `scenario-intent-schema`: Defines the structured input model for requesting new insecure software scenarios, including vulnerability classes, difficulty, learning outcomes, platforms, services, flags, and evidence.
+- `agentic-scenario-generation`: Defines the OpenCode integration contract for planning, generating, testing, repairing, and recording insecure software scenario generation runs.
 - `vulnerable-software-template-generation`: Generates vulnerable software module skeletons, templates, Puppet manifests, metadata, and tests from approved vulnerability patterns.
 - `scenario-assembly-generation`: Generates complete scenario XML and supporting files that wire bases, networks, vulnerabilities, services, utilities, generators, encoders, and datastores together.
 - `generated-scenario-validation`: Validates generated scenarios and modules before use, including XML structure, module references, metadata consistency, required files, and test coverage expectations.
@@ -27,7 +29,8 @@ SecGen can assemble scenarios from existing modules, but creating a new insecure
 
 ## Impact
 
-- **New modules**: Scenario-generation code under a dedicated generator/tooling area, likely aligned with existing `modules/generators/` patterns.
+- **New modules**: Scenario-generation code under a dedicated generator/tooling area, aligned with the existing `modules/generators/narrative_content/` provider/API integration where model-backed generation is required.
+- **Agent integration**: New OpenCode harness adapter layer with SecGen-owned staging, validation, policy, and manifest generation.
 - **New templates**: Approved insecure software templates for common vulnerability classes such as injection, XSS, broken access control, insecure deserialization, weak authentication, file upload, path traversal, command injection, and insecure configuration.
 - **Scenario output**: Generated XML files under `scenarios/` and generated module skeletons under `modules/` using existing SecGen conventions.
 - **Validation**: New tests or validation commands for generated XML, module metadata, template references, and reproducibility manifests.

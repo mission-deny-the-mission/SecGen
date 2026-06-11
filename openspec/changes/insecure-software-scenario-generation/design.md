@@ -2,7 +2,9 @@
 
 SecGen already generates training environments from XML scenario definitions and module metadata. Existing vulnerable web application scenarios, such as the random webapp scenario, combine bases, vulnerabilities, generators, encoders, datastores, services, and networks to produce varied CTF and lab environments. Creating a new scenario still requires hand-authoring several coordinated artifacts: scenario XML, vulnerable software module files, Puppet manifests, ERB templates, `secgen_metadata.xml`, tests, flags, and documentation.
 
-This change introduces a generation workflow for new insecure software scenarios. It is additive and should use the existing scenario/module model rather than replacing it. Generated scenarios must remain reviewable, deterministic enough for education and grading, and compatible with the existing SecGen build flow.
+This change introduces an agentic generation workflow for new insecure software scenarios. It is additive and should use the existing scenario/module model rather than replacing it. Generated scenarios must remain reviewable, deterministic enough for education and grading, and compatible with the existing SecGen build flow.
+
+The existing LLM narrative implementation already provides provider configuration and API/local-model adapters under `modules/generators/narrative_content/lib`. Scenario generation should reuse its provider configuration where useful, but the code-generation loop should be delegated to OpenCode rather than implemented from scratch in SecGen. SecGen should own the wrapper contract: intent, templates, staging paths, policies, validation commands, manifests, and review gates.
 
 Stakeholders include SecGen developers, cybersecurity educators creating exercises, and students who consume generated CTF/lab scenarios.
 
@@ -11,6 +13,7 @@ Stakeholders include SecGen developers, cybersecurity educators creating exercis
 **Goals:**
 
 - Provide a structured scenario intent format that captures vulnerability, platform, difficulty, learning, flag, and evidence requirements.
+- Use OpenCode to plan, generate, validate, test, and repair insecure software scenario artifacts in a bounded loop.
 - Generate scenario XML and vulnerable software module skeletons that follow SecGen conventions.
 - Support approved vulnerability templates for common insecure software patterns.
 - Validate generated files before they are accepted into `scenarios/` or `modules/`.
@@ -21,7 +24,7 @@ Stakeholders include SecGen developers, cybersecurity educators creating exercis
 
 - Automatically proving exploitability of every generated vulnerability.
 - Replacing existing hand-written scenario and module authoring workflows.
-- Generating arbitrary unreviewed code outside approved templates.
+- Generating arbitrary unreviewed code outside approved templates and policy constraints.
 - Running scenario generation during student exercises.
 - Changing the existing scenario XML runtime semantics for existing scenarios.
 
@@ -40,7 +43,7 @@ Stakeholders include SecGen developers, cybersecurity educators creating exercis
 
 ### 2. Template-First Vulnerable Software Generation
 
-**Decision:** Generate vulnerable software from approved templates and vulnerability patterns rather than unconstrained source generation.
+**Decision:** Generate vulnerable software from approved templates and vulnerability patterns rather than unconstrained source generation, even when an agent is doing the generation.
 
 **Rationale:** Insecure software scenarios must be intentionally vulnerable, understandable, testable, and safe to review. Templates keep generated code inside known patterns while still allowing variation through parameters, seeds, flags, datastore values, and narrative/evidence content.
 
@@ -49,7 +52,34 @@ Stakeholders include SecGen developers, cybersecurity educators creating exercis
 - Fully generated arbitrary applications: higher variety, but much harder to review and validate.
 - Only selecting existing modules: safer, but does not meet the goal of generating new scenarios.
 
-### 3. Generate Into a Staging Area First
+### 3. OpenCode Harness Adapter
+
+**Decision:** Use OpenCode as the first supported coding-agent harness rather than building the coding-agent loop in SecGen.
+
+**Rationale:** OpenCode already implements the hard parts of autonomous code editing: repository exploration, file edits, shell/tool execution, planning/build modes, model-provider integration, session state, and repair iteration. SecGen should avoid duplicating that machinery. Instead, SecGen should provide the domain-specific wrapper: scenario intent, approved vulnerability templates, staging directories, policy files, validation commands, retry limits, manifests, and human review gates.
+
+**Agent options considered:**
+
+| Option | Fit | Trade-off |
+|--------|-----|-----------|
+| OpenCode | Selected first adapter: mature open-source coding agent, terminal/IDE/desktop surfaces, built-in plan/build agents, many model providers, privacy-oriented posture | Need to verify noninteractive invocation, config format, and ability to force staging-only writes |
+| Pi | Good minimal harness candidate: agent core, coding-agent CLI, unified multi-provider LLM API, MIT license | Its own README states it has no built-in permission system, so SecGen must containerize or otherwise sandbox it |
+| ForgeCode | Strong production-oriented candidate: multi-agent architecture, model mixing, context engine, published benchmark claims | Need to verify CLI automation interface, license/release maturity, and whether it can run cleanly in CI/headless mode |
+| Forge ACP CLI | Useful abstraction candidate: Agent Client Protocol terminal interface that can manage multiple coding agents including OpenCode | Very young, fewer signals, and may be better as a future compatibility layer than first implementation |
+| Custom Ruby harness + `LlmProviderConfig` | Maximum control and direct integration with current narrative code | Duplicates existing harness work and is no longer preferred |
+
+**Preferred path:** Create a SecGen harness adapter interface for OpenCode first. Keep Pi and ForgeCode as deferred alternatives if OpenCode cannot support reliable noninteractive/headless operation, staged-workspace isolation, log collection, or model/provider configuration in the way SecGen needs. Pi remains attractive for a smaller programmable core but needs explicit sandboxing. ForgeCode remains attractive for multi-agent production workflows but needs license, automation, and maturity verification before adoption.
+
+**Adapter contract:**
+
+- Prepare a staged workspace containing intent, templates, policy, and validation commands.
+- Invoke OpenCode with a constrained prompt and SecGen-specific instructions.
+- Require the harness to write only inside the staged workspace.
+- Run SecGen-owned validation commands after each harness attempt.
+- Feed validation failures back through the harness for repair.
+- Persist harness logs, transcript paths or hashes, provider/model metadata, and final status.
+
+### 4. Generate Into a Staging Area First
 
 **Decision:** Write generated scenarios and modules into a staging directory before promotion into `scenarios/` and `modules/`.
 
@@ -60,7 +90,7 @@ Stakeholders include SecGen developers, cybersecurity educators creating exercis
 - Direct writes to final locations: simpler, but risks leaving invalid artifacts in active paths.
 - External artifact bundles only: reviewable, but disconnected from existing SecGen workflows.
 
-### 4. Reuse Existing SecGen Composition Primitives
+### 5. Reuse Existing SecGen Composition Primitives
 
 **Decision:** Scenario assembly must use current SecGen XML concepts: systems, bases, vulnerabilities, services, utilities, networks, generators, encoders, and datastores.
 
@@ -71,9 +101,9 @@ Stakeholders include SecGen developers, cybersecurity educators creating exercis
 - New scenario DSL: could improve ergonomics, but would require translation and duplicate existing concepts.
 - Hardcoded generated VM definitions: brittle and less reusable.
 
-### 5. Validate Before Promotion
+### 6. Validate Before Promotion
 
-**Decision:** Generated artifacts must pass structural and repository-specific validation before promotion.
+**Decision:** Generated artifacts must pass structural and repository-specific validation before promotion, and validation failures must be fed back into the agent as repair context before the run fails.
 
 **Rationale:** Broken XML, missing metadata, dangling template references, and untested modules are common risks when generating multi-file artifacts. Validation gives developers a clear acceptance gate.
 
@@ -82,9 +112,30 @@ Stakeholders include SecGen developers, cybersecurity educators creating exercis
 - Manual review only: necessary but insufficient for repeatable generation.
 - Full VM build as the only validation: valuable later, but too slow as the first feedback loop.
 
+### 7. Bounded Harness Repair Loop
+
+**Decision:** The external harness loop must be wrapped by explicit phases, retry limits, file allowlists, command allowlists, and a final human review gate.
+
+**Rationale:** The system is intentionally generating insecure software for training, so it needs stronger boundaries than a generic code generator. A bounded loop prevents unreviewed or runaway changes while still allowing the agent to respond to concrete test and validation output.
+
+**Loop phases:**
+
+1. Load and normalize scenario intent.
+2. Select templates, generation policy, and the OpenCode adapter.
+3. Invoke OpenCode for a generation plan.
+4. Allow generated files only in the staging area.
+5. Run structural validation and tests.
+6. Feed failures back to the agent for repair.
+7. Repeat until pass, retry limit, or blocked condition.
+8. Produce a manifest, validation report, and review checklist.
+
 ## Risks / Trade-offs
 
 - Unintended unsafe generated code -> Restrict generation to approved templates, require review before promotion, and record generated artifacts in manifests.
+- External harness modifies unrelated files -> Run the harness in a staged copy or sandbox and reject outputs outside allowed paths.
+- External harness lacks a stable noninteractive mode -> Treat the harness comparison spike as a gate before implementation.
+- Harness loops without converging -> Enforce retry limits and require the final report to include unresolved validation failures.
+- Provider-specific behavior changes -> Keep provider/model/harness metadata in the manifest and support local providers where the selected harness supports them.
 - Low-quality or unrealistic scenarios -> Require learning goals, difficulty, vulnerability class, flags, and validation checks in the intent model.
 - Drift from SecGen conventions -> Generate from local templates and validate module metadata, XML references, and expected file layout.
 - Reproducibility gaps -> Store seed, intent, template versions, selected options, and output hashes in a generation manifest.
@@ -94,11 +145,12 @@ Stakeholders include SecGen developers, cybersecurity educators creating exercis
 ## Migration Plan
 
 1. Add the intent schema and loader for generation requests.
-2. Add approved vulnerable software templates and template metadata.
-3. Add staging generation for module skeletons, scenario XML, tests, and documentation stubs.
-4. Add validation for staged output.
-5. Add manifest creation for reproducibility and review.
-6. Document the generation and promotion workflow.
+2. Add the OpenCode harness adapter interface and verify OpenCode against SecGen requirements.
+3. Add approved vulnerable software templates and template metadata.
+4. Add staging generation for module skeletons, scenario XML, tests, and documentation stubs.
+5. Add validation and repair feedback for staged output.
+6. Add manifest creation for reproducibility, harness/provider metadata, trace summaries, and review.
+7. Document the generation and promotion workflow.
 
 Rollback is straightforward because the feature is additive. Generated artifacts remain staged until explicitly promoted, and existing scenarios continue to build through the current workflow.
 
@@ -108,3 +160,4 @@ Rollback is straightforward because the feature is additive. Generated artifacts
 2. Should generated scenarios be promoted by a CLI command, a review checklist, or both?
 3. Where should staged generated artifacts live permanently: under `tmp/`, `generated/`, or an OpenSpec-defined path?
 4. Should exploit walkthrough files be required for promotion in the first implementation, or only recommended?
+5. What is the minimum reliable OpenCode invocation mode for CI/headless generation?

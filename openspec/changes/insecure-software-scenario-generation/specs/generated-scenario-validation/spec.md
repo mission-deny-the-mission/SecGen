@@ -31,3 +31,10 @@ The system SHALL produce a validation report containing passed checks, failed ch
 #### Scenario: Validation report summarizes readiness
 - **WHEN** validation completes
 - **THEN** the report states whether artifacts are ready for promotion and lists any remaining issues
+
+### Requirement: Harness repair context
+The system SHALL expose validation and test failures as structured repair context for the external harness adapter.
+
+#### Scenario: Validation failures are machine-readable
+- **WHEN** generated artifacts fail validation
+- **THEN** the validation report includes machine-readable failure codes, affected paths, and repair hints that can be passed back to the harness

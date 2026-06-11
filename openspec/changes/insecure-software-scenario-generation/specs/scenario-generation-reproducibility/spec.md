@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Generation manifest
-The system SHALL create a generation manifest for each generated scenario that records the original intent, normalized intent, seed, selected templates, selected module names, generated paths, tool version, timestamp, and output hashes.
+The system SHALL create a generation manifest for each generated scenario that records the original intent, normalized intent, seed, selected templates, selected module names, generated paths, tool version, timestamp, harness/provider/model metadata, retry metadata, and output hashes.
 
 #### Scenario: Manifest is created after successful generation
 - **WHEN** scenario generation completes successfully
@@ -27,3 +27,10 @@ The system SHALL record review status and promotion status separately from gener
 #### Scenario: Review status is tracked
 - **WHEN** generated artifacts are reviewed or promoted
 - **THEN** the manifest or accompanying review record reflects the updated status without losing the original generation inputs
+
+### Requirement: Harness trace reproducibility metadata
+The system SHALL persist enough harness trace metadata to audit which prompts, provider settings, validation failures, and repair attempts produced the staged artifacts.
+
+#### Scenario: Harness run can be audited
+- **WHEN** a reviewer inspects a generated scenario manifest
+- **THEN** the reviewer can identify the harness, phases, provider/model settings, retry count, and validation outcomes used during generation
