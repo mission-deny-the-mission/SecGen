@@ -73,6 +73,23 @@ module ScenarioGeneration
       )
     end
 
+    def phase_command(phase, validation_report: nil)
+      case phase.to_sym
+      when :plan
+        plan_command
+      when :generate
+        generate_command
+      when :validate
+        validation_commands
+      when :repair
+        repair_command(validation_report || {})
+      when :report
+        report
+      else
+        raise HarnessError, "Unsupported harness phase: #{phase}"
+      end
+    end
+
     def export_command(session_id, sanitize: true)
       command = [@opencode_bin, 'export', session_id.to_s]
       command << '--sanitize' if sanitize
@@ -90,6 +107,36 @@ module ScenarioGeneration
       return command if command.is_a?(Array)
 
       raise HarnessError, 'vm_validation_command must be an array of command arguments'
+    end
+
+    def retries_exhausted?(attempt)
+      Integer(attempt) >= @retry_limit
+    rescue ArgumentError, TypeError
+      raise HarnessError, 'attempt must be an integer'
+    end
+
+    def staged_path_allowed?(path)
+      root = File.expand_path(@staging_dir)
+      candidate = File.expand_path(path.to_s, root)
+      candidate == root || candidate.start_with?("#{root}#{File::SEPARATOR}")
+    end
+
+    def validate_staged_paths!(paths)
+      invalid = Array(paths).reject { |path| staged_path_allowed?(path) }
+      raise HarnessError, "Out-of-scope staged paths: #{invalid.join(', ')}" unless invalid.empty?
+
+      true
+    end
+
+    def approved_validation_command?(command)
+      normalized = Array(command).map(&:to_s)
+      validation_profile.any? { |entry| entry['command'].map(&:to_s) == normalized }
+    end
+
+    def validate_validation_command!(command)
+      raise HarnessError, "Unapproved validation command: #{Array(command).join(' ')}" unless approved_validation_command?(command)
+
+      true
     end
 
     def report

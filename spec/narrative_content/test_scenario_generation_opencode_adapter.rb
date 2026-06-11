@@ -168,4 +168,65 @@ class TestScenarioGenerationOpenCodeAdapter < Minitest::Test
     assert_equal 'plan', report['plan_agent']
     assert_equal 'build', report['build_agent']
   end
+
+  def test_harness_factory_selects_opencode
+    adapter = ScenarioGeneration::HarnessAdapter.for(intent: valid_intent, staging_dir: '/tmp/staged')
+
+    assert_instance_of ScenarioGeneration::OpenCodeAdapter, adapter
+  end
+
+  def test_harness_factory_rejects_unknown_harness
+    intent = valid_intent
+    intent.normalized['harness']['name'] = 'unknown'
+
+    error = assert_raises(ScenarioGeneration::HarnessError) do
+      ScenarioGeneration::HarnessAdapter.for(intent: intent, staging_dir: '/tmp/staged')
+    end
+
+    assert_includes error.message, 'Unsupported harness'
+  end
+
+  def test_phase_command_routes_supported_phases
+    adapter = ScenarioGeneration::OpenCodeAdapter.new(intent: valid_intent, staging_dir: '/tmp/staged', config: { 'isolation_mode' => 'host' })
+
+    assert_includes adapter.phase_command(:plan), 'plan'
+    assert_includes adapter.phase_command(:generate), 'build'
+    assert_equal 2, adapter.phase_command(:validate).length
+    assert_includes adapter.phase_command(:repair, validation_report: { 'failures' => [] }).last, 'validation report'
+    assert_equal 'opencode', adapter.phase_command(:report)['harness']
+  end
+
+  def test_phase_command_rejects_unknown_phase
+    adapter = ScenarioGeneration::OpenCodeAdapter.new(intent: valid_intent, staging_dir: '/tmp/staged')
+
+    assert_raises(ScenarioGeneration::HarnessError) { adapter.phase_command(:deploy) }
+  end
+
+  def test_retry_stopping_uses_retry_limit
+    adapter = ScenarioGeneration::OpenCodeAdapter.new(intent: valid_intent, staging_dir: '/tmp/staged')
+
+    refute adapter.retries_exhausted?(1)
+    assert adapter.retries_exhausted?(2)
+  end
+
+  def test_staged_path_validation_rejects_out_of_scope_paths
+    Dir.mktmpdir('secgen_opencode') do |dir|
+      adapter = ScenarioGeneration::OpenCodeAdapter.new(intent: valid_intent, staging_dir: dir)
+
+      assert adapter.staged_path_allowed?(File.join(dir, 'scenario.xml'))
+      assert adapter.staged_path_allowed?('relative/path.xml')
+      refute adapter.staged_path_allowed?('/etc/passwd')
+      assert adapter.validate_staged_paths!([File.join(dir, 'scenario.xml'), 'relative/path.xml'])
+      assert_raises(ScenarioGeneration::HarnessError) { adapter.validate_staged_paths!(['/etc/passwd']) }
+    end
+  end
+
+  def test_validation_command_approval
+    adapter = ScenarioGeneration::OpenCodeAdapter.new(intent: valid_intent, staging_dir: '/tmp/staged')
+
+    assert adapter.approved_validation_command?(['test', '-f', '/workspace/opencode.policy.json'])
+    refute adapter.approved_validation_command?(['rm', '-rf', '/workspace'])
+    assert adapter.validate_validation_command!(['test', '-f', '/workspace/intent.normalized.json'])
+    assert_raises(ScenarioGeneration::HarnessError) { adapter.validate_validation_command!(['rm', '-rf', '/workspace']) }
+  end
 end

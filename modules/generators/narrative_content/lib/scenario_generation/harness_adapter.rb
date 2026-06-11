@@ -13,6 +13,19 @@ module ScenarioGeneration
 
     attr_reader :intent, :staging_dir, :config
 
+    def self.for(intent:, staging_dir:, config: {})
+      harness_config = intent.respond_to?(:harness_options) ? intent.harness_options : {}
+      merged = stringify_static_keys(harness_config).merge(stringify_static_keys(config || {}))
+      harness_name = (merged['name'] || merged['harness'] || 'opencode').to_s
+
+      case harness_name
+      when 'opencode'
+        ScenarioGeneration::OpenCodeAdapter.new(intent: intent, staging_dir: staging_dir, config: merged)
+      else
+        raise HarnessError, "Unsupported harness: #{harness_name}. Supported values: opencode"
+      end
+    end
+
     def initialize(intent:, staging_dir:, config: {})
       @intent = intent
       @staging_dir = staging_dir
@@ -44,6 +57,15 @@ module ScenarioGeneration
     end
 
     protected
+
+    def self.stringify_static_keys(value)
+      case value
+      when Hash
+        value.each_with_object({}) { |(key, val), result| result[key.to_s] = stringify_static_keys(val) }
+      else
+        value || {}
+      end
+    end
 
     def stringify_keys(value)
       case value
