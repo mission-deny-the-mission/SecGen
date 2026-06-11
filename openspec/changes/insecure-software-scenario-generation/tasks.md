@@ -24,11 +24,11 @@
 
 ## 4. Vulnerable Module Generation
 
-- [ ] 4.1 Implement staged vulnerable module generation from selected templates.
-- [ ] 4.2 Generate SecGen-compatible module layout, Puppet entry point, supporting manifests, files/templates, and `secgen_metadata.xml`.
-- [ ] 4.3 Render template parameters for difficulty, flags, datastore inputs, credentials, routes, service ports, and evidence strings.
-- [ ] 4.4 Generate module test stubs or validation hooks that describe the expected vulnerable behavior and flag/evidence location.
-- [ ] 4.5 Add tests that verify generated module layout, metadata, rendered parameters, and test stubs.
+- [x] 4.1 Implement staged vulnerable module generation from selected templates.
+- [x] 4.2 Generate SecGen-compatible module layout, Puppet entry point, supporting manifests, files/templates, and `secgen_metadata.xml`.
+- [x] 4.3 Render template parameters for difficulty, flags, datastore inputs, credentials, routes, service ports, and evidence strings.
+- [x] 4.4 Generate module test stubs or validation hooks that describe the expected vulnerable behavior and flag/evidence location.
+- [x] 4.5 Add tests that verify generated module layout, metadata, rendered parameters, and test stubs.
 
 ## 5. Scenario Assembly
 
