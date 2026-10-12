@@ -23,3 +23,7 @@ rgloader
 vendor/**
 vagrant-proxmox
 llm_config.json
+plans/
+
+# Personal Claude Code instructions (environment-specific)
+CLAUDE.local.md

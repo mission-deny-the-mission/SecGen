@@ -6,7 +6,15 @@
 
   <name>Nosferatu</name>
   <author>Z. Cliffe Schreuders</author>
-  <description>Hack the server from kali.
+  <description>
+    A lightweight, rarely-patched web server is listening on the target, and a directory
+    traversal bug in how it parses HTTP requests lets a crafted request break out of the web
+    root and execute commands on the underlying system - no authentication needed.
+    Fingerprint the service, build a request that escapes its intended boundaries, and pop a
+    shell to reach the first flag; along the way you'll pick up an obfuscated message that's
+    worth feeding through a decoding toolkit before you dismiss it as noise. Once inside,
+    hunt for a sudo rule around an everyday file-pager utility that was never meant to grant
+    root - abuse it to escape into a root shell and take the final flag.
   </description>
 
   <type>ctf</type>
@@ -64,9 +72,9 @@
 
     <input into_datastore="IP_addresses">
       <!-- 0 attack_vm -->
-      <value>172.16.0.2</value>
+      <network_ip system="attack_vm"/>
       <!-- 1 hackme_server -->
-      <value>172.16.0.3</value>
+      <network_ip system="server"/>
     </input>
 
     <utility module_path=".*/parameterised_accounts">
@@ -92,11 +100,7 @@
     <utility module_path=".*/kali_top10"/>
     <utility module_path=".*/kali_web"/>
 
-    <network type="private_network">
-      <input into="IP_address">
-        <datastore access="0">IP_addresses</datastore>
-      </input>
-    </network>
+    <network type="private_network"/>
     <input into_datastore="spoiler_admin_pass">
       <generator type="strong_password_generator"/>
     </input>
@@ -133,11 +137,7 @@
     </vulnerability>
 
 
-    <network type="private_network">
-      <input into="IP_address">
-        <datastore access="1">IP_addresses</datastore>
-      </input>
-    </network>
+    <network type="private_network"/>
     <build type="cleanup">
       <input into="root_password">
         <datastore>spoiler_admin_pass</datastore>

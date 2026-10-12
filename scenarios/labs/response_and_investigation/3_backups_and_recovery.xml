@@ -12,7 +12,7 @@
 
     In this lab, you will learn how to utilize SSH/SCP for secure file transfer, create full, differential, and incremental backups using the rsync tool, and employ backups for efficient data protection. You will also explore the concept of snapshot backups, which allow for efficient storage of data by using hard links to unchanged files. Throughout the lab, you will engage in hands-on tasks such as copying directories, performing backups, restoring files, and setting up remote backups. By completing these exercises, you will gain valuable skills in contingency planning and data backup strategies, which are essential for maintaining the availability and security of critical systems and data.
 
-    This is a Hackerbot lab. The labsheet is available once you claim a set of VMs. Work through the labsheet, then when prompted interact with Hackerbot.
+    This is a Hackerbot lab. Work through the lab sheet, then when prompted interact with Hackerbot.
 
     # Tips for the lab
 
@@ -22,11 +22,19 @@
 
     Manually check you have done your backups correctly before telling Hackerbot you are ready. It may be a good idea to ssh to your backup server in a separate console tab ssh IP-ADDRESS (but do keep an eye on which system you are running each command on!).
 
-    Keep an eye on the trailing slashes in rsync commands and how it changes the behaviour (the difference between copying a directory or it's contents).
+    Keep an eye on the trailing slashes in rsync commands and how it changes the behaviour (the difference between copying a directory or its contents).
 
     Each time you can test that your rsync command is going to do what you expect by adding -n to the command, which does a "Dry Run" without making any of the actual changes -- once you are happy it's making the changes you expect, run it again without the -n
 
+    Give --compare-dest=... and --link-dest=... a full path (or $HOME/...), not ~ or a relative path: in a local backup the shell doesn't expand ~ there, and a relative path is looked up inside the destination directory -- either way rsync can't find it and silently makes a full copy.
+
+    With sudo, always write YOURUSERNAME@ before the backup_server's address (otherwise you connect as root), and use -M--fake-super so file ownership survives the backup and restore.
+
+    If a backup goes wrong because the files have already changed again, say 'goto 3' (or 5, 7, 9) then 'ready' to Hackerbot: it puts the second user's files back exactly as they were at that step.
+
   </description>
+
+  <lab_sheet_url>https://cliffe.github.io/HacktivityLabSheets/labs/response_and_investigation/3-backups-and-recovery/</lab_sheet_url>
 
   <type>ctf-lab</type>
   <type>hackerbot-lab</type>
@@ -36,7 +44,7 @@
   <CyBOK KA="SOIM" topic="Execute: Mitigation and Countermeasures">
     <keyword>Recover data and services after an incident</keyword>
     <keyword>BACKUP - DIFFERENTIAL</keyword>
-    <keyword>BACKUP - INFERENTIAL</keyword>
+    <keyword>BACKUP - INCREMENTAL</keyword>
   </CyBOK>
 
   <video>
@@ -70,7 +78,7 @@
     <CyBOK KA="SOIM" topic="Execute: Mitigation and Countermeasures">
       <keyword>Recover data and services after an incident</keyword>
       <keyword>BACKUP - DIFFERENTIAL</keyword>
-      <keyword>BACKUP - INFERENTIAL</keyword>
+      <keyword>BACKUP - INCREMENTAL</keyword>
     </CyBOK>
     <CyBOK KA="OSV" topic="Human Factors: Incident Management">
       <keyword>prepare: incident management planning</keyword>
@@ -82,12 +90,13 @@
     <base distro="Debian 12" type="desktop" name="KDE"/>
 
     <input into_datastore="IP_addresses">
-      <value>172.16.0.2</value>
-      <value>172.16.0.3</value>
-      <value>172.16.0.4</value>
+      <network_ip system="desktop"/>
+      <network_ip system="backup_server"/>
+      <network_ip system="hackerbot_server"/>
     </input>
 
-    <!--generate two accounts, YOU and someone else-->
+    <!--generate two accounts: [0] YOU (sudo, autologin), [1] the user whose files Hackerbot has you back up-->
+    <!--(the hackerbot backups generator reads accounts[0] and accounts[1] only)-->
     <input into_datastore="accounts">
       <generator type="account">
         <input into="username">
@@ -152,32 +161,14 @@
           <generator type="person" />
         </input>
       </generator>
-      <generator type="account">
-        <input into="username">
-          <generator type="random_sanitised_word">
-            <input into="wordlist">
-              <value>mythical_creatures</value>
-            </input>
-          </generator>
-        </input>
-        <input into="password">
-          <value>test</value>
-        </input>
-        <input into="super_user">
-          <value>false</value>
-        </input>
-        <input into="leaked_filenames">
-          <value></value>
-        </input>
-        <input into="strings_to_leak">
-          <value></value>
-        </input>
-      </generator>
     </input>
 
     <!-- an admin account used for hackerbot access to the desktop and also spoilers/administration of the challenge -->
     <input into_datastore="spoiler_admin_pass">
       <generator type="strong_password_generator"/>
+    </input>
+    <input into_datastore="hackerbot_key">
+      <generator type="ssh_key_pair"/>
     </input>
 
     <!--Create the users-->
@@ -201,38 +192,31 @@
     <utility module_path=".*/handy_cli_tools"/>
     <utility module_path=".*/hash_tools"/>
 
-    <utility module_path=".*/iceweasel">
-      <input into="accounts">
-        <datastore>accounts</datastore>
+    <utility module_path=".*/hosts">
+      <input into="hosts">
+        <value>hackerbot</value>
       </input>
-      <input into="autostart">
-        <value>true</value>
-      </input>
-      <input into="start_page">
+      <input into="IP_addresses">
         <datastore access="2">IP_addresses</datastore>
       </input>
     </utility>
 
-    <utility module_path=".*/pidgin">
-      <input into="server_ip">
-        <datastore access="2">IP_addresses</datastore>
-      </input>
+    <utility module_path=".*/iceweasel">
       <input into="accounts">
         <datastore access="0">accounts</datastore>
       </input>
+      <input into="start_page">
+        <value>hackerbot:8080</value>
+      </input>
     </utility>
 
-    <vulnerability module_path=".*/ssh_root_login">
-      <input into="root_password">
-        <datastore>spoiler_admin_pass</datastore>
+    <utility module_path=".*/hackerbot_client">
+      <input into="ssh_key_pair">
+        <datastore>hackerbot_key</datastore>
       </input>
-    </vulnerability>
+    </utility>
 
-    <network type="private_network" >
-      <input into="IP_address">
-        <datastore access="0">IP_addresses</datastore>
-      </input>
-    </network>
+    <network type="private_network"/>
 
     <build type="cleanup">
       <input into="root_password">
@@ -251,17 +235,13 @@
       </input>
     </utility>
 
-    <vulnerability module_path=".*/ssh_root_login">
-      <input into="root_password">
-        <datastore>spoiler_admin_pass</datastore>
+    <utility module_path=".*/hackerbot_client">
+      <input into="ssh_key_pair">
+        <datastore>hackerbot_key</datastore>
       </input>
-    </vulnerability>
+    </utility>
 
-    <network type="private_network" >
-      <input into="IP_address">
-        <datastore access="1">IP_addresses</datastore>
-      </input>
-    </network>
+    <network type="private_network"/>
 
     <!-- an admin account only for spoilers/administration of the challenge -->
     <build type="cleanup">
@@ -275,7 +255,16 @@
     <system_name>hackerbot_server</system_name>
     <base distro="Kali" name="MSF"/>
 
-    <service type="ircd"/>
+    <service module_path=".*/ergochat"/>
+
+    <utility module_path=".*/hackerbot_webclient">
+      <input into="username">
+        <datastore access="0" access_json="['username']">accounts</datastore>
+      </input>
+      <input into="irc_server_ip">
+        <value>hackerbot</value>
+      </input>
+    </utility>
 
     <utility module_path=".*/metasploit_framework"/>
     <utility module_path=".*/nmap"/>
@@ -284,13 +273,13 @@
     <service type="httpd"/>
 
     <utility module_path=".*/hackerbot">
-      <input into="hackerbot_configs" into_datastore="hackerbot_instructions">
+      <input into="ssh_key_pair">
+        <datastore>hackerbot_key</datastore>
+      </input>
+      <input into="hackerbot_configs">
         <generator module_path=".*/backups">
           <input into="accounts">
             <datastore>accounts</datastore>
-          </input>
-          <input into="root_password">
-            <datastore>spoiler_admin_pass</datastore>
           </input>
           <input into="server_ip">
             <datastore access="1">IP_addresses</datastore>
@@ -299,11 +288,7 @@
       </input>
     </utility>
 
-    <network type="private_network" >
-      <input into="IP_address">
-        <datastore access="2">IP_addresses</datastore>
-      </input>
-    </network>
+    <network type="private_network"/>
 
     <!-- an admin account only for spoilers/administration of the challenge -->
     <build type="cleanup">

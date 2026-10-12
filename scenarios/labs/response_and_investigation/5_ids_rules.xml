@@ -12,8 +12,10 @@
 
     Throughout this lab, you will gain hands-on experience in configuring Snort to monitor network traffic. You will learn how to create custom Snort rules to detect specific network activities, and use Wireshark to capture and analyze network packets. The lab will also present you with a series of Hackerbot challenges, where you will apply your knowledge to detect and respond to various network attacks. For example, you will create Snort rules to detect attempts to access specific ports, monitor unencrypted email authentication, and more. By the end of this lab, you will have a solid understanding of intrusion detection and prevention systems, as well as practical experience in configuring and monitoring them to safeguard your network from potential threats.
 
-    This is a Hackerbot lab. The labsheet is available once you claim a set of VMs. Work through the labsheet, then when prompted interact with Hackerbot.
+    This is a Hackerbot lab. Work through the lab sheet, then when prompted interact with Hackerbot.
   </description>
+
+  <lab_sheet_url>https://cliffe.github.io/HacktivityLabSheets/labs/response_and_investigation/5-ids-rules/</lab_sheet_url>
 
   <type>ctf-lab</type>
   <type>hackerbot-lab</type>
@@ -85,10 +87,10 @@
     <base distro="Debian 12" type="desktop" name="KDE"/>
 
     <input into_datastore="IP_addresses">
-      <value>172.16.0.2</value>
-      <value>172.16.0.3</value>
-      <value>172.16.0.4</value>
-      <value>172.16.0.5</value>
+      <network_ip system="desktop"/>
+      <network_ip system="ids_monitor"/>
+      <network_ip system="web_server"/>
+      <network_ip system="hackerbot_server"/>
     </input>
 
     <input into_datastore="organisation">
@@ -166,6 +168,9 @@
     <input into_datastore="spoiler_admin_pass">
       <generator type="strong_password_generator"/>
     </input>
+    <input into_datastore="hackerbot_key">
+      <generator type="ssh_key_pair"/>
+    </input>
 
     <!--Create the users-->
     <utility module_path=".*/parameterised_accounts">
@@ -191,6 +196,15 @@
     <utility module_path=".*/handy_cli_tools"/>
     <utility module_path=".*/nmap"/>
 
+    <utility module_path=".*/hosts">
+      <input into="hosts">
+        <value>hackerbot</value>
+      </input>
+      <input into="IP_addresses">
+        <datastore access="3">IP_addresses</datastore>
+      </input>
+    </utility>
+
     <utility module_path=".*/iceweasel">
       <input into="accounts">
         <datastore>accounts</datastore>
@@ -199,16 +213,10 @@
         <value>true</value>
       </input>
       <input into="start_page">
-        <datastore access="3">IP_addresses</datastore>
+        <datastore access="2">IP_addresses</datastore>
       </input>
-    </utility>
-
-    <utility module_path=".*/pidgin">
-      <input into="server_ip">
-        <datastore access="3">IP_addresses</datastore>
-      </input>
-      <input into="accounts">
-        <datastore access="0">accounts</datastore>
+      <input into="start_page">
+        <value>hackerbot:8080</value>
       </input>
     </utility>
 
@@ -218,17 +226,13 @@
       </input>
     </utility>
 
-    <vulnerability module_path=".*/ssh_root_login">
-      <input into="root_password">
-        <datastore>spoiler_admin_pass</datastore>
+    <utility module_path=".*/hackerbot_client">
+      <input into="ssh_key_pair">
+        <datastore>hackerbot_key</datastore>
       </input>
-    </vulnerability>
+    </utility>
 
-    <network type="private_network" >
-      <input into="IP_address">
-        <datastore access="0">IP_addresses</datastore>
-      </input>
-    </network>
+    <network type="private_network"/>
     <build type="cleanup">
       <input into="root_password">
         <datastore>spoiler_admin_pass</datastore>
@@ -262,17 +266,13 @@
     <utility module_path=".*/wireshark"/>
     <utility module_path=".*/nmap"/>
 
-    <vulnerability module_path=".*/ssh_root_login">
-      <input into="root_password">
-        <datastore>spoiler_admin_pass</datastore>
+    <utility module_path=".*/hackerbot_client">
+      <input into="ssh_key_pair">
+        <datastore>hackerbot_key</datastore>
       </input>
-    </vulnerability>
+    </utility>
 
-    <network type="private_network">
-      <input into="IP_address">
-        <datastore access="1">IP_addresses</datastore>
-      </input>
-    </network>
+    <network type="private_network"/>
     <build type="cleanup">
       <input into="root_password">
         <datastore>spoiler_admin_pass</datastore>
@@ -310,17 +310,13 @@
       </input>
     </utility>
 
-    <vulnerability module_path=".*/ssh_root_login">
-      <input into="root_password">
-        <datastore>spoiler_admin_pass</datastore>
+    <utility module_path=".*/hackerbot_client">
+      <input into="ssh_key_pair">
+        <datastore>hackerbot_key</datastore>
       </input>
-    </vulnerability>
+    </utility>
 
-    <network type="private_network" >
-      <input into="IP_address">
-        <datastore access="2">IP_addresses</datastore>
-      </input>
-    </network>
+    <network type="private_network"/>
     <build type="cleanup">
       <input into="root_password">
         <datastore>spoiler_admin_pass</datastore>
@@ -332,7 +328,16 @@
     <system_name>hackerbot_server</system_name>
     <base distro="Kali" name="MSF"/>
 
-    <service type="ircd"/>
+    <service module_path=".*/ergochat"/>
+
+    <utility module_path=".*/hackerbot_webclient">
+      <input into="username">
+        <datastore access="0" access_json="['username']">accounts</datastore>
+      </input>
+      <input into="irc_server_ip">
+        <value>hackerbot</value>
+      </input>
+    </utility>
 
     <utility module_path=".*/metasploit_framework"/>
     <utility module_path=".*/handy_cli_tools"/>
@@ -341,13 +346,13 @@
     <service type="httpd"/>
 
     <utility module_path=".*/hackerbot">
-      <input into="hackerbot_configs" into_datastore="hackerbot_instructions">
+      <input into="ssh_key_pair">
+        <datastore>hackerbot_key</datastore>
+      </input>
+      <input into="hackerbot_configs">
         <generator module_path=".*/ids_rules">
           <input into="accounts">
             <datastore>accounts</datastore>
-          </input>
-          <input into="root_password">
-            <datastore>spoiler_admin_pass</datastore>
           </input>
           <input into="ids_server_ip">
             <datastore access="1">IP_addresses</datastore>
@@ -368,11 +373,7 @@
       </input>
     </utility>
 
-    <network type="private_network" >
-      <input into="IP_address">
-        <datastore access="3">IP_addresses</datastore>
-      </input>
-    </network>
+    <network type="private_network"/>
 
     <build type="cleanup">
       <input into="root_password">

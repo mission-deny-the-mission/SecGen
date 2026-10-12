@@ -8,9 +8,9 @@
   <author>Z. Cliffe Schreuders</author>
   <description>
 # Introduction
-Information gathering and network scanning are processes aimed at understanding the structure of a network and identifying potential vulnerabilities, and ensuring the overall security of the network. Scanning a critical stage for an attacker, since it can give them the information they need in order to launch an attack. By delving into this lab, you will acquire essential knowledge and practical skills necessary for both defensive and offensive security strategies
+Information gathering and network scanning are about working out what hosts and services are running on a network and where its weaknesses are. For an attacker this is a critical stage, since scanning supplies the information an attack is built on. The same techniques are what defenders use to find those weaknesses first.
 
-This lab provides an in-depth exploration of scanning techniques. You will learn how to perform ping sweeps to identify live hosts on a network, create your own ping sweep bash script, and use Nmap (a popular and powerful open source tool) for host discovery. You will also explore the world of port scanning, creating your own port scanner using a bash script, and conducting SYN port scans. Additionally, you will gain insights into service identification through banner grabbing and protocol analysis, and discover methods to detect the operating system of a remote system. By the end of this lab, you will be equipped with a comprehensive understanding of network scanning techniques and will have hands-on experience in executing these scans to assess the security of target systems.
+In this lab you will perform ping sweeps to find live hosts, write your own ping sweep in bash, and use Nmap for host discovery. You will then move on to port scanning: writing your own port scanner as a bash script, and running SYN scans. You will also identify services through banner grabbing and protocol analysis, and work out what operating system a remote host is running. The point is to come away having actually run these scans against target systems, not just read about them.
 
 # Reading
 [Chapter 2 Reconnaissance and Chapter 3 Scanning. Engebretson, P. (2011), The Basics of Hacking and Penetration Testing: Ethical Hacking and Penetration Testing Made Easy, Elsevier Inc. (ISBN: 978-1-59749-655-1) Available online via the library](http://www.sciencedirect.com/science/book/9781597496551)
@@ -44,9 +44,9 @@ This lab provides an in-depth exploration of scanning techniques. You will learn
 
     <input into_datastore="IP_addresses">
       <!-- 0 linux server -->
-      <value>172.16.0.10</value>
+      <network_ip system="linux_victim_server"/>
       <!-- 1 kali -->
-      <value>172.16.0.2</value>
+      <network_ip system="kali"/>
     </input>
 
     <!-- vulnerable distcc server -->
@@ -84,11 +84,7 @@ This lab provides an in-depth exploration of scanning techniques. You will learn
     <service type="httpd" module_path=".*/apache$"/>
     <service type="ftp"/>
 
-    <network type="private_network">
-      <input into="IP_address">
-        <datastore access="0">IP_addresses</datastore>
-      </input>
-    </network>
+    <network type="private_network"/>
     <input into_datastore="spoiler_admin_pass">
       <generator type="strong_password_generator"/>
     </input>
@@ -116,11 +112,7 @@ This lab provides an in-depth exploration of scanning techniques. You will learn
     <!-- <utility module_path=".*/zenmap"/> -->
     <utility module_path=".*/amap"/>
 
-    <network type="private_network" >
-      <input into="IP_address">
-        <datastore access="1">IP_addresses</datastore>
-      </input>
-    </network>
+    <network type="private_network"/>
     <build type="cleanup">
       <input into="root_password">
         <datastore>spoiler_admin_pass</datastore>
