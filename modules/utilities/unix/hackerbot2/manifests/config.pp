@@ -27,9 +27,11 @@ class hackerbot2::config{
       $htmlfilename = "lab_part_$counter.html"
     }
 
-    file { "/var/www/labs2/$htmlfilename":
-      ensure => present,
-      content => $parsed_pair['html_lab_sheet'],
+    if $parsed_pair['html_lab_sheet'] {
+      file { "/var/www/labs2/$htmlfilename":
+        ensure => present,
+        content => $parsed_pair['html_lab_sheet'],
+      }
     }
 
     # Write hb2.env from the first config's hb2_env (LLM settings for the service)

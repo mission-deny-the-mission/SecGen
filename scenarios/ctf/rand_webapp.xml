@@ -6,7 +6,15 @@
 
   <name>Vulnerable webapp</name>
   <author>Joshua Hickling</author>
-  <description>A web server with a (randomly) vulnerable webapp</description>
+  <description>
+    A custom web application for a small organisation - complete with a product
+    catalogue and a customer feedback page - hides a grab-bag of classic web flaws:
+    an injectable search or feedback form, a script-injection bug, and object
+    references that don't check who's asking. A weak, predictable session cookie
+    also guards an area worth breaking into. Flags are scattered across the
+    vulnerable pages, and both the site and its flaws are randomised on every
+    build, so recon each feature carefully before you start crafting payloads.
+  </description>
 
   <type>ctf</type>
   <type>attack-ctf</type>
@@ -33,8 +41,8 @@
     <base distro="Debian 12" type="desktop" name="KDE"/>
 
     <input into_datastore="IP_addresses">
-      <value>172.10.0.2</value>
-      <value>172.10.0.3</value>
+      <network_ip system="web_server"/>
+      <network_ip system="kali"/>
     </input>
 
     <vulnerability module_path=".*commando">
@@ -138,11 +146,7 @@
 
     </vulnerability>
 
-    <network type="private_network">
-        <input into="IP_address">
-          <datastore access="next">IP_addresses</datastore>
-        </input>
-    </network>
+    <network type="private_network"/>
 
     <input into_datastore="spoiler_admin_pass">
       <generator type="strong_password_generator"/>
@@ -169,11 +173,7 @@
     <utility module_path=".*/handy_cli_tools"/>
     <utility module_path=".*/nmap"/>
 
-    <network type="private_network">
-        <input into="IP_address">
-          <datastore access="next">IP_addresses</datastore>
-        </input>
-    </network>
+    <network type="private_network"/>
     <build type="cleanup">
       <input into="root_password">
         <datastore>spoiler_admin_pass</datastore>

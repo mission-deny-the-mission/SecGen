@@ -6,7 +6,14 @@
 
   <name>Such a git</name>
   <author>Z. Cliffe Schreuders</author>
-  <description>Hack the web_server from kali.
+  <description>
+    A source-browsing web app exposing an organisation's git repositories has a
+    known flaw that lets a crafted request slip extra arguments through to the
+    server, resulting in remote code execution without any credentials. Use it to
+    hunt down a stashed username and password, then log in properly to collect a
+    flag from a home directory. Once inside, a sudo rule that lets you run a
+    package-management tool as root can be turned into a full root shell to
+    finish the job.
   </description>
 
   <type>ctf</type>
@@ -63,9 +70,9 @@
 
     <input into_datastore="IP_addresses">
       <!-- 0 attack_vm -->
-      <value>172.16.0.2</value>
+      <network_ip system="attack_vm"/>
       <!-- 1 hackme_server -->
-      <value>172.16.0.3</value>
+      <network_ip system="web_server"/>
     </input>
 
     <utility module_path=".*/parameterised_accounts">
@@ -86,11 +93,7 @@
     <utility module_path=".*/kali_top10"/>
     <utility module_path=".*/kali_web"/>
 
-    <network type="private_network">
-      <input into="IP_address">
-        <datastore access="0">IP_addresses</datastore>
-      </input>
-    </network>
+    <network type="private_network"/>
     <input into_datastore="spoiler_admin_pass">
       <generator type="strong_password_generator"/>
     </input>
@@ -171,17 +174,10 @@
       <input into="strings_to_leak">
         <generator type="flag_generator"/>
       </input>
-      <input into="strings_to_pre_leak">
-        <generator type="flag_generator"/>
-      </input>
     </vulnerability>
 
 
-    <network type="private_network">
-      <input into="IP_address">
-        <datastore access="1">IP_addresses</datastore>
-      </input>
-    </network>
+    <network type="private_network"/>
     <build type="cleanup">
       <input into="root_password">
         <datastore>spoiler_admin_pass</datastore>

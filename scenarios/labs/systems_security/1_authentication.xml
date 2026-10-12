@@ -13,7 +13,7 @@
     Throughout this lab, you will learn about user accounts, their attributes, and their association with user and group IDs. You'll also explore the concept of salts in password hashing, understand the strengths and weaknesses of different passwords, and attempt to crack passwords using tools like John the Ripper. Practical tasks include examining the system's /etc/passwd and /etc/group files, changing user identities, and analyzing the /etc/shadow file to understand password storage. By actively engaging in these activities, you will gain a comprehensive understanding of authentication processes and the key factors that contribute to securing user identities in Unix/Linux systems.
 
     # Hackerbot and CTF challenges
-    This is a Hackerbot lab. The labsheet is available once you claim a set of VMs. Work through the labsheet, then when prompted interact with Hackerbot.
+    This is a Hackerbot lab. Work through the lab sheet, then when prompted interact with Hackerbot.
 
     The Hackerbot tasks in this lab involve configuring new users and group membership. Then you will attempt to crack the passwords of users on the desktop VM whose user IDs (UIDs) are higher than 1001. After successfully cracking passwords, you will use these credentials to SSH into the separate server VM, where you will discover flags. This task showcases the practical implications of password security and cracking.
 
@@ -23,6 +23,8 @@
     # Reading
     [Chapter 11 "Authentication": Bishop, M. (2004), Introduction to Computer Security, Addison-Wesley. (ISBN-10:  0321247442)](https://my.leedsbeckett.ac.uk/bbcswebdav/pid-2221598-dt-content-rid-4451698_1/institution/Online%20Learning/AET/CT/MSc%20Computer%20Security/Principles%20of%20Digital%20Security/Readings/Week%205/DCS-85139%20%281%29.pdf)
   </description>
+
+  <lab_sheet_url>https://cliffe.github.io/HacktivityLabSheets/labs/systems_security/1-authentication/</lab_sheet_url>
 
   <type>ctf-lab</type>
   <type>hackerbot-lab</type>
@@ -104,13 +106,13 @@
 
     <input into_datastore="IP_addresses">
       <!-- 0 desktop -->
-      <value>172.16.0.2</value>
+      <network_ip system="desktop"/>
       <!-- 1 server -->
-      <value>172.16.0.3</value>
+      <network_ip system="server"/>
       <!-- 2 hackerbot_server -->
-      <value>172.16.0.4</value>
+      <network_ip system="hackerbot_server"/>
       <!-- 3 kali_cracker -->
-      <value>172.16.0.5</value>
+      <network_ip system="kali_cracker"/>
     </input>
 
     <!-- generate some usernames to use -->
@@ -217,6 +219,9 @@
     <input into_datastore="spoiler_admin_pass">
       <generator type="strong_password_generator"/>
     </input>
+    <input into_datastore="hackerbot_key">
+      <generator type="ssh_key_pair"/>
+    </input>
 
     <!--Create the users-->
     <utility module_path=".*/parameterised_accounts">
@@ -239,38 +244,31 @@
     <utility module_path=".*/handy_cli_tools"/>
     <utility module_path=".*/hash_tools"/>
 
-    <utility module_path=".*/iceweasel">
-      <input into="accounts">
-        <datastore>user_accounts_desktop</datastore>
+    <utility module_path=".*/hosts">
+      <input into="hosts">
+        <value>hackerbot</value>
       </input>
-      <input into="autostart">
-        <value>true</value>
-      </input>
-      <input into="start_page">
+      <input into="IP_addresses">
         <datastore access="2">IP_addresses</datastore>
       </input>
     </utility>
 
-    <utility module_path=".*/pidgin">
-      <input into="server_ip">
-        <datastore access="2">IP_addresses</datastore>
-      </input>
+    <utility module_path=".*/iceweasel">
       <input into="accounts">
         <datastore access="0">user_accounts_desktop</datastore>
       </input>
+      <input into="start_page">
+        <value>hackerbot:8080</value>
+      </input>
     </utility>
 
-    <vulnerability module_path=".*/ssh_root_login">
-      <input into="root_password">
-        <datastore>spoiler_admin_pass</datastore>
+    <utility module_path=".*/hackerbot_client">
+      <input into="ssh_key_pair">
+        <datastore>hackerbot_key</datastore>
       </input>
-    </vulnerability>
+    </utility>
 
-    <network type="private_network">
-      <input into="IP_address">
-        <datastore access="0">IP_addresses</datastore>
-      </input>
-    </network>
+    <network type="private_network"/>
 
     <build type="cleanup">
       <input into="root_password">
@@ -365,17 +363,13 @@
 
     <utility module_path=".*/handy_cli_tools"/>
 
-    <vulnerability module_path=".*/ssh_root_login">
-      <input into="root_password">
-        <datastore>spoiler_admin_pass</datastore>
+    <utility module_path=".*/hackerbot_client">
+      <input into="ssh_key_pair">
+        <datastore>hackerbot_key</datastore>
       </input>
-    </vulnerability>
+    </utility>
 
-    <network type="private_network">
-      <input into="IP_address">
-        <datastore access="1">IP_addresses</datastore>
-      </input>
-    </network>
+    <network type="private_network"/>
     <build type="cleanup">
       <input into="root_password">
         <datastore>spoiler_admin_pass</datastore>
@@ -387,7 +381,16 @@
     <system_name>hackerbot_server</system_name>
     <base distro="Kali" name="MSF"/>
 
-    <service type="ircd"/>
+    <service module_path=".*/ergochat"/>
+
+    <utility module_path=".*/hackerbot_webclient">
+      <input into="username">
+        <datastore access="0">usernames</datastore>
+      </input>
+      <input into="irc_server_ip">
+        <value>hackerbot</value>
+      </input>
+    </utility>
 
     <utility module_path=".*/metasploit_framework"/>
     <utility module_path=".*/nmap"/>
@@ -396,13 +399,13 @@
     <service type="httpd"/>
 
     <utility module_path=".*/hackerbot">
-      <input into="hackerbot_configs" into_datastore="hackerbot_instructions">
+      <input into="ssh_key_pair">
+        <datastore>hackerbot_key</datastore>
+      </input>
+      <input into="hackerbot_configs">
         <generator module_path=".*/hbauthentication">
           <input into="accounts">
             <datastore>user_accounts_desktop</datastore>
-          </input>
-          <input into="root_password">
-            <datastore>spoiler_admin_pass</datastore>
           </input>
           <input into="server_ip">
             <datastore access="1">IP_addresses</datastore>
@@ -411,11 +414,7 @@
       </input>
     </utility>
 
-    <network type="private_network" >
-       <input into="IP_address">
-        <datastore access="2">IP_addresses</datastore>
-       </input>
-    </network>
+    <network type="private_network"/>
 
     <build type="cleanup">
       <input into="root_password">
@@ -439,23 +438,12 @@
     <utility module_path=".*/handy_cli_tools"/>
     <utility module_path=".*/nmap"/>
 
-    <utility module_path=".*/iceweasel">
-      <input into="accounts">
-        <value>{"username":"kali","password":"kali","super_user":"true","strings_to_leak":[],"leaked_filenames":[]}</value>
-      </input>
-      <input into="autostart">
-        <value>true</value>
-      </input>
-      <input into="start_page">
-        <datastore access="2">IP_addresses</datastore>
+    <utility module_path=".*/hackerbot_client">
+      <input into="ssh_key_pair">
+        <datastore>hackerbot_key</datastore>
       </input>
     </utility>
-
-    <network type="private_network" >
-      <input into="IP_address">
-        <datastore access="3">IP_addresses</datastore>
-      </input>
-    </network>
+    <network type="private_network"/>
     <build type="cleanup">
       <input into="root_password">
         <datastore>spoiler_admin_pass</datastore>

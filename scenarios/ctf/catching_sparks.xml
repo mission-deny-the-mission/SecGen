@@ -7,8 +7,14 @@
     <name>Catching Sparks</name>
     <author>James Davis</author>
     <description>
-        A web vulnerability allows access to a server remotely. Find the website
-        and gain root privilege.
+        A server is running an outdated big-data analytics platform with its web UI exposed.
+        A high-severity, unauthenticated command injection flaw lets you impersonate a user and
+        trick the service into running your own shell commands - no credentials required. Scan
+        the target, identify the vulnerable service and version, find a public exploit, and pop
+        a shell to grab the first flag from a home directory. From there, a scheduled security
+        audit job on the box is running an old rootkit-checker with a well-known local privilege
+        escalation bug: drop a payload where it will be picked up and executed as root to
+        complete the takeover.
     </description>
 
     <type>ctf</type>
@@ -43,9 +49,9 @@
 
         <input into_datastore="IP_addresses">
             <!-- 0 attack_vm -->
-            <value>172.16.0.2</value>
+            <network_ip system="attack_vm"/>
             <!-- 1 hackme_server -->
-            <value>172.16.0.3</value>
+            <network_ip system="server"/>
         </input>
 
         <utility module_path=".*/parameterised_accounts">
@@ -69,11 +75,7 @@
         <utility module_path=".*/nmap" />
         <utility module_path=".*/handy_cli_tools" />
 
-        <network type="private_network">
-            <input into="IP_address">
-                <datastore access="0">IP_addresses</datastore>
-            </input>
-        </network>
+        <network type="private_network"/>
     <input into_datastore="spoiler_admin_pass">
       <generator type="strong_password_generator"/>
     </input>
@@ -86,28 +88,17 @@
 
     <system>
         <system_name>server</system_name>
-        <base distro="Debian 10" type="desktop" name="KDE" />
+        <base distro="Debian 12" type="desktop" name="KDE" />
 
         <vulnerability module_path=".*/apache_spark_rce">
             <input into="strings_to_leak">
                 <generator type="flag_generator" />
             </input>
-            <input into="strings_to_pre_leak">
-                <encoder type="^(ascii|alpha)_reversible$" difficulty="low">
-                    <input into="strings_to_encode">
-                        <generator type="flag_generator" />
-                    </input>
-                </encoder>
-            </input>
         </vulnerability>
 
-        <vulnerability module_path="*./chkrootkit"></vulnerability>
+        <vulnerability module_path=".*/chkrootkit"></vulnerability>
 
-        <network type="private_network">
-            <input into="IP_address">
-                <datastore access="1">IP_addresses</datastore>
-            </input>
-        </network>
+        <network type="private_network"/>
     <build type="cleanup">
       <input into="root_password">
         <datastore>spoiler_admin_pass</datastore>

@@ -7,6 +7,7 @@
   <name>Labtainers lab: acl</name>
   <author>Z. Cliffe Schreuders</author>
   <description>A Labtainers lab.</description>
+  <lab_sheet_url>https://cliffe.github.io/HacktivityLabSheets/labs/systems_security/9-labtainers-acl/</lab_sheet_url>
 
   <type>ctf-lab</type>
   <type>lab-sheet</type>
@@ -45,9 +46,9 @@
 
     <input into_datastore="IP_addresses">
       <!-- 0 desktop -->
-      <value>172.16.0.2</value>
+      <network_ip system="desktop"/>
       <!-- 1 hackerbot_server -->
-      <value>172.16.0.3</value>
+      <network_ip system="hackerbot_server"/>
     </input>
 
     <input into_datastore="accounts">
@@ -107,24 +108,21 @@
     </utility>
     <utility module_path=".*/handy_cli_tools"/>
 
-		<utility module_path=".*/iceweasel">
-			<input into="accounts">
-				<datastore>accounts</datastore>
+		<utility module_path=".*/hosts">
+			<input into="hosts">
+				<value>hackerbot</value>
 			</input>
-			<input into="autostart">
-				<value>true</value>
-			</input>
-			<input into="start_page">
+			<input into="IP_addresses">
 				<datastore access="1">IP_addresses</datastore>
 			</input>
 		</utility>
 
-		<utility module_path=".*/pidgin">
-			<input into="server_ip">
-				<datastore access="1">IP_addresses</datastore>
-			</input>
+		<utility module_path=".*/iceweasel">
 			<input into="accounts">
 				<datastore access="0">accounts</datastore>
+			</input>
+			<input into="start_page">
+				<value>hackerbot:8080</value>
 			</input>
 		</utility>
 
@@ -145,11 +143,7 @@
       </input>
     </utility>
 
-    <network type="private_network">
-      <input into="IP_address">
-        <datastore access="0">IP_addresses</datastore>
-      </input>
-    </network>
+    <network type="private_network"/>
     <input into_datastore="spoiler_admin_pass">
       <generator type="strong_password_generator"/>
     </input>
@@ -165,7 +159,16 @@
 		<system_name>hackerbot_server</system_name>
 		<base distro="Kali" name="MSF"/>
 
-		<service type="ircd"/>
+		<service module_path=".*/ergochat"/>
+
+		<utility module_path=".*/hackerbot_webclient">
+			<input into="username">
+				<datastore access="0" access_json="['username']">accounts</datastore>
+			</input>
+			<input into="irc_server_ip">
+				<value>hackerbot</value>
+			</input>
+		</utility>
 
 		<utility module_path=".*/metasploit_framework"/>
 		<utility module_path=".*/nmap"/>
@@ -174,7 +177,7 @@
 		<service type="httpd"/>
 
 		<utility module_path=".*/hackerbot">
-			<input into="hackerbot_configs" into_datastore="hackerbot_instructions">
+			<input into="hackerbot_configs">
 				<generator module_path=".*/hb_labtainer">
 					<input into="accounts">
 						<datastore>accounts</datastore>
@@ -195,11 +198,7 @@
       </input>
     </utility>
 
-    <network type="private_network" >
-     	<input into="IP_address">
-    		<datastore access="1">IP_addresses</datastore>
-     	</input>
-    </network>
+    <network type="private_network"/>
 
     <build type="cleanup">
       <input into="root_password">
