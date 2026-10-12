@@ -137,7 +137,13 @@ class ProjectFilesCreator
     Print.std "Creating scenario definition file: #{xfile}"
     write_data_to_file(xml, xfile)
 
-    write_data_to_file(@systems.to_s, "#{@out_dir}/systems")
+    # each system holds the command line options, so mask any hypervisor passwords
+    systems_dump = @systems.to_s
+    [:proxmoxpass, :ovirtpass, :esxipass].each do |key|
+      secret = @options[key].to_s
+      systems_dump = systems_dump.gsub(secret, '********') unless secret.empty?
+    end
+    write_data_to_file(systems_dump, "#{@out_dir}/systems")
     write_data_to_file(@scenario.to_s, "#{@out_dir}/scenario")
 
 
@@ -152,7 +158,7 @@ class ProjectFilesCreator
     x3file = "#{@out_dir}/#{CYBOK_FILENAME}"
     xml_cybok_generator = XmlCybokGenerator.new(@systems, @scenario, @time)
     xml = xml_cybok_generator.output
-    Print.std "Creating flags and hints file: #{x3file}"
+    Print.std "Creating CyBOK file: #{x3file}"
     write_data_to_file(xml, x3file)
 
     Print.std "Saving spoiler/admin records..."
@@ -186,13 +192,6 @@ class ProjectFilesCreator
       write_data_to_file(pass_notes, pfile)
     end
 
-    if $datastore.has_key? "hackerbot_instructions"
-      jfile = "#{@out_dir}/instructions.html"
-      Print.std "Saving instructions: #{jfile}"
-      html = JSON.parse($datastore["hackerbot_instructions"][0])["html_lab_sheet"]
-      write_data_to_file(html, jfile)
-    end
-
     # Create the CTFd zip file for import
     ctfdfile = "#{@out_dir}/CTFd_importable.zip"
     Print.std "Creating CTFd configuration: #{ctfdfile}"
@@ -220,6 +219,16 @@ class ProjectFilesCreator
     FileUtils.mkdir("#{@out_dir}/lib")
     FileUtils.cp("#{ROOT_DIR}/lib/objects/post_provision_test.rb", "#{@out_dir}/lib/post_provision_test.rb")
 
+    # For Proxmox builds, ship the guest-agent client and a (non-secret) test
+    # context so post-provision tests can reach VMs via the QEMU Guest Agent.
+    # The password is NOT written here; it is read from ENV at test time.
+    if @options[:proxmoxuser] && @options[:proxmoxurl]
+      FileUtils.cp("#{ROOT_DIR}/lib/helpers/proxmox_connection.rb", "#{@out_dir}/lib/proxmox_connection.rb")
+      context = { 'url' => @options[:proxmoxurl], 'user' => @options[:proxmoxuser] }
+      write_data_to_file(JSON.pretty_generate(context), "#{@out_dir}/proxmox_test_context.json")
+      Print.std "Wrote Proxmox test context (credentials excluded)"
+    end
+
     Print.std "VM(s) can be built using 'vagrant up' in #{@out_dir}"
 
   end
@@ -238,7 +247,7 @@ class ProjectFilesCreator
 # @param [Object] template erb path
 # @param [Object] filename file to write to
   def template_based_file_write(template, filename)
-    template_out = ERB.new(File.read(template), 0, '<>-')
+    template_out = ERB.new(File.read(template), trim_mode: '<>-')
 
     begin
       File.open(filename, 'wb+') do |file|
@@ -263,6 +272,24 @@ class ProjectFilesCreator
     @options[:network_map]&.key?(key) ? @options[:network_map][key][:ips][network_module.unique_id] : nil
   end
 
+  def lookup_network_gateway(network_module)
+    base_vlan = @options[:proxmoxvlan].to_i rescue 0
+    key = NetworkFunctions.compute_vlan(network_module, base_vlan)
+    @options[:network_map]&.key?(key) ? @options[:network_map][key][:gateway][network_module.unique_id] : nil
+  end
+
+  def lookup_network_dns(network_module)
+    base_vlan = @options[:proxmoxvlan].to_i rescue 0
+    key = NetworkFunctions.compute_vlan(network_module, base_vlan)
+    @options[:network_map]&.key?(key) ? @options[:network_map][key][:dns_nameservers][network_module.unique_id] : nil
+  end
+
+  def lookup_network_routes(network_module)
+    base_vlan = @options[:proxmoxvlan].to_i rescue 0
+    key = NetworkFunctions.compute_vlan(network_module, base_vlan)
+    return [] unless @options[:network_map]&.key?(key)
+    @options[:network_map][key][:routes][network_module.unique_id] || []
+  end
 
   # Resolves the IP address to use for a network module in the Vagrantfile.
   # Priority: specific IP_address (verbatim) > range with --network-ranges override > range default
@@ -318,6 +345,10 @@ class ProjectFilesCreator
     elsif (@options.has_key? :ovirtuser) && (@options.has_key? :ovirtpass)
       # all ovirt vms -- could be more specific: && (@base_type.include? 'desktop')
       memory = '3000'
+    elsif !@options.has_key?(:esxiuser) && desktop_base?(system)
+      # VirtualBox: current desktop distros (Kali, Debian KDE) struggle in 1GB, and attack
+      # VMs install large tool sets during provisioning (Proxmox sets its own memory)
+      memory = '3000'
     else
       memory = '1024'
     end
@@ -328,6 +359,12 @@ class ProjectFilesCreator
       end
     end
     memory
+  end
+
+  def desktop_base?(system)
+    system.module_selections.any? do |mod|
+      mod.module_type == 'base' && (mod.attributes['type'] || []).include?('desktop')
+    end
   end
 
 # Returns binding for erb files (access to variables in this classes scope)

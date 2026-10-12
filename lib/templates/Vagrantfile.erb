@@ -24,6 +24,14 @@
 -%>
 
 VAGRANTFILE_API_VERSION = "2"
+<% if provider == "proxmox" -%>
+
+# The Proxmox password is not stored in this file. secgen.rb passes it to vagrant
+# via SECGEN_PROXMOX_PASS; to run vagrant by hand here, export it first.
+unless ENV['SECGEN_PROXMOX_PASS']
+  warn "SECGEN_PROXMOX_PASS is not set: Proxmox actions will fail to authenticate."
+end
+<% end -%>
 
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
 <%
@@ -104,7 +112,7 @@ end
     <%= system.name %>.vm.provider :proxmox do |proxmox|
       proxmox.endpoint = '<%= @options[:proxmoxurl] %>'
       proxmox.user_name = '<%= @options[:proxmoxuser] %>'
-      proxmox.password = '<%= @options[:proxmoxpass] %>'
+      proxmox.password = ENV['SECGEN_PROXMOX_PASS']
       proxmox.vm_type = :qemu
       proxmox.qemu_os = :l26
       # proxmox.qemu_disk_size = '30G'
@@ -173,7 +181,8 @@ end
 elsif @cpu_word_size == '64-bit'
 "      vb.customize ['modifyvm', :id, '--hwvirtex', 'on']\n"
 end -%>
-<%= vtxpid = (@options.has_key? :vtxvpid) ? 'on' : 'off'
+<%# VPID on for 64-bit bases: recent guest kernels (e.g. Kali's 7.x) hang at boot with RCU stalls without it -%>
+<%= vtxpid = (@options.has_key?(:vtxvpid) || @cpu_word_size == '64-bit') ? 'on' : 'off'
 "      vb.customize ['modifyvm', :id, '--vtxvpid', '#{vtxpid}']\n"  -%>
 <%=   "      vb.memory = '#{system.memory}'\n"-%>
 <%= if @options.has_key? :cpu_cores
@@ -250,32 +259,33 @@ end
     <%= system.name %>.vm.box_url = "<%= selected_module.attributes['esxi_url'].first %>"
 <%
     when "virtualbox"
+      if selected_module.attributes['virtualbox_warning']
 %>
+    # WARNING: <%= selected_module.attributes['virtualbox_warning'].first %>
 <%
-    virtualbox_url = selected_module.attributes['url']&.first
-    vagrant_cloud_url_match = virtualbox_url&.match(%r{\Ahttps?://app\.vagrantup\.com/([^/]+)/boxes/([^/]+)/versions/([^/]+)/providers/virtualbox(?:\.box|/.*)?\z})
+      end
+      if selected_module.attributes['vagrant_box']
 %>
-<% if vagrant_cloud_url_match %>
-    <%= system.name %>.vm.box = "<%= vagrant_cloud_url_match[1] %>/<%= vagrant_cloud_url_match[2] %>"
-    <%= system.name %>.vm.box_version = "<%= vagrant_cloud_url_match[3] %>"
-<% else %>
-    <%= system.name %>.vm.box = "<%= selected_module.module_path_name %>"
-    <%= system.name %>.vm.box_url = "<%= virtualbox_url %>"
-<% end %>
-    <% if virtualbox_url&.include?('/boxes/bookworm-base/') %>
-    # bookworm-base currently lacks reliable vagrant insecure-key auth.
-    # Bootstrap with password auth, then let Vagrant insert a temporary key
-    # so rsync/synced-folder operations stay non-interactive.
-    <%= system.name %>.ssh.username = 'vagrant'
+    <%= system.name %>.vm.box = "<%= selected_module.attributes['vagrant_box'].first %>"
+<%      if selected_module.attributes['vagrant_box_version'] %>
+    <%= system.name %>.vm.box_version = "<%= selected_module.attributes['vagrant_box_version'].first %>"
+<%      end %>
+<%      if selected_module.attributes['url'].first.to_s.end_with?('.json') %>
+    # box catalog (versions, download URLs and checksums) on SecGen's own hosting
+    <%= system.name %>.vm.box_url = "<%= selected_module.attributes['url'].first %>"
+<%      end %>
+    # Base boxes follow Vagrant's convention of user vagrant / password vagrant. Used if the box's
+    # authorized_keys lacks Vagrant's insecure key (e.g. secgen/bookworm-base 1.0.1); Vagrant then
+    # replaces it with a newly generated key pair, as it would after logging in with the insecure key
     <%= system.name %>.ssh.password = 'vagrant'
-    <%= system.name %>.ssh.insert_key = true
-    <%= system.name %>.ssh.keys_only = false
-    <% end %>
-    <%# Increase memory %>
+<%    else %>
+    <%= system.name %>.vm.box = "<%= selected_module.module_path_name %>"
+    <%= system.name %>.vm.box_url = "<%= selected_module.attributes['url'].first %>"
+<%    end %>
+    <%# Fork additions: enable IOAPIC and host I/O cache on whichever storage controller exists in this box. %>
     <%= system.name %>.vm.provider :virtualbox do |vb|
       vb.customize ['modifyvm', :id, '--ioapic', 'on']
     end
-    <%# Enable host I/O cache on whichever storage controller exists in this box. %>
     <%= system.name %>.trigger :before, :provision do |trigger|
       trigger.name = "Enable VirtualBox host I/O cache"
       trigger.run = {inline: "controller=\"$(VBoxManage showvminfo '#{system.name}' --machinereadable 2>/dev/null | grep -E '^storagecontrollername[0-9]+=' | head -1 | cut -d'\"' -f2)\"; [ -n \"$controller\" ] && VBoxManage storagectl '#{system.name}' --name \"$controller\" --hostiocache on 2>/dev/null || true"}
@@ -305,7 +315,7 @@ end
 <%      # Static oVirt/Proxmox networking -%>
 <%       if (provider == "ovirt" || provider == "proxmox") && @base_template && @base_template !~ /win/i -%>
 <%         if provider == "proxmox" -%>
-            <%= system.name %>.vm.network :<%= selected_module.attributes['type'].first %>, ip: "<%= lookup_network_ip(selected_module) %>", proxmox_bridge: "vmbr1", proxmox_vlan: <%= lookup_network_vlan(selected_module) %>
+            <%= system.name %>.vm.network :<%= selected_module.attributes['type'].first %>, ip: "<%= lookup_network_ip(selected_module) %>", proxmox_bridge: "vmbr1", proxmox_vlan: <%= lookup_network_vlan(selected_module) %><%= lookup_network_gateway(selected_module) ? ", proxmox_gateway: \"#{lookup_network_gateway(selected_module)}\"" : "" %><%= lookup_network_dns(selected_module) ? ", proxmox_dns_nameservers: \"#{lookup_network_dns(selected_module)}\"" : "" %><%= lookup_network_routes(selected_module).any? ? ", proxmox_routes: #{lookup_network_routes(selected_module).inspect}" : "" %>
 <%         else # ovirt -%>
               # use some shell scripting to identify the name of the network interface (eth0/ens3/...), and set the IP address statically
             <%= system.name %>.vm.provision 'shell', inline: "echo -e \"auto lo\niface lo inet loopback\n\nauto <%= interface %>\niface <%= interface %> inet static\n\taddress <%= lookup_network_ip(selected_module)%>\" > /etc/network/interfaces"
