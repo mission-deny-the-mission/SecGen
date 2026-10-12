@@ -1,5 +1,6 @@
 require 'getoptlong'
 require 'fileutils'
+require 'stringio' # nori 2.6 uses StringIO without requiring it (needed on Ruby 3.4+)
 require 'nori'
 require 'open3'
 require 'nokogiri/class_resolver'
@@ -46,7 +47,7 @@ def usage
    --gui-output, -g: Show the running VM (not headless)
    --nopae: Disable PAE support
    --hwvirtex: Enable HW virtex support
-   --vtxvpid: Enable VTX support
+   --vtxvpid: Enable VT-x VPID support (always on for 64-bit bases)
    --max-cpu-usage [1-100]: Controls how much cpu time a virtual CPU can use
                             (e.g. 50 implies a single virtual CPU can use up to 50% of a single host CPU)
 
@@ -121,15 +122,23 @@ def build_config(scenario, out_dir, options)
     Print.std 'Skipping narrative content generation (--no-narrative flag set)'
   end
 
+  Print.info 'Pre-resolving network modules...'
+  systems.each do |system|
+    system.resolve_network_modules(all_available_modules, options)
+  end
+
+  Print.info 'Configuring networks...'
+  NetworkFunctions.build_network_map(systems, options)
+
+  Print.info 'Resolving deferred network IP references...'
+  NetworkFunctions.resolve_deferred_inputs(systems, options)
+
   Print.info 'Resolving systems: randomising scenario...'
-  # update systems with module selections
   systems.map! {|system|
     system.module_selections = system.resolve_module_selection(all_available_modules, options)
     system
   }
-
-  Print.info 'Configuring networks...'
-  NetworkFunctions.build_network_map(systems, options)
+  warn_virtualbox_bases(systems, options)
 
   Print.info "Creating project: #{out_dir}..."
   # creates Vagrantfile and other outputs and starts the vagrant installation
@@ -202,6 +211,20 @@ def resolve_narratives(scenario, all_available_modules, options)
   end
 
   Print.info 'Narrative content generation complete.'
+end
+
+# Only the Bookworm and Kali VirtualBox boxes are maintained; older bases carry a <virtualbox_warning>
+# (same provider choice as lib/templates/Vagrantfile.erb)
+def warn_virtualbox_bases(systems, options)
+  return if (options.has_key?(:ovirtuser) && options.has_key?(:ovirtpass)) ||
+            (options.has_key?(:proxmoxuser) && options.has_key?(:proxmoxpass)) ||
+            (options.has_key?(:esxiuser) && options.has_key?(:esxipass))
+  systems.each do |system|
+    system.module_selections.each do |mod|
+      next unless mod.module_type == 'base' && mod.attributes['virtualbox_warning']
+      Print.warn "#{system.name} uses base #{mod.module_path} on VirtualBox: #{mod.attributes['virtualbox_warning'].first}"
+    end
+  end
 end
 
 # Builds the vm via the vagrant file in the project dir
@@ -716,6 +739,9 @@ opts.each do |opt, arg|
   when '--proxmoxpass'
     Print.info "Proxmox Password : ********"
     options[:proxmoxpass] = arg
+    # Generated Vagrantfiles read the password from the environment rather than
+    # embedding it; vagrant inherits this when run by secgen.rb
+    ENV['SECGEN_PROXMOX_PASS'] = arg
   when '--proxmox-url'
     Print.info "Proxmox API url : #{arg}"
     options[:proxmoxurl] = arg
