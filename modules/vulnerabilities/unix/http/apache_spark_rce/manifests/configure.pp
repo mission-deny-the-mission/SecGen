@@ -11,16 +11,19 @@ class apache_spark_rce::configure {
   Exec { path => [ '/bin/', '/sbin/' , '/usr/bin/', '/usr/sbin/' ] }
 
   # We set the acls flag in the config - This ensures its vulnerable
-  file { "/usr/local/spark/conf/${sparkconf}":
+  file { '/usr/local/spark/conf':
+    ensure => directory,
+  }
+  -> file { "/usr/local/spark/conf/${sparkconf}":
     ensure => file,
-    source => "puppet:///modules/apache_spark_rce/${sparkconf}"
+    source => "puppet:///modules/apache_spark_rce/${sparkconf}",
   }
 
   ::secgen_functions::leak_files { 'spark-flag-leak':
     storage_directory => "/home/${user}",
     leaked_filenames  => $leaked_filenames,
     strings_to_leak   => $strings_to_leak,
-    owner             => 'root',
+    owner             => 'spark',
     mode              => '0750',
     leaked_from       => 'apache_spark_rce',
   }

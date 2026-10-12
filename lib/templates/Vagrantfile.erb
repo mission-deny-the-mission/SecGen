@@ -24,6 +24,14 @@
 -%>
 
 VAGRANTFILE_API_VERSION = "2"
+<% if provider == "proxmox" -%>
+
+# The Proxmox password is not stored in this file. secgen.rb passes it to vagrant
+# via SECGEN_PROXMOX_PASS; to run vagrant by hand here, export it first.
+unless ENV['SECGEN_PROXMOX_PASS']
+  warn "SECGEN_PROXMOX_PASS is not set: Proxmox actions will fail to authenticate."
+end
+<% end -%>
 
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
 <%
@@ -104,7 +112,7 @@ end
     <%= system.name %>.vm.provider :proxmox do |proxmox|
       proxmox.endpoint = '<%= @options[:proxmoxurl] %>'
       proxmox.user_name = '<%= @options[:proxmoxuser] %>'
-      proxmox.password = '<%= @options[:proxmoxpass] %>'
+      proxmox.password = ENV['SECGEN_PROXMOX_PASS']
       proxmox.vm_type = :qemu
       proxmox.qemu_os = :l26
       # proxmox.qemu_disk_size = '30G'
@@ -121,6 +129,8 @@ end
       proxmox.selected_node = '<%= @options[:proxmoxnode] %>'
       proxmox.disable_adjust_forwarded_port = true
     end
+    # Disable default synced folder (SMB requires TTY on macOS; not needed for Proxmox)
+    <%= system.name %>.vm.synced_folder '.', '/vagrant', disabled: true
     # Proxmox provider end
 <%
     when "esxi"
@@ -171,7 +181,8 @@ end
 elsif @cpu_word_size == '64-bit'
 "      vb.customize ['modifyvm', :id, '--hwvirtex', 'on']\n"
 end -%>
-<%= vtxpid = (@options.has_key? :vtxvpid) ? 'on' : 'off'
+<%# VPID on for 64-bit bases: recent guest kernels (e.g. Kali's 7.x) hang at boot with RCU stalls without it -%>
+<%= vtxpid = (@options.has_key?(:vtxvpid) || @cpu_word_size == '64-bit') ? 'on' : 'off'
 "      vb.customize ['modifyvm', :id, '--vtxvpid', '#{vtxpid}']\n"  -%>
 <%=   "      vb.memory = '#{system.memory}'\n"-%>
 <%= if @options.has_key? :cpu_cores
@@ -202,10 +213,12 @@ end
 
 <%= selected_module.to_s_comment -%>
 <% if selected_module.module_type == 'network' and selected_module.received_inputs.include? 'IP_address' %>
-<%= '    # This module has a datastore entry for IP_address, using that instead of the default.' %>
-<% elsif selected_module.module_type == 'network' and @options.has_key? :ip_ranges -%>
-<%= '    # This module has a command line ip_range, using that instead of the default.'  %>
-<% end -%>
+<%= '    # This module has a specific IP_address input, using that verbatim.' %>
+<% elsif selected_module.module_type == 'network' and selected_module.received_inputs.include? 'range' %>
+<%= '    # This module has a range input, auto-assigning IP from that range.' %>
+<% elsif selected_module.module_type == 'network' and @options.has_key? :ip_ranges %>
+<%= '    # This module has a command line ip_range, using that instead of the default.' %>
+<% end %>
 <%
   case selected_module.module_type
   when 'base'
@@ -226,6 +239,15 @@ end
       <%= system.name %>.vm.box = 'dummy'
       <%= system.name %>.vm.box_url = 'https://github.com/myoung34/vagrant-ovirt4/blob/master/example_box/dummy.box?raw=true'
 
+      <% if selected_module.module_path_name.include?('bookworm') || selected_module.module_path_name.include?('kali') %>
+      # template lacks reliable vagrant insecure-key auth on Proxmox
+      # use password auth, then let Vagrant insert a key
+      <%= system.name %>.ssh.username = 'vagrant'
+      <%= system.name %>.ssh.password = 'vagrant'
+      <%= system.name %>.ssh.insert_key = true
+      <%= system.name %>.ssh.keys_only = false
+      <% end %>
+
       <% if selected_module.attributes['platform'].first.downcase != 'windows' %>
         # Set hostname for Linux systems (as an extra step on Proxmox)
         <%= system.name %>.vm.provision 'shell', inline: "hostname <%= system.get_hostname %> && echo <%= system.get_hostname %> > /etc/hostname && hostnamectl set-hostname <%= system.get_hostname %> || true && sed -i \"s/127.0.1.1.*/127.0.1.1\t<%= system.get_hostname %>/g\" /etc/hosts"
@@ -237,32 +259,33 @@ end
     <%= system.name %>.vm.box_url = "<%= selected_module.attributes['esxi_url'].first %>"
 <%
     when "virtualbox"
+      if selected_module.attributes['virtualbox_warning']
 %>
+    # WARNING: <%= selected_module.attributes['virtualbox_warning'].first %>
 <%
-    virtualbox_url = selected_module.attributes['url']&.first
-    vagrant_cloud_url_match = virtualbox_url&.match(%r{\Ahttps?://app\.vagrantup\.com/([^/]+)/boxes/([^/]+)/versions/([^/]+)/providers/virtualbox(?:\.box|/.*)?\z})
+      end
+      if selected_module.attributes['vagrant_box']
 %>
-<% if vagrant_cloud_url_match %>
-    <%= system.name %>.vm.box = "<%= vagrant_cloud_url_match[1] %>/<%= vagrant_cloud_url_match[2] %>"
-    <%= system.name %>.vm.box_version = "<%= vagrant_cloud_url_match[3] %>"
-<% else %>
-    <%= system.name %>.vm.box = "<%= selected_module.module_path_name %>"
-    <%= system.name %>.vm.box_url = "<%= virtualbox_url %>"
-<% end %>
-    <% if virtualbox_url&.include?('/boxes/bookworm-base/') %>
-    # bookworm-base currently lacks reliable vagrant insecure-key auth.
-    # Bootstrap with password auth, then let Vagrant insert a temporary key
-    # so rsync/synced-folder operations stay non-interactive.
-    <%= system.name %>.ssh.username = 'vagrant'
+    <%= system.name %>.vm.box = "<%= selected_module.attributes['vagrant_box'].first %>"
+<%      if selected_module.attributes['vagrant_box_version'] %>
+    <%= system.name %>.vm.box_version = "<%= selected_module.attributes['vagrant_box_version'].first %>"
+<%      end %>
+<%      if selected_module.attributes['url'].first.to_s.end_with?('.json') %>
+    # box catalog (versions, download URLs and checksums) on SecGen's own hosting
+    <%= system.name %>.vm.box_url = "<%= selected_module.attributes['url'].first %>"
+<%      end %>
+    # Base boxes follow Vagrant's convention of user vagrant / password vagrant. Used if the box's
+    # authorized_keys lacks Vagrant's insecure key (e.g. secgen/bookworm-base 1.0.1); Vagrant then
+    # replaces it with a newly generated key pair, as it would after logging in with the insecure key
     <%= system.name %>.ssh.password = 'vagrant'
-    <%= system.name %>.ssh.insert_key = true
-    <%= system.name %>.ssh.keys_only = false
-    <% end %>
-    <%# Increase memory %>
+<%    else %>
+    <%= system.name %>.vm.box = "<%= selected_module.module_path_name %>"
+    <%= system.name %>.vm.box_url = "<%= selected_module.attributes['url'].first %>"
+<%    end %>
+    <%# Fork additions: enable IOAPIC and host I/O cache on whichever storage controller exists in this box. %>
     <%= system.name %>.vm.provider :virtualbox do |vb|
       vb.customize ['modifyvm', :id, '--ioapic', 'on']
     end
-    <%# Enable host I/O cache on whichever storage controller exists in this box. %>
     <%= system.name %>.trigger :before, :provision do |trigger|
       trigger.name = "Enable VirtualBox host I/O cache"
       trigger.run = {inline: "controller=\"$(VBoxManage showvminfo '#{system.name}' --machinereadable 2>/dev/null | grep -E '^storagecontrollername[0-9]+=' | head -1 | cut -d'\"' -f2)\"; [ -n \"$controller\" ] && VBoxManage storagectl '#{system.name}' --name \"$controller\" --hostiocache on 2>/dev/null || true"}
@@ -282,51 +305,59 @@ end
     <% end %>
 <%   when 'network' -%>
 <%     # DHCP networking -%>
-<%     if (selected_module.attributes['range'].first.nil? || selected_module.attributes['range'].first == "dhcp") and (!selected_module.received_inputs.include? 'IP_address' and !@options[:ip_ranges])-%>
-<%       if (@options.has_key? :ovirtnetwork) && provider == "ovirt"  %>
+      <% if (!selected_module.received_inputs.include?('IP_address')) and (selected_module.received_inputs['range']&.first.nil? || selected_module.received_inputs['range']&.first == 'dhcp') %>
+        <%       if (@options.has_key? :ovirtnetwork) && provider == "ovirt"  %>
     <%= system.name %>.vm.network :<%= selected_module.attributes['type'].first %>, type: "dhcp", :ovirt__network_name => '<%= get_ovirt_network_name(system.name, @options[:ovirtnetwork]) %>'
+<%       elsif provider == "proxmox"  %>
+    <%= system.name %>.vm.network :private_network, type: "dhcp", proxmox_bridge: "vmbr3", proxmox_vlan: 1
 <%       else %>
-    <%= system.name %>.vm.network :<%= selected_module.attributes['type'].first %>, type: "dhcp", auto_config: false
+    <%= system.name %>.vm.network :<%= selected_module.attributes['type'].first %>, type: "dhcp"
 <%       end %>
-       <% # Below string is used within testing, do not delete. -%>
+        <% # Below string is used within testing, do not delete. -%>
      # ip_address_for_<%= system.name %>=DHCP
-<%     # Static networking -%>
 <%     else -%>
+<%     # Static networking -%>
 <%      # Static oVirt/Proxmox networking -%>
 <%       if (provider == "ovirt" || provider == "proxmox") && @base_template && @base_template !~ /win/i -%>
-<%         interface = 'ens3' if provider =="ovirt" -%>
-<%         interface = 'ens18' if provider =="proxmox" -%>
-<%         if @base_template =~ /kali|debian_desktop_kde|debian_wheezy_server/ -%>
-<%          interface = 'eth0' -%>
-<%         end -%>
-           # use some shell scripting to identify the name of the network interface (eth0/ens3/...), and set the IP address statically
-           <%= system.name %>.vm.provision 'shell', inline: "echo -e \"auto lo\niface lo inet loopback\n\nauto <%= interface %>\niface <%= interface %> inet static\n\taddress <%= resolve_network(selected_module)%>\" > /etc/network/interfaces"
-           <%= system.name %>.vm.provision 'shell', inline: "echo '' > /etc/environment"
+<%         if provider == "proxmox" -%>
+            <%= system.name %>.vm.network :<%= selected_module.attributes['type'].first %>, ip: "<%= lookup_network_ip(selected_module) %>", proxmox_bridge: "vmbr1", proxmox_vlan: <%= lookup_network_vlan(selected_module) %><%= lookup_network_gateway(selected_module) ? ", proxmox_gateway: \"#{lookup_network_gateway(selected_module)}\"" : "" %><%= lookup_network_dns(selected_module) ? ", proxmox_dns_nameservers: \"#{lookup_network_dns(selected_module)}\"" : "" %><%= lookup_network_routes(selected_module).any? ? ", proxmox_routes: #{lookup_network_routes(selected_module).inspect}" : "" %>
+<%         else # ovirt -%>
+              # use some shell scripting to identify the name of the network interface (eth0/ens3/...), and set the IP address statically
+            <%= system.name %>.vm.provision 'shell', inline: "echo -e \"auto lo\niface lo inet loopback\n\nauto <%= interface %>\niface <%= interface %> inet static\n\taddress <%= lookup_network_ip(selected_module)%>\" > /etc/network/interfaces"
+            <%= system.name %>.vm.provision 'shell', inline: "echo '' > /etc/environment"
+  <%         end -%>
+
 <%        # Below string is used within testing, do not delete. -%>
-          # ip_address_for_<%= system.name %>=<%= resolve_network(selected_module)%>
+          # ip_address_for_<%= system.name %>=<%= lookup_network_ip(selected_module)%>
+
 <%       elsif (provider == "ovirt" || provider == "proxmox") && @base_template && @base_template =~ /win/i -%>
-<%         # Windows on oVirt/Proxmox
-           # re-activate windows now, and then rearm on reboot (after it's started after provisioning) -%>
-           <%= system.name %>.vm.provision 'shell', inline: 'cscript //b c:\windows\system32\slmgr.vbs /ato'
-           <%= system.name %>.vm.provision 'shell', inline: "reg add HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\RunOnce /v RearmWindows /t REG_SZ /d \"cscript //b c:\\windows\\system32\\slmgr.vbs /rearm\" /f"
-<%         #  change network on reboot via registry, so that it gets the new IP on reboot (not mid-provision)
-           # TODO: use some clever scripting to identify the network name -%>
-           <%= system.name %>.vm.provision 'shell', inline: "
-             $interfaceNames = @('Local Area Connection', 'Local Area Connection 2', 'Local Area Connection 3', 'Ethernet')
-             $ipAddress = '<%= resolve_network(selected_module)%>'
-             $subnetMask = '255.0.0.0'
-             foreach ($interfaceName in $interfaceNames) {
-               $command = \"netsh interface ip set address name=`\"$interfaceName`\" static $ipAddress $subnetMask\"
-               $registryPath = 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run'
-               New-ItemProperty -Path $registryPath -Name ('SetStaticIP_' + $interfaceName) -Value $command -PropertyType String -Force
-             }
-           "
-           # disable sleep mode (freezes SPICE)
-           <%= system.name %>.vm.provision 'shell', inline: "powercfg -x -standby-timeout-ac 0"
+  <%         if provider == "proxmox" -%>
+    <%= system.name %>.vm.network :<%= selected_module.attributes['type'].first %>, ip: "<%= lookup_network_ip(selected_module) %>", proxmox_bridge: "vmbr1", proxmox_vlan: <%= lookup_network_vlan(selected_module) %>
+    # ip_address_for_<%= system.name %>=<%= lookup_network_ip(selected_module) %>
+  <%         else # ovirt -%>
+    <%           # re-activate windows now, and then rearm on reboot (after it's started after provisioning) -%>
+    <%= system.name %>.vm.provision 'shell', inline: 'cscript //b c:\windows\system32\slmgr.vbs /ato'
+    <%= system.name %>.vm.provision 'shell', inline: "reg add HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\RunOnce /v RearmWindows /t REG_SZ /d \"cscript //b c:\\windows\\system32\\slmgr.vbs /rearm\" /f"
+    <%= system.name %>.vm.provision 'shell', inline: "
+    $interfaceNames = @('Local Area Connection', 'Local Area Connection 2', 'Local Area Connection 3', 'Ethernet')
+    $ipAddress = '<%= lookup_network_ip(selected_module)%>'
+    $subnetMask = '255.0.0.0'
+    foreach ($interfaceName in $interfaceNames) {
+    $command = \"netsh interface ip set address name=`\"$interfaceName`\" static $ipAddress $subnetMask\"
+    $registryPath = 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run'
+    New-ItemProperty -Path $registryPath -Name ('SetStaticIP_' + $interfaceName) -Value $command -PropertyType String -Force
+    }
+    "
+    # disable sleep mode (freezes SPICE)
+    <%= system.name %>.vm.provision 'shell', inline: "powercfg -x -standby-timeout-ac 0"
+
+    # ip_address_for_<%= system.name %>=<%= lookup_network_ip(selected_module) %>
+
+<%         end -%>
 <%       else # not windows or not ovirt -%>
-  <%= system.name %>.vm.network :<%= selected_module.attributes['type'].first %>, ip: "<%= resolve_network(selected_module)%>"
+    <%= system.name %>.vm.network :<%= selected_module.attributes['type'].first %>, ip: "<%= lookup_network_ip(selected_module)%>"
 <%       # Below string is used within testing, do not delete. -%>
-     # ip_address_for_<%= system.name %>=<%= resolve_network(selected_module)%>
+# ip_address_for_<%= system.name %>=<%= lookup_network_ip(selected_module)%>
 <%       end -%>
 <%     end -%>
 <%   when 'vulnerability', 'service', 'utility', 'build' -%>

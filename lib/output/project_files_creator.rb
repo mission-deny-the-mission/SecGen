@@ -1,5 +1,6 @@
 require 'erb'
 require_relative '../helpers/constants.rb'
+require_relative '../helpers/network.rb'
 require_relative 'xml_scenario_generator.rb'
 require_relative 'xml_marker_generator.rb'
 require_relative 'xml_cybok_generator.rb'
@@ -60,6 +61,13 @@ class ProjectFilesCreator
     FileUtils.mkpath "#{@out_dir}" unless File.exist?("#{@out_dir}")
     FileUtils.mkpath "#{@out_dir}/puppet/" unless File.exist?("#{@out_dir}/puppet/")
     FileUtils.mkpath "#{@out_dir}/environments/production/" unless File.exist?("#{@out_dir}/environments/production/")
+
+    # Create a minimal Gemfile to prevent Vagrant's embedded Ruby from walking up
+    # to the SecGen root and loading its Gemfile (which causes bundler conflicts)
+    gemfile_path = "#{@out_dir}/Gemfile"
+    unless File.exist?(gemfile_path)
+      File.write(gemfile_path, "# placeholder - prevents bundler walk-up into SecGen root\n")
+    end
 
     # for each system, create a puppet modules directory using librarian-puppet
     @systems.each do |system|
@@ -129,7 +137,13 @@ class ProjectFilesCreator
     Print.std "Creating scenario definition file: #{xfile}"
     write_data_to_file(xml, xfile)
 
-    write_data_to_file(@systems.to_s, "#{@out_dir}/systems")
+    # each system holds the command line options, so mask any hypervisor passwords
+    systems_dump = @systems.to_s
+    [:proxmoxpass, :ovirtpass, :esxipass].each do |key|
+      secret = @options[key].to_s
+      systems_dump = systems_dump.gsub(secret, '********') unless secret.empty?
+    end
+    write_data_to_file(systems_dump, "#{@out_dir}/systems")
     write_data_to_file(@scenario.to_s, "#{@out_dir}/scenario")
 
 
@@ -144,7 +158,7 @@ class ProjectFilesCreator
     x3file = "#{@out_dir}/#{CYBOK_FILENAME}"
     xml_cybok_generator = XmlCybokGenerator.new(@systems, @scenario, @time)
     xml = xml_cybok_generator.output
-    Print.std "Creating flags and hints file: #{x3file}"
+    Print.std "Creating CyBOK file: #{x3file}"
     write_data_to_file(xml, x3file)
 
     Print.std "Saving spoiler/admin records..."
@@ -153,13 +167,22 @@ class ProjectFilesCreator
     json = JSON.generate($datastore)
     write_data_to_file(json, jfile)
 
-    if $datastore.has_key? "IP_addresses"
-      system_names = @systems.map { |system| system.name }
-      system_ips = Hash[system_names.zip($datastore["IP_addresses"])]
+    if @options[:network_map]
+      system_ips = {}
+      @systems.each do |system|
+        ips = []
+        system.module_selections.each do |mod|
+          next unless mod.module_type == 'network'
+          @options[:network_map].each_value do |network|
+            ip = network[:ips][mod.unique_id]
+            ips << ip if ip
+          end
+        end
+        system_ips[system.name] = ips.join(',') unless ips.empty?
+      end
       jfile = "#{@out_dir}/#{IP_ADDRESSES_FILENAME}"
       Print.std "Saving IP addresses: #{jfile}"
-      json = JSON.generate(system_ips)
-      write_data_to_file(json, jfile)
+      write_data_to_file(JSON.generate(system_ips), jfile)
     end
 
     if $datastore.has_key? "spoiler_admin_pass"
@@ -167,13 +190,6 @@ class ProjectFilesCreator
       Print.std "Saving spoiler/admin passwords: #{pfile}"
       pass_notes = $datastore["spoiler_admin_pass"].join("\n")
       write_data_to_file(pass_notes, pfile)
-    end
-
-    if $datastore.has_key? "hackerbot_instructions"
-      jfile = "#{@out_dir}/instructions.html"
-      Print.std "Saving instructions: #{jfile}"
-      html = JSON.parse($datastore["hackerbot_instructions"][0])["html_lab_sheet"]
-      write_data_to_file(html, jfile)
     end
 
     # Create the CTFd zip file for import
@@ -203,6 +219,16 @@ class ProjectFilesCreator
     FileUtils.mkdir("#{@out_dir}/lib")
     FileUtils.cp("#{ROOT_DIR}/lib/objects/post_provision_test.rb", "#{@out_dir}/lib/post_provision_test.rb")
 
+    # For Proxmox builds, ship the guest-agent client and a (non-secret) test
+    # context so post-provision tests can reach VMs via the QEMU Guest Agent.
+    # The password is NOT written here; it is read from ENV at test time.
+    if @options[:proxmoxuser] && @options[:proxmoxurl]
+      FileUtils.cp("#{ROOT_DIR}/lib/helpers/proxmox_connection.rb", "#{@out_dir}/lib/proxmox_connection.rb")
+      context = { 'url' => @options[:proxmoxurl], 'user' => @options[:proxmoxuser] }
+      write_data_to_file(JSON.pretty_generate(context), "#{@out_dir}/proxmox_test_context.json")
+      Print.std "Wrote Proxmox test context (credentials excluded)"
+    end
+
     Print.std "VM(s) can be built using 'vagrant up' in #{@out_dir}"
 
   end
@@ -221,7 +247,7 @@ class ProjectFilesCreator
 # @param [Object] template erb path
 # @param [Object] filename file to write to
   def template_based_file_write(template, filename)
-    template_out = ERB.new(File.read(template), 0, '<>-')
+    template_out = ERB.new(File.read(template), trim_mode: '<>-')
 
     begin
       File.open(filename, 'wb+') do |file|
@@ -233,34 +259,60 @@ class ProjectFilesCreator
     end
   end
 
-# Resolves the network based on the scenario and ip_range.
-# In the case that both command-line --network-ranges and datastores are provided, we have already handled the replacement of the ranges in the datastore.
-# Because of this we prioritise datastore['IP_address'], then command line options (i.e. when no datastore is used, but the --network-ranges are passed), then the default network module's IP range.
-  def resolve_network(network_module)
-    current_network = network_module
-    scenario_ip_range = network_module.attributes['range'].first
 
-    # Prioritise datastore IP_address
-    if current_network.received_inputs.include? 'IP_address'
-      ip_address = current_network.received_inputs['IP_address'].first
-    elsif @options.has_key? :ip_ranges
-    # if we have options[:ip_ranges] we want to use those instead of the ip_range argument.
-    # Store the mappings of scenario_ip_ranges => @options[:ip_range]  in @option_range_map
-      # Have we seen this scenario_ip_range before? If so, use the value we've assigned
-      if @option_range_map.has_key? scenario_ip_range
-        ip_range = @option_range_map[scenario_ip_range]
-      else
-        # Remove options_ips that have already been used
-        options_ips = @options[:ip_ranges]
-        options_ips.delete_if { |ip| @option_range_map.has_value? ip }
-        @option_range_map[scenario_ip_range] = options_ips.first
-        ip_range = options_ips.first
-      end
-      ip_address = get_ip_from_range(ip_range)
+  def lookup_network_vlan(network_module)
+    vlan_index = network_module.received_inputs['vlan']&.first&.to_i || 1
+    base_vlan = @options[:proxmoxvlan].to_i rescue 0
+    base_vlan + (vlan_index * 100)
+  end
+
+  def lookup_network_ip(network_module)
+    base_vlan = @options[:proxmoxvlan].to_i rescue 0
+    key = NetworkFunctions.compute_vlan(network_module, base_vlan)
+    @options[:network_map]&.key?(key) ? @options[:network_map][key][:ips][network_module.unique_id] : nil
+  end
+
+  def lookup_network_gateway(network_module)
+    base_vlan = @options[:proxmoxvlan].to_i rescue 0
+    key = NetworkFunctions.compute_vlan(network_module, base_vlan)
+    @options[:network_map]&.key?(key) ? @options[:network_map][key][:gateway][network_module.unique_id] : nil
+  end
+
+  def lookup_network_dns(network_module)
+    base_vlan = @options[:proxmoxvlan].to_i rescue 0
+    key = NetworkFunctions.compute_vlan(network_module, base_vlan)
+    @options[:network_map]&.key?(key) ? @options[:network_map][key][:dns_nameservers][network_module.unique_id] : nil
+  end
+
+  def lookup_network_routes(network_module)
+    base_vlan = @options[:proxmoxvlan].to_i rescue 0
+    key = NetworkFunctions.compute_vlan(network_module, base_vlan)
+    return [] unless @options[:network_map]&.key?(key)
+    @options[:network_map][key][:routes][network_module.unique_id] || []
+  end
+
+  # Resolves the IP address to use for a network module in the Vagrantfile.
+  # Priority: specific IP_address (verbatim) > range with --network-ranges override > range default
+    def resolve_network(network_module)
+    if network_module.received_inputs.include?('IP_address')
+      # Specific IP provided — use verbatim
+      network_module.received_inputs['IP_address'].first
     else
-      ip_address = get_ip_from_range(scenario_ip_range)
+      ip_range = if @options.has_key?(:ip_ranges)
+                   scenario_ip_range = network_module.received_inputs['range']&.first
+                   if @option_range_map.has_key?(scenario_ip_range)
+                     @option_range_map[scenario_ip_range]
+                   else
+                     options_ips = @options[:ip_ranges].dup
+                     options_ips.delete_if { |ip| @option_range_map.has_value?(ip) }
+                     @option_range_map[scenario_ip_range] = options_ips.first
+                     options_ips.first
+                   end
+                 else
+                   network_module.received_inputs['range']&.first
+                 end
+      get_ip_from_range(ip_range)
     end
-    ip_address
   end
 
   def get_ip_from_range(ip_range)
@@ -293,6 +345,10 @@ class ProjectFilesCreator
     elsif (@options.has_key? :ovirtuser) && (@options.has_key? :ovirtpass)
       # all ovirt vms -- could be more specific: && (@base_type.include? 'desktop')
       memory = '3000'
+    elsif !@options.has_key?(:esxiuser) && desktop_base?(system)
+      # VirtualBox: current desktop distros (Kali, Debian KDE) struggle in 1GB, and attack
+      # VMs install large tool sets during provisioning (Proxmox sets its own memory)
+      memory = '3000'
     else
       memory = '1024'
     end
@@ -303,6 +359,12 @@ class ProjectFilesCreator
       end
     end
     memory
+  end
+
+  def desktop_base?(system)
+    system.module_selections.any? do |mod|
+      mod.module_type == 'base' && (mod.attributes['type'] || []).include?('desktop')
+    end
   end
 
 # Returns binding for erb files (access to variables in this classes scope)

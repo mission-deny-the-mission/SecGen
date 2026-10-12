@@ -25,7 +25,7 @@ class apache::mod::info (
   include apache
   $_apache_version = pick($apache_version, $apache::apache_version)
 
-  if $::osfamily == 'Suse' {
+  if $facts["os"]["family"] == 'Suse' {
     if defined(Class['::apache::mod::worker']) {
       $suse_path = '/usr/lib64/apache2-worker'
     } else {

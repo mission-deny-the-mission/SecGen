@@ -132,11 +132,11 @@ class apache::mod::security (
     default => "${secdefaultaction},log",
   }
 
-  if $::osfamily == 'FreeBSD' {
+  if $facts["os"]["family"] == 'FreeBSD' {
     fail('FreeBSD is not currently supported')
   }
 
-  if ($::osfamily == 'Suse' and versioncmp($::operatingsystemrelease, '11') < 0) {
+  if ($facts["os"]["family"] == 'Suse' and versioncmp($facts["os"]["release"]["full"], '11') < 0) {
     fail('SLES 10 is not currently supported.')
   }
 
@@ -262,7 +262,7 @@ class apache::mod::security (
     }
 
     # Debian 9 has a different rule setup
-    unless $::operatingsystem == 'SLES' or ($::operatingsystem == 'Debian' and versioncmp($::operatingsystemrelease, '9') >= 0) or ($::operatingsystem == 'Ubuntu' and versioncmp($::operatingsystemrelease, '18.04') >= 0) {
+    unless $facts["os"]["name"] == 'SLES' or ($facts["os"]["name"] == 'Debian' and versioncmp($facts["os"]["release"]["full"], '9') >= 0) or ($facts["os"]["name"] == 'Ubuntu' and versioncmp($facts["os"]["release"]["full"], '18.04') >= 0) {
       apache::security::rule_link { $activated_rules: }
     }
   }

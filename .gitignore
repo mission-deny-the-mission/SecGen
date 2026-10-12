@@ -21,3 +21,8 @@ lib/resources/images/scenario
 rgloader
 .ruby-version
 vendor/**
+vagrant-proxmox
+plans/
+
+# Personal Claude Code instructions (environment-specific)
+CLAUDE.local.md

@@ -555,7 +555,7 @@ class apache (
     default => '(event|itk|prefork|worker)'
   }
 
-  if $::osfamily == 'RedHat' and $facts['operatingsystemmajrelease'] == '7' {
+  if $facts["os"]["family"] == 'RedHat' and $facts['os']['release']['major'] == '7' {
     # On redhat 7 the ssl.conf lives in /etc/httpd/conf.d (the confd_dir)
     # when all other module configs live in /etc/httpd/conf.modules.d (the
     # mod_dir). On all other platforms and versions, ssl.conf lives in the
@@ -580,7 +580,7 @@ class apache (
   # should delete the 'if' block below and modify all MPM modules' manifests
   # such that they include apache::package class (currently event.pp, itk.pp,
   # peruser.pp, prefork.pp, worker.pp).
-  if $::osfamily != 'FreeBSD' {
+  if $facts["os"]["family"] != 'FreeBSD' {
     package { 'httpd':
       ensure => $package_ensure,
       name   => $apache_name,
@@ -735,7 +735,7 @@ class apache (
   }
 
   if $apache::conf_dir and $apache::params::conf_file {
-    if $::osfamily == 'gentoo' {
+    if $facts["os"]["family"] == 'gentoo' {
       $error_documents_path = '/usr/share/apache2/error'
       if $default_mods =~ Array {
         if versioncmp($apache_version, '2.4') >= 0 {
@@ -764,7 +764,7 @@ class apache (
       }
     }
 
-    $apxs_workaround = $::osfamily ? {
+    $apxs_workaround = $facts["os"]["family"] ? {
       'freebsd' => true,
       default   => false
     }
@@ -843,7 +843,7 @@ class apache (
       use_servername_for_filenames => true,
       use_port_for_filenames       => true,
     }
-    $ssl_access_log_file = $::osfamily ? {
+    $ssl_access_log_file = $facts["os"]["family"] ? {
       'freebsd' => $access_log_file,
       default   => "ssl_${access_log_file}",
     }

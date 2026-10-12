@@ -110,7 +110,7 @@ class apache::mod::ssl (
   if $ssl_mutex {
     $_ssl_mutex = $ssl_mutex
   } else {
-    case $::osfamily {
+    case $facts["os"]["family"] {
       'debian': {
         if versioncmp($_apache_version, '2.4') >= 0 {
           $_ssl_mutex = 'default'
@@ -147,7 +147,7 @@ class apache::mod::ssl (
   }
 
   if $stapling_cache =~ Undef {
-    $_stapling_cache = $::osfamily ? {
+    $_stapling_cache = $facts["os"]["family"] ? {
       'debian'  => "\${APACHE_RUN_DIR}/ocsp(32768)",
       'redhat'  => '/run/httpd/ssl_stapling(32768)',
       'freebsd' => '/var/run/ssl_stapling(32768)',
@@ -158,7 +158,7 @@ class apache::mod::ssl (
     $_stapling_cache = $stapling_cache
   }
 
-  if $::osfamily == 'Suse' {
+  if $facts["os"]["family"] == 'Suse' {
     if defined(Class['::apache::mod::worker']) {
       $suse_path = '/usr/lib64/apache2-worker'
     } else {

@@ -5,7 +5,7 @@
 #
 class apache::mod::cgi {
   include apache
-  case $::osfamily {
+  case $facts["os"]["family"] {
     'FreeBSD': {}
     default: {
       if defined(Class['::apache::mod::itk']) {
@@ -18,7 +18,7 @@ class apache::mod::cgi {
     }
   }
 
-  if $::osfamily == 'Suse' {
+  if $facts["os"]["family"] == 'Suse' {
     ::apache::mod { 'cgi':
       lib_path => '/usr/lib64/apache2-prefork',
     }

@@ -16,7 +16,7 @@ define apache::mpm (
   $_path = "${lib_path}/${_lib}"
   $_id   = "mpm_${mpm}_module"
 
-  if $::osfamily == 'Suse' {
+  if $facts["os"]["family"] == 'Suse' {
     #mpms on Suse 12 don't use .so libraries so create a placeholder load file
     if versioncmp($apache_version, '2.4') >= 0 {
       file { "${mod_dir}/${mpm}.load":
@@ -47,7 +47,7 @@ define apache::mpm (
     }
   }
 
-  case $::osfamily {
+  case $facts["os"]["family"] {
     'debian': {
       file { "${apache::mod_enable_dir}/${mpm}.conf":
         ensure  => link,
@@ -98,14 +98,14 @@ define apache::mpm (
       }
 
       if $mpm == 'prefork' {
-        if ( ( $::operatingsystem == 'Ubuntu' and versioncmp($::operatingsystemrelease,'18.04') >= 0 ) or $::operatingsystem == 'Debian' ) {
+        if ( ( $facts["os"]["name"] == 'Ubuntu' and versioncmp($facts["os"]["release"]["full"],'18.04') >= 0 ) or $facts["os"]["name"] == 'Debian' ) {
           include apache::mpm::disable_mpm_event
           include apache::mpm::disable_mpm_worker
         }
       }
 
       if $mpm == 'worker' {
-        if ( ( $::operatingsystem == 'Ubuntu' and versioncmp($::operatingsystemrelease,'18.04') >= 0 ) or $::operatingsystem == 'Debian' ) {
+        if ( ( $facts["os"]["name"] == 'Ubuntu' and versioncmp($facts["os"]["release"]["full"],'18.04') >= 0 ) or $facts["os"]["name"] == 'Debian' ) {
           include apache::mpm::disable_mpm_event
           include apache::mpm::disable_mpm_prefork
         }

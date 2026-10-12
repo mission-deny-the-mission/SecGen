@@ -5,7 +5,7 @@
 #
 class apache::mod::cgid {
   include apache
-  case $::osfamily {
+  case $facts["os"]["family"] {
     'FreeBSD': {}
     default: {
       if defined(Class['::apache::mod::event']) {
@@ -18,13 +18,13 @@ class apache::mod::cgid {
 
   # Debian specifies it's cgid sock path, but RedHat uses the default value
   # with no config file
-  $cgisock_path = $::osfamily ? {
+  $cgisock_path = $facts["os"]["family"] ? {
     'debian'  => "\${APACHE_RUN_DIR}/cgisock",
     'freebsd' => 'cgisock',
     default   => undef,
   }
 
-  if $::osfamily == 'Suse' {
+  if $facts["os"]["family"] == 'Suse' {
     ::apache::mod { 'cgid':
       lib_path => '/usr/lib64/apache2-worker',
     }

@@ -11,7 +11,7 @@ class apache::package (
     fail('You must include the apache base class before using any apache defined resources')
   }
 
-  case $::osfamily {
+  case $facts["os"]["family"] {
     'FreeBSD': {
       case $mpm_module {
         'prefork': {

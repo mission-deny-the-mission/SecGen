@@ -78,7 +78,7 @@ class apache::mod::php (
     default => 'php_module',
   }
 
-  if $::operatingsystem == 'SLES' {
+  if $facts["os"]["name"] == 'SLES' {
     ::apache::mod { $mod:
       package        => $_package_name,
       package_ensure => $package_ensure,

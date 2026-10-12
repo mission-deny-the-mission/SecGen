@@ -4,6 +4,7 @@ class cleanup::init {
   $root_password = $secgen_params['root_password'][0]
   $clobber_file_times = str2bool($secgen_params['clobber_file_times'][0])
   $disable_ssh = str2bool($secgen_params['disable_ssh'][0])
+  $remove_proxy_env_vars = str2bool($secgen_params['remove_proxy_env_vars'][0])
 
   Exec { path => ['/bin','/sbin','/usr/bin', '/usr/sbin'] }
 
@@ -19,6 +20,10 @@ class cleanup::init {
   }
 
   if $root_password {
+    exec { 'secgen-save-etc-perms':
+      command => "/bin/bash -c 'stat -c %a /etc/passwd > /run/secgen_passwd_mode; stat -c %a /etc/shadow > /run/secgen_shadow_mode; stat -c %a /etc/group > /run/secgen_group_mode'",
+    }
+
     # Set root password
     ::accounts::user { 'root':
       ensure => present,
@@ -28,16 +33,26 @@ class cleanup::init {
       ensure => present,
       password   => pw_hash($root_password, 'SHA-512', 'mysalt'),
     }
+
+    exec { 'secgen-restore-etc-perms':
+      command => "/bin/bash -c 'chmod \$(cat /run/secgen_passwd_mode) /etc/passwd; chmod \$(cat /run/secgen_shadow_mode) /etc/shadow; chmod \$(cat /run/secgen_group_mode) /etc/group; rm -f /run/secgen_passwd_mode /run/secgen_shadow_mode /run/secgen_group_mode'",
+    }
+
+    Exec['secgen-save-etc-perms']
+    -> Accounts::User['root']
+    -> Accounts::User['vagrant']
+    -> Exec['secgen-restore-etc-perms']
   }
 
   # if kali_msf we have a default kali account setup by default
   # some scenarios define a kali user for use
   # others do not define the kali user, so change the kali user password to our secure root password.
-  if $operatingsystemrelease == 'kali-rolling' and $root_password {
+  if $facts['os']['release']['full'] == 'kali-rolling' and $root_password {
     $mysalt = 'mysalt'
 
     exec { 'update_kali_password':
       command => "/usr/bin/echo '${root_password}' | /usr/bin/openssl passwd -6 -salt ${mysalt} -stdin | xargs -I {} /usr/sbin/usermod -p '{}' kali",
+      onlyif  => '/usr/bin/id kali',
       unless  => "/bin/grep -q '^kali:.6.${mysalt}' /etc/shadow",
       path    => ['/usr/bin', '/usr/sbin', '/bin'],
     }
@@ -61,7 +76,16 @@ class cleanup::init {
   # removes bash history
   if $remove_history {
     exec { 'remove_history':
-      command => "/bin/bash -c 'history -c && history -w'"
+      # `if`, not `test -f && ...`: the loop must not fail when the last file is missing
+      command => "/bin/bash -c 'history -c; for f in /root/.bash_history /home/*/.bash_history; do if [ -f \"\$f\" ]; then : > \"\$f\"; fi; done'"
     }
   }
+
+  if $remove_proxy_env_vars {
+    file { '/etc/environment':
+      ensure => file,
+      content => "",
+    }
+  }
+
 }

@@ -15,18 +15,8 @@ class hackerbot::install {
     group   => 'root',
   }
 
-  file { '/var/www/labs':
-    ensure  => directory,
-    recurse => true,
-    source  => 'puppet:///modules/hackerbot/www',
-    mode    => '0666',
-    owner   => 'root',
-    group   => 'root',
-  }
-
   # System dependencies required for nokogiri and other gems
   $system_packages = [
-    'zlibc',
     'zlib1g',
     'zlib1g-dev',
     'sshpass',
@@ -49,7 +39,7 @@ class hackerbot::install {
 
   # Remove problematic nokogiri installation first
   exec { 'remove nokogiri':
-    command => 'gem uninstall nokogiri -a -x',
+    command => 'gem uninstall nokogiri -a -x || true',
     path    => [ '/usr/bin', '/bin', '/usr/sbin' ],
     onlyif  => 'gem list | grep -q "^nokogiri"',
   }
