@@ -11,9 +11,13 @@
 #   1. hostname  - cloud-init is inert on the published bases, so the hostname is set
 #                  here, before anything that resolves it (a sudo command run while the
 #                  hostname is unresolved prints a warning).
-#   2. resolver  - KubeVirt hands a masquerade guest the pod's resolv.conf (the CoreDNS
-#                  ClusterIP), which the guest cannot reach. The VM is created with
-#                  dnsPolicy Default; --kubevirt-dns overrides what the guest uses.
+#   2. resolver  - KubeVirt hands a masquerade guest the virt-launcher pod's resolv.conf.
+#                  With the default policy that is the cluster DNS (CoreDNS ClusterIP) and
+#                  with dnsPolicy Default it is the node's resolver -- the guest can reach
+#                  NEITHER. The VM is therefore created with dnsPolicy None plus an
+#                  explicit nameserver (--kubevirt-dns overrides which), and this step
+#                  writes the same resolver into the guest as a belt-and-braces measure so
+#                  provisioning cannot depend on the DHCP handoff alone.
 #   3. puppet    - one puppet apply per selected module.
 #
 # Phase 1 has no isolated-L2/VLAN networking: the guest only has an address on the

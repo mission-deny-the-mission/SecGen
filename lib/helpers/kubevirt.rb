@@ -43,6 +43,12 @@ class KubeVirtFunctions
   GUEST_TARBALL_PATH = '/tmp/secgen-assets.tar.gz'
   GUEST_SCRIPT_PATH = '/tmp/secgen-provision.sh'
 
+  # Resolver handed to lab guests. A masquerade guest can reach neither the cluster's DNS
+  # nor (with dnsPolicy Default) the node's resolver -- both verified on the cluster -- so
+  # guests are always given an explicit nameserver. Override with --kubevirt-dns, e.g. to
+  # point labs at the lab's own resolver rather than a public one.
+  DEFAULT_DNS_NAMESERVERS = ['1.1.1.1'].freeze
+
   VMI_READY_TIMEOUT = 900
   # The VMI reports Running well before sshd accepts connections (measured ~68s on the
   # bookworm base), so the guest is polled before provisioning.
@@ -100,10 +106,14 @@ class KubeVirtFunctions
     value.empty? ? DEFAULT_CPUS : value
   end
 
-  # Nameservers to hand the guest, from --kubevirt-dns (comma or space separated).
-  # Empty means "use dnsPolicy Default", which is the working default on these bases.
+  # Resolvers handed to the guest. A masquerade guest cannot reach the cluster's DNS, and
+  # `dnsPolicy: Default` does not help: it merely substitutes the node's resolver
+  # (169.254.116.108 on Talos), which the guest equally cannot reach -- both verified on
+  # the cluster. So the provider always sets dnsPolicy None plus an explicit nameserver,
+  # defaulting to a public resolver, and never depends on the cluster's DNS.
   def self.dns_nameservers(options)
-    options[:kubevirtdns].to_s.split(/[,\s]+/).reject { |nameserver| nameserver.empty? }
+    configured = options[:kubevirtdns].to_s.split(/[,\s]+/).reject { |nameserver| nameserver.empty? }
+    configured.empty? ? DEFAULT_DNS_NAMESERVERS.dup : configured
   end
 
   # KubeVirt object names must be valid DNS-1123 labels, so system names have to be
@@ -275,7 +285,10 @@ class KubeVirtFunctions
     context.golden_image = golden_image
     context.disk_size = disk_size
     context.dns_nameservers = dns_nameservers(options)
-    context.dns_policy = context.dns_nameservers.empty? ? 'Default' : 'None'
+    # dnsPolicy None always: the guest can reach neither the cluster DNS nor (with
+    # "Default") the node's resolver, so an explicit nameserver is mandatory. See
+    # self.dns_nameservers.
+    context.dns_policy = 'None'
     context.modules = modules
     context.puppet_root = GUEST_ASSET_DIR
     context.puppet_system_dir = "#{GUEST_ASSET_DIR}/puppet/#{system.name}"

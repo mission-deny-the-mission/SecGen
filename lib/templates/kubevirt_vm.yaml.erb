@@ -39,10 +39,12 @@ spec:
         kubevirt.io/domain: <%= vm_name %>
         app.kubernetes.io/part-of: secgen
     spec:
-      # A masquerade guest is handed the pod's resolv.conf, which points at the cluster's
-      # DNS (CoreDNS ClusterIP) -- unreachable from the guest, so package installation in
-      # every puppet module would fail. "Default" makes the virt-launcher pod use the
-      # node's resolver instead; --kubevirt-dns sets nameservers explicitly ("None").
+      # A masquerade guest is handed the virt-launcher pod's resolv.conf over DHCP. With
+      # the default policy that is the cluster's DNS (CoreDNS ClusterIP) and with
+      # "Default" it is the node's resolver -- NEITHER is reachable from the guest, so
+      # package installation in every puppet module would fail. Verified fix: dnsPolicy
+      # None plus an explicit nameserver below, which the guest then receives verbatim.
+      # --kubevirt-dns overrides the resolver (e.g. point labs at your own DNS).
       dnsPolicy: <%= dns_policy %>
 <% if dns_nameservers.any? -%>
       dnsConfig:
