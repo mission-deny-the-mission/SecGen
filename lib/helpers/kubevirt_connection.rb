@@ -1,3 +1,5 @@
+require 'base64'
+require 'json'
 require 'open3'
 require 'socket'
 require 'timeout'
@@ -173,9 +175,10 @@ class KubeVirt
     vmi_phase(vm_name) == 'Running'
   end
 
-  # The guest's address on the pod network. Phase 1 labs use masquerade networking, so
-  # this address is NOT reachable from outside the cluster - it identifies the guest for
-  # the API-mediated paths (virtctl) and for logging/reporting.
+  # The guest's address on the pod network. It is NOT reachable from outside the cluster, and
+  # nothing should depend on it (a pod restart moves it): it identifies the guest for the
+  # API-mediated paths (virtctl) and for logging/reporting. A guest's lab-network addresses are
+  # the stable ones, and come from the Multus interfaces (see vmi_interfaces).
   def vmi_ip(vm_name)
     jsonpath('vmi', vm_name, '{.status.interfaces[0].ipAddress}')
   end
@@ -195,6 +198,84 @@ class KubeVirt
       end
       sleep interval
     end
+  end
+
+  # ---------------------------------------------------------------- cluster facts
+
+  # The cluster's nodes and their internal addresses, in name order (so a choice made from
+  # this list is the same on every run).
+  def nodes
+    data = read_json(kubectl(['get', 'nodes', '-o', 'json'], false, timeout: 60), 'the cluster nodes')
+    data.fetch('items', []).map do |node|
+      addresses = node.dig('status', 'addresses') || []
+      internal = addresses.find { |address| address['type'] == 'InternalIP' } || {}
+      { 'name' => node.dig('metadata', 'name').to_s, 'ip' => internal['address'].to_s }
+    end.reject { |node| node['name'].empty? || node['ip'].empty? }.sort_by { |node| node['name'] }
+  end
+
+  # Each node's pod CIDR (the ranges the lab's own networks must not fall inside).
+  def node_pod_cidrs
+    data = read_json(kubectl(['get', 'nodes', '-o', 'json'], false, timeout: 60), 'the cluster nodes')
+    data.fetch('items', []).flat_map do |node|
+      [node.dig('spec', 'podCIDR'), *(node.dig('spec', 'podCIDRs') || [])].compact.map(&:to_s)
+    end.reject(&:empty?).uniq
+  end
+
+  # The cluster IPs currently handed out by the Service network.
+  def service_cluster_ips
+    data = read_json(kubectl(['get', 'services', '-A', '-o', 'json'], false, timeout: 60),
+                     'the cluster services')
+    data.fetch('items', []).flat_map do |service|
+      [service.dig('spec', 'clusterIP'), *(service.dig('spec', 'clusterIPs') || [])]
+    end.compact.map(&:to_s).reject { |address| address.empty? || address == 'None' }.uniq
+  end
+
+  # The node a running VMI is on. The LLM lane has to be addressed at a node OTHER than this
+  # one: a masquerade guest cannot complete a service connection that stays on, or returns
+  # via, its own node (measured on this cluster).
+  def vmi_node_name(vm_name)
+    jsonpath('vmi', vm_name, '{.status.nodeName}')
+  end
+
+  # The guest's interfaces as the cluster sees them: name ('default', 'net1', ...) and address.
+  def vmi_interfaces(vm_name)
+    data = read_json(kubectl(['get', 'vmi', vm_name, '-o', 'json'], true, timeout: 60),
+                     "#{vm_name}'s interfaces")
+    (data.dig('status', 'interfaces') || []).map do |interface|
+      { 'name' => interface['name'].to_s, 'ip' => interface['ipAddress'].to_s }
+    end
+  end
+
+  # The NodePort a Service is exposed on, or nil. A masquerade guest can only reach a service
+  # as a NodePort on another node: a ClusterIP is not routable from the guest at all.
+  def service_node_port(namespace, name)
+    out = kubectl(['get', 'service', name, '--namespace', namespace, '-o',
+                   'jsonpath={.spec.ports[0].nodePort}'], false, timeout: 60).strip
+    out.empty? ? nil : out
+  end
+
+  # The nodes that currently run an endpoint of a Service, so the lab's LLM lane can be pointed
+  # at a node that will actually answer (the Service is externalTrafficPolicy Local).
+  def endpoint_nodes(namespace, name)
+    out = kubectl(['get', 'endpoints', name, '--namespace', namespace, '-o',
+                   'jsonpath={.subsets[*].addresses[*].nodeName}'], false, timeout: 60)
+    out.to_s.split(/\s+/).reject(&:empty?).uniq
+  rescue TransportError
+    []
+  end
+
+  # Read one credential out of a Secret. Used to hand a lab guest the LiteLLM key; the value is
+  # never written into the project directory.
+  def secret_value(namespace, name, key)
+    encoded = kubectl(['get', 'secret', name, '--namespace', namespace, '-o',
+                       "jsonpath={.data.#{key}}"], false, timeout: 60).strip
+    encoded.empty? ? nil : Base64.decode64(encoded)
+  end
+
+  def read_json(output, description)
+    JSON.parse(output.to_s)
+  rescue JSON::ParserError => e
+    raise TransportError, "cannot read #{description} from the cluster: #{e.message}"
   end
 
   # Delete a VM and the storage it owns. The golden images live in another namespace and

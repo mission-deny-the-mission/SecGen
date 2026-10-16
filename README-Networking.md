@@ -180,6 +180,45 @@ NOTE: The `IP_addresses` datastore name is also significant for the now deprecat
 </input>
 ```
 
+## How a provider realises these networks
+
+The scenario model above is provider-independent; what a lab network *actually is* depends on the
+provider that builds the lab. This matters as soon as a scenario relies on isolation, a gateway,
+or DHCP.
+
+### Vagrant (VirtualBox / libvirt) and Proxmox
+
+Each `<network>` becomes a `private_network` adapter on a host-only/host-internal network, with
+the address SecGen assigned it and, for Proxmox, the 802.1Q tag computed from `--proxmox-vlan`
+above. The hypervisor provides the isolation and the router is whatever the scenario puts on the
+network.
+
+### KubeVirt
+
+Each `<network>` element becomes a Multus bridge interface on the lab's own L2 segment, and the
+address SecGen assigned that interface is pinned in the cluster's IPAM, so `<network_ip>` values
+are real addresses in the guest (verified: a guest pinned to `.7` reported
+`enp2s0 172.30.95.7/24`). Verified limits of that mapping:
+
+- **one interface per `<network>`**, in scenario order (`net1`, `net2`, ...), alongside an
+  always-present `masquerade` interface on the cluster pod network, which is how SecGen reaches
+  the guest and the only interface with a default route;
+- **no gateway, per-network nameservers, or routes**: an interface on a lab network gets an
+  address and nothing else, and the segment has no router unless a lab VM is one;
+- **no DHCP** (`public_network`): there is no DHCP server on a cluster bridge, so no interface is
+  created for one and the guest's `masquerade` interface plays that role instead;
+- **no 802.1Q tag**: a VLAN is a separate bridge segment rather than a tag on a shared wire, so
+  two VMs on one VLAN share a segment and two on different VLANs cannot reach each other;
+- **node-local segments**: the bridge lives in one node's network namespace, so a lab network
+  connects only the VMs scheduled onto the same node (measured: 100% packet loss between two
+  guests on different nodes sharing a segment, no loss between two on one node).
+  `--kubevirt-placement compact` keeps a lab on one node; the default `spread` favours building a
+  lab that would not fit on any single node, at the cost of that connectivity.
+
+SecGen names every scenario network setting the KubeVirt provider cannot honour when it generates
+a project, rather than producing a lab whose addressing is silently wrong. `README-KubeVirt.md`
+has the details (its `Networking`, `Egress tiers` and `The LLM lane` sections).
+
 ## Example scenarios
 
 Four example scenarios are provided in `scenarios/examples/network_examples/`, each demonstrating a distinct aspect of the networking subsystem:
