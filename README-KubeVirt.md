@@ -117,7 +117,7 @@ grant you - in that case create the namespace, quota and binding yourself.
 --kubevirt-ssh-key [path]          private key for the guest's vagrant user (the published
                                    Vagrant insecure key in lib/resources/kubevirt)
 --kubevirt-dns [nameserver]        nameserver(s) to hand the guest, comma separated (see
-                                   Guest DNS below; default is the cluster's, dnsPolicy Default)
+                                   Guest DNS below; default 1.1.1.1, dnsPolicy None)
 --kubevirt-create-namespace        create the namespace, quota and clone access if missing
 --kubevirt-halt                    halt the VMs after provisioning (runStrategy Halted)
 --kubevirt-image-size [size]       size for the cloned root disk, e.g. 34Gi; needs no cluster
@@ -177,21 +177,25 @@ phase 2.
 
 ## Guest DNS
 
-KubeVirt hands a masquerade guest the *pod's* `resolv.conf`, which points at the cluster's DNS
-(CoreDNS ClusterIP) - and the guest cannot reach it (`No route to host`). Every puppet module
-that installs a package then fails.
+KubeVirt hands a masquerade guest the *pod's* `resolv.conf` over DHCP, and whichever way that is
+configured, the guest cannot use it:
 
-SecGen's manifests therefore set `dnsPolicy: Default`, which makes the virt-launcher pod use
-the node's resolver, and the guest is handed working nameservers over DHCP. If your nodes'
-resolver is not reachable from guests either, pass the nameservers explicitly - the VMI is
-then created with `dnsPolicy: None` and a `dnsConfig`:
+- with the default policy it is the cluster's DNS (CoreDNS ClusterIP) - `No route to host`;
+- with `dnsPolicy: Default` it is the *node's* resolver (on Talos, `169.254.116.108`) - the
+  guest cannot reach that either.
+
+Every puppet module that installs a package then fails, so SecGen always sets `dnsPolicy: None`
+together with an explicit `dnsConfig.nameservers`, defaulting to a public resolver: the guest is
+handed exactly that nameserver, and resolution and package installation then work (verified end
+to end on a booted VM). To point labs at the lab's own resolver instead:
 
 ```bash
---kubevirt-namespace secgen-lab --kubevirt-dns 1.1.1.1,9.9.9.9
+--kubevirt-namespace secgen-lab --kubevirt-dns 10.1.0.53,10.1.0.54
 ```
 
-The provisioning script also rewrites `/etc/resolv.conf` in the guest when `--kubevirt-dns`
-is given (after setting the hostname, so the hostname is resolved while it does it).
+The provisioning script also writes the same resolver into the guest's `/etc/resolv.conf` (after
+setting the hostname, so the hostname resolves while it does it), so provisioning does not depend
+on the DHCP handoff alone.
 
 ## Troubleshooting a lab VM
 
