@@ -20,10 +20,23 @@
     provider = "proxmox"
   elsif @options.has_key?(:esxiuser) && @options.has_key?(:esxipass)
     provider = "esxi"
+  elsif !@options[:kubevirtnamespace].to_s.empty?
+    # KubeVirt: SecGen drives the build itself (no Vagrant plugin exists for it), so this
+    # Vagrantfile is not used for the build -- see README-KubeVirt.md. The provider is
+    # named here so the generated file does not claim to be a VirtualBox project.
+    provider = "kubevirt"
   end
 -%>
 
 VAGRANTFILE_API_VERSION = "2"
+<% if provider == "kubevirt" -%>
+
+# This project was generated for the KubeVirt provider. SecGen applies the VirtualMachine
+# manifests in the project's kubevirt/ directory to the cluster itself and provisions the
+# guests over virtctl; run 'ruby secgen.rb --project <dir> --kubevirt-namespace <ns>
+# kubevirt-build' rather than vagrant. This file (and the puppet tree it points at) is kept
+# because the project layout is shared with the other providers.
+<% end -%>
 <% if provider == "proxmox" -%>
 
 # The Proxmox password is not stored in this file. secgen.rb passes it to vagrant

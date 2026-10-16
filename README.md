@@ -34,7 +34,7 @@ SecGen needs:
 
 - Ruby 2.7 to 4.0, with development headers, and the Ruby gems in the Gemfile (including Nokogiri and Librarian-puppet)
 - Vagrant: https://developer.hashicorp.com/vagrant
-- VirtualBox: https://www.virtualbox.org/ (or Proxmox / oVirt / ESXi, see below)
+- VirtualBox: https://www.virtualbox.org/ (or Proxmox / oVirt / ESXi / KubeVirt, see below)
 - ImageMagick, ExifTool, Graphviz and a few libraries for native gems
 - Packer, only for the Windows bases: https://www.packer.io/
 
@@ -203,6 +203,20 @@ SecGen accepts arguments to change the way that it behaves, the currently implem
       --proxmox-network [proxmox network name]
       --proxmox-vlan [vlan number]
 
+      KUBEVIRT OPTIONS:
+      --kubevirt-namespace [namespace]: Run the lab in this namespace (this is what selects the
+              KubeVirt provider)
+      --kubevirt-kubeconfig [path]: Kubeconfig to use (defaults to the ambient KUBECONFIG)
+      --kubevirt-storage-class [name]: Storage class for the cloned root disks (default: ceph-block)
+      --kubevirt-golden-namespace [namespace]: Namespace holding the golden base images
+              (default: secgen-bases)
+      --kubevirt-cpus [number]: Virtual CPUs per VM (default: 2)
+      --kubevirt-ssh-key [path]: Private key for the guest's vagrant user
+      --kubevirt-dns [nameserver]: Nameserver(s) to hand the guest (comma separated)
+      --kubevirt-create-namespace: Create the namespace (with a quota and clone access) if missing
+      --kubevirt-halt: Halt the VMs after provisioning
+      --kubevirt-image-size [size]: Size of the cloned root disk (e.g. 34Gi); see README-KubeVirt.md
+
       COMMANDS:
       run, r: Builds project and then builds the VMs
       build-project, p: Builds project (vagrant and puppet config), but does not build VMs
@@ -210,6 +224,12 @@ SecGen accepts arguments to change the way that it behaves, the currently implem
               (use in combination with --project [dir])
       ovirt-post-build: only performs the ovirt actions that normally follow a successful vm build
               (snapshots and networking)
+      proxmox-post-build: only performs the proxmox actions that normally follow a successful vm build
+              (snapshots and networking)
+      kubevirt-build: builds the VMs of a generated KubeVirt project (applies the generated
+              manifests and provisions the guests over virtctl), then runs the post-provision tests
+      kubevirt-destroy: deletes a KubeVirt lab's VMs and their root disks (golden images untouched)
+      kubevirt-status: prints the phase and address of each VM of a KubeVirt project
       create-forensic-image: Builds forensic images from a previously generated project
               (can be used in combination with --project [dir])
       list-scenarios: Lists all scenarios that can be used with the --scenario option
@@ -222,6 +242,12 @@ SecGen accepts arguments to change the way that it behaves, the currently implem
 If SecGen experiences errors installing packages, the template VMs (base boxes) we publish on Vagrant cloud may need updating (especially Kali, which is a rolling-release). After you have built some VMs, browse in your home directory `.vagrant.d/boxes/`, from here you can manually launch the VMs that are used as templates, and apply software updates `sudo apt-get update; sudo apt-get upgrade`. Then power down the VM, and try SecGen again.
 
 For Proxmox, use this Vagrant plugin: https://github.com/cliffe/vagrant-proxmox/, and make this fix to Vagrant: https://github.com/hashicorp/vagrant/pull/12463/files.
+
+For KubeVirt, there is no Vagrant plugin: SecGen drives the build itself, applying a
+`VirtualMachine` per system (cloning a golden base image) and provisioning the guests over
+`virtctl`. See [README-KubeVirt.md](README-KubeVirt.md) for preparing the golden images, the
+cluster RBAC that cross-namespace clones need, the CLI options, and the phase 1 networking
+limitation (pod/masquerade only).
 
 You will typically need to create a Debian Buster base VM, broadly following these instructions: https://github.com/cliffe/SecGen/blob/master/README-Creating-Bases.md
 

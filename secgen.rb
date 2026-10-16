@@ -11,6 +11,7 @@ require_relative 'lib/helpers/print.rb'
 require_relative 'lib/helpers/gem_exec.rb'
 require_relative 'lib/helpers/ovirt.rb'
 require_relative 'lib/helpers/proxmox.rb'
+require_relative 'lib/helpers/kubevirt.rb'
 require_relative 'lib/readers/system_reader.rb'
 require_relative 'lib/readers/module_reader.rb'
 require_relative 'lib/output/project_files_creator.rb'
@@ -81,6 +82,24 @@ def usage
    --proxmox-node [node]
    --proxmox-network [proxmox network name]
    --proxmox-vlan [vlan number]
+
+   KUBEVIRT OPTIONS:
+   --kubevirt-namespace [namespace]: Run the lab in this namespace (this is what selects the
+              KubeVirt provider). Defaults to no namespace, i.e. the provider is not used.
+   --kubevirt-kubeconfig [path]: Kubeconfig to use (defaults to the ambient KUBECONFIG)
+   --kubevirt-storage-class [name]: Storage class for the cloned root disks (default: ceph-block)
+   --kubevirt-golden-namespace [namespace]: Namespace holding the golden base images
+              (default: secgen-bases)
+   --kubevirt-cpus [number]: Virtual CPUs per VM (default: 2)
+   --kubevirt-ssh-key [path]: Private key for the guest's vagrant user (defaults to the
+              published Vagrant insecure key in lib/resources/kubevirt)
+   --kubevirt-dns [nameserver]: Nameserver(s) to hand the guest (comma separated).
+              Default is to leave it to the cluster (dnsPolicy Default).
+   --kubevirt-create-namespace: Create the namespace (with a quota and clone access to the
+              golden images) if it does not exist
+   --kubevirt-halt: Halt the VMs after provisioning (runStrategy Halted)
+   --kubevirt-image-size [size]: Size of the cloned root disk (e.g. 34Gi). Must be at least
+              the golden image's size. Default is to read it from the cluster.
    COMMANDS:
    run, r: Builds project and then builds the VMs
    build-project, p: Builds project (vagrant and puppet config), but does not build VMs
@@ -90,6 +109,11 @@ def usage
               (snapshots and networking)
    proxmox-post-build: only performs the proxmox actions that normally follow a successful vm build
               (snapshots and networking)
+   kubevirt-build: builds the VMs of a KubeVirt project (the manifests and provisioning
+              scripts generated into the project) and runs the post-provision tests.
+              KubeVirt has no Vagrant plugin, so SecGen drives the build itself.
+   kubevirt-destroy: deletes the lab's VMs and their root disks (never the golden images)
+   kubevirt-status: prints the phase and address of each VM in the project's lab
    create-forensic-image: Builds forensic images from a previously generated project
               (can be used in combination with --project [dir])
    list-scenarios: Lists all scenarios that can be used with the --scenario option
@@ -127,6 +151,9 @@ def build_config(scenario, out_dir, options)
     system
   }
   warn_virtualbox_bases(systems, options)
+  # Phase 1 of the KubeVirt provider has no isolated-L2/VLAN networking, so say so loudly
+  # rather than generating a lab whose network configuration is silently wrong.
+  KubeVirtFunctions.warn_unsupported_network_modules(systems) if KubeVirtFunctions.provider_kubevirt?(options)
 
   Print.info "Creating project: #{out_dir}..."
   # creates Vagrantfile and other outputs and starts the vagrant installation
@@ -141,7 +168,8 @@ end
 def warn_virtualbox_bases(systems, options)
   return if (options.has_key?(:ovirtuser) && options.has_key?(:ovirtpass)) ||
             (options.has_key?(:proxmoxuser) && options.has_key?(:proxmoxpass)) ||
-            (options.has_key?(:esxiuser) && options.has_key?(:esxipass))
+            (options.has_key?(:esxiuser) && options.has_key?(:esxipass)) ||
+            KubeVirtFunctions.provider_kubevirt?(options)
   systems.each do |system|
     system.module_selections.each do |mod|
       next unless mod.module_type == 'base' && mod.attributes['virtualbox_warning']
@@ -160,6 +188,14 @@ def build_vms(scenario, project_dir, options)
   end
 
   project_dir + '/scenario.xml'
+
+  # The KubeVirt provider does not use Vagrant at all (there is no maintained KubeVirt
+  # plugin), so it drives the build itself: it applies the VM manifests generated into the
+  # project and provisions the guests over virtctl (see lib/helpers/kubevirt.rb).
+  if KubeVirtFunctions.provider_kubevirt?(options)
+    kubevirt_build(options, project_dir)
+    return
+  end
 
   Print.info "Building project: #{project_dir}"
   system = ''
@@ -318,6 +354,87 @@ if options[:proxmox_post_boot]
 end
 end
 
+# Builds, provisions and tests a KubeVirt lab from a generated project.
+#
+# KubeVirt has no Vagrant provider, so this mirrors the successful-creation path of
+# build_vms without Vagrant: the VM manifests generated into the project are applied to the
+# cluster, the guests are provisioned over virtctl (lib/helpers/kubevirt.rb), and the
+# post-provision tests run as they do for the other providers.
+def kubevirt_build(options, project_dir)
+  unless project_dir
+    Print.err 'Please specify the project directory to build (--project [dir])'
+    usage
+    exit 1
+  end
+
+  retry_count = options.has_key?(:retries) ? options[:retries].to_i : 0
+  successful_creation = false
+
+  while retry_count >= 0 and !successful_creation
+    begin
+      KubeVirtFunctions.build(project_dir, options)
+      successful_creation = true
+    rescue StandardError => e
+      Print.err "KubeVirt build failed: #{e.message}"
+      if retry_count > 0
+        Print.err "Destroying the VMs and retrying (#{retry_count} attempt(s) left)..."
+        kubevirt_destroy_quietly(options, project_dir)
+      elsif options[:nodestroy]
+        Print.err 'Not destroying the VMs (--no-destroy-on-failure)'
+      else
+        Print.err 'Destroying the VMs and exiting SecGen.'
+        kubevirt_destroy_quietly(options, project_dir)
+      end
+    end
+    retry_count -= 1
+  end
+
+  unless successful_creation
+    Print.err 'Failed to build VMs'
+    exit 1
+  end
+
+  Print.info 'VMs created.'
+  unless post_provision_tests(project_dir, options)
+    Print.err 'Post provision tests contained failures!'
+    exit 1
+  end
+
+  if options[:shutdown] or options[:kubevirthalt]
+    Print.info 'Halting VMs.'
+    KubeVirtFunctions.halt(project_dir, options)
+  end
+end
+
+# Deletes the VMs of a KubeVirt project (with their DataVolumes and root disks; the golden
+# images live in another namespace and are never touched).
+def kubevirt_destroy(options, project_dir)
+  unless project_dir
+    Print.err 'Please specify the project directory to destroy (--project [dir])'
+    usage
+    exit 1
+  end
+  KubeVirtFunctions.destroy(project_dir, options)
+end
+
+# Destroy, but report a failure instead of raising: used on kubevirt_build's failure paths,
+# where the original build error is the useful one.
+def kubevirt_destroy_quietly(options, project_dir)
+  KubeVirtFunctions.destroy(project_dir, options)
+rescue StandardError => e
+  Print.err "Failed to destroy the VMs: #{e.message}"
+end
+
+# Prints the phase and pod-network address of each VM of a KubeVirt project.
+def kubevirt_status(options, project_dir)
+  unless project_dir
+    Print.err 'Please specify the project directory to report on (--project [dir])'
+    usage
+    exit 1
+  end
+  KubeVirtFunctions.status(project_dir, options)
+end
+
 # Make forensic image helper methods
 #################################################
 # Create an EWF forensic image
@@ -435,8 +552,14 @@ def get_vm_names(scenario)
   vm_names
 end
 
-def reboot_cycle(project_dir)
+def reboot_cycle(project_dir, options)
   Print.info 'Shutting down VMs.'
+  if KubeVirtFunctions.provider_kubevirt?(options)
+    # No Vagrant to halt/up: restart the VMs through the cluster API instead, so services
+    # are tested after a clean boot, as they are on the other providers.
+    KubeVirtFunctions.restart(project_dir, options)
+    return
+  end
   sleep(30)
   GemExec.exe('vagrant', project_dir, 'halt')
   sleep 5
@@ -448,7 +571,7 @@ def post_provision_tests(project_dir, options)
   tests_passed = true
   unless options[:notests]
     Print.info 'Restarting for post-provision tests...'
-    reboot_cycle(project_dir)
+    reboot_cycle(project_dir, options)
     Print.info 'Running post-provision tests...'
 
     test_module_outputs = []
@@ -551,6 +674,16 @@ opts = GetoptLong.new(
     ['--proxmox-network', GetoptLong::REQUIRED_ARGUMENT],
     ['--proxmox-vlan', GetoptLong::REQUIRED_ARGUMENT],
     ['--proxmox-post-boot', GetoptLong::NO_ARGUMENT],
+    ['--kubevirt-namespace', GetoptLong::REQUIRED_ARGUMENT],
+    ['--kubevirt-kubeconfig', GetoptLong::REQUIRED_ARGUMENT],
+    ['--kubevirt-storage-class', GetoptLong::REQUIRED_ARGUMENT],
+    ['--kubevirt-golden-namespace', GetoptLong::REQUIRED_ARGUMENT],
+    ['--kubevirt-cpus', GetoptLong::REQUIRED_ARGUMENT],
+    ['--kubevirt-ssh-key', GetoptLong::REQUIRED_ARGUMENT],
+    ['--kubevirt-dns', GetoptLong::REQUIRED_ARGUMENT],
+    ['--kubevirt-create-namespace', GetoptLong::NO_ARGUMENT],
+    ['--kubevirt-halt', GetoptLong::NO_ARGUMENT],
+    ['--kubevirt-image-size', GetoptLong::REQUIRED_ARGUMENT],
     ['--esxiuser', GetoptLong::REQUIRED_ARGUMENT],
     ['--esxipass', GetoptLong::REQUIRED_ARGUMENT],
     ['--esxi-hostname', GetoptLong::REQUIRED_ARGUMENT],
@@ -678,6 +811,38 @@ opts.each do |opt, arg|
   when '--proxmox-post-boot'
     Print.info "Proxmox start all VMs post provision"
     options[:proxmox_post_boot] = true
+  # KubeVirt options. The namespace is what selects the provider; there are no credentials
+  # here because kubectl and virtctl use the ambient kubeconfig.
+  when '--kubevirt-namespace'
+    Print.info "KubeVirt namespace : #{arg}"
+    options[:kubevirtnamespace] = arg
+  when '--kubevirt-kubeconfig'
+    Print.info "KubeVirt kubeconfig : #{arg}"
+    options[:kubevirtkubeconfig] = arg
+  when '--kubevirt-storage-class'
+    Print.info "KubeVirt storage class : #{arg}"
+    options[:kubevirtstorageclass] = arg
+  when '--kubevirt-golden-namespace'
+    Print.info "KubeVirt golden image namespace : #{arg}"
+    options[:kubevirtgoldennamespace] = arg
+  when '--kubevirt-cpus'
+    Print.info "KubeVirt CPUs per VM : #{arg}"
+    options[:kubevirtcpus] = arg
+  when '--kubevirt-ssh-key'
+    Print.info "KubeVirt guest ssh key : #{arg}"
+    options[:kubevirtsshkey] = arg
+  when '--kubevirt-dns'
+    Print.info "KubeVirt guest nameserver(s) : #{arg}"
+    options[:kubevirtdns] = arg
+  when '--kubevirt-create-namespace'
+    Print.info 'KubeVirt: creating the namespace if it does not exist'
+    options[:kubevirtcreatenamespace] = true
+  when '--kubevirt-halt'
+    Print.info 'Halting KubeVirt VMs after provisioning'
+    options[:kubevirthalt] = true
+  when '--kubevirt-image-size'
+    Print.info "KubeVirt cloned disk size : #{arg}"
+    options[:kubevirtimagesize] = arg
   # ESXi options
   when '--esxiuser'
     Print.info "ESXi Username : #{arg}"
@@ -784,6 +949,15 @@ when 'ovirt-post-build'
 
 when 'proxmox-post-build'
   proxmox_post_build(options, scenario, project_dir)
+
+when 'kubevirt-build'
+  kubevirt_build(options, project_dir)
+
+when 'kubevirt-destroy'
+  kubevirt_destroy(options, project_dir)
+
+when 'kubevirt-status'
+  kubevirt_status(options, project_dir)
 
 when 'list-scenarios'
   list_scenarios

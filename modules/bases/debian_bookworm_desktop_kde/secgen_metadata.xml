@@ -18,6 +18,7 @@
   <vagrant_box>secgen/bookworm-base</vagrant_box>
   <vagrant_box_version>1.1.0</vagrant_box_version>
   <esxi_url>https://app.vagrantup.com/redwiz666/boxes/debian_stretch_desktop_kde/versions/1.0.0/providers/vmware.box</esxi_url>
+  <kubevirt_image>secgen-base-bookworm-desktop-kde</kubevirt_image>
   <ovirt_template>buster_desktop_kde_20230615</ovirt_template>
   <proxmox_template>bookworm-desktop-kde-20260715</proxmox_template>
 

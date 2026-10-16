@@ -24,6 +24,24 @@ A box must let the `vagrant` user log in with Vagrant's insecure key (keep both 
 
 [scripts/vagrant-base-update](scripts/vagrant-base-update/README.md) rebuilds `secgen/bookworm-base` and `secgen/kali_light` from their current versions with updates applied, current Guest Additions, the insecure keys, and the clean-up steps below, and writes the box catalog to publish with the new version on hacktivity.co.uk (these boxes are no longer on Vagrant Cloud, which closes at the end of 2026).
 
+## KubeVirt golden images
+
+KubeVirt has no Vagrant plugin, so SecGen does not build its VMs with Vagrant there: for each
+VM it clones a *golden image* - a PVC holding the base's disk, kept in its own namespace -
+into the lab namespace. A base that can be used on KubeVirt declares the PVC it clones from:
+
+```xml
+<kubevirt_image>secgen-base-bookworm-desktop-kde</kubevirt_image>
+```
+
+in its `secgen_metadata.xml`, next to `esxi_url` and `proxmox_template`. Store the image before
+publishing the base: it is never modified, so it can be reused by every lab. Everything in
+this guide applies to it (puppet, the insecure keys in `vagrant`'s `authorized_keys`,
+passwordless sudo, fresh apt package lists); the only difference is the packaging step - see
+[README-KubeVirt.md](README-KubeVirt.md) for how the base is uploaded as a PVC, the cluster
+RBAC that cross-namespace clones need, and the phase 1 networking limitation
+(pod/masquerade only).
+
 ## Updating repository certificates
 
 Occasionally we apt-get update; apt-get upgrade. This can be required to avoid package repo certificates from expiring; however, this does run the risk of breaking modules.

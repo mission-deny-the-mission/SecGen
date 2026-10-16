@@ -59,6 +59,10 @@
              (for bases whose VirtualBox box is not maintained or tested) -->
         <xs:element name="virtualbox_warning" type="xs:string" minOccurs="0" maxOccurs="1"/>
         <xs:element name="esxi_url" type="xs:string" minOccurs="0" maxOccurs="1"/>
+        <!-- KubeVirt: name of the PVC, in the golden-image namespace (default secgen-bases),
+             that a lab VM's root disk is cloned from when a scenario is built with the
+             KubeVirt provider. The golden image is never modified; see README-KubeVirt.md -->
+        <xs:element name="kubevirt_image" type="xs:string" minOccurs="0" maxOccurs="1"/>
         <xs:element name="ovirt_template" type="xs:string" minOccurs="0" maxOccurs="unbounded"/>
         <xs:element name="proxmox_template" type="xs:string" minOccurs="0" maxOccurs="unbounded"/>
 

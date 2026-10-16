@@ -1,6 +1,7 @@
 require 'erb'
 require_relative '../helpers/constants.rb'
 require_relative '../helpers/network.rb'
+require_relative '../helpers/kubevirt.rb'
 require_relative 'xml_scenario_generator.rb'
 require_relative 'xml_marker_generator.rb'
 require_relative 'xml_cybok_generator.rb'
@@ -229,7 +230,23 @@ class ProjectFilesCreator
       Print.std "Wrote Proxmox test context (credentials excluded)"
     end
 
-    Print.std "VM(s) can be built using 'vagrant up' in #{@out_dir}"
+    # For KubeVirt builds the provider drives the build itself (KubeVirt has no maintained
+    # Vagrant plugin): generate the per-system VM manifests and provisioning scripts, plus a
+    # (non-secret) test context and the transport the post-provision tests use over virtctl.
+    # Generating them needs cluster access, because a clone may not be smaller than the
+    # golden image it clones, so the golden PVC's size is read from the cluster
+    # (--kubevirt-image-size overrides that).
+    if KubeVirtFunctions.provider_kubevirt?(@options)
+      @systems.each { |system| system.memory = resolve_memory(system) }
+      KubeVirtFunctions.write_project_assets(@systems, @out_dir, @options)
+    end
+
+    if KubeVirtFunctions.provider_kubevirt?(@options)
+      Print.std "KubeVirt VM(s) can be built with: ruby secgen.rb --project #{@out_dir} " \
+                "--kubevirt-namespace #{@options[:kubevirtnamespace]} kubevirt-build"
+    else
+      Print.std "VM(s) can be built using 'vagrant up' in #{@out_dir}"
+    end
 
   end
 

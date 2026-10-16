@@ -19,6 +19,7 @@
   <vagrant_box>secgen/kali_light</vagrant_box>
   <vagrant_box_version>2.1.0</vagrant_box_version>
   <esxi_url></esxi_url>
+  <kubevirt_image>secgen-base-kali-light-msf</kubevirt_image>
   <ovirt_template>kali-linux-mfs-20231114</ovirt_template>
   <proxmox_template>kali-linux-msf-20260719</proxmox_template>
 
