@@ -1162,13 +1162,17 @@ class KubeVirtFunctions
 
   # The per-VM metadata written while the project was generated, in scenario order.
   def self.vm_metadata(project_dir)
+    # kubevirt/ also holds lab-networks.json, so a file is VM metadata only if it names a VM;
+    # globbing *.json alone made the network plan a nameless third "VM" (found on the first
+    # real kubevirt-build run).
     Dir.glob("#{project_dir}/kubevirt/*.json").map do |path|
       begin
         JSON.parse(File.read(path))
       rescue JSON::ParserError => e
         raise BuildError, "cannot read #{path}: #{e.message}"
       end
-    end.sort_by { |meta| [meta['order'].to_i, meta['vm_name'].to_s] }
+    end.select { |meta| meta.is_a?(Hash) && !meta['vm_name'].to_s.empty? }
+      .sort_by { |meta| [meta['order'].to_i, meta['vm_name'].to_s] }
   end
 
   # Honour --system, which restricts a command to one system of the scenario (as it does for

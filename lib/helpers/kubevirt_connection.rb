@@ -34,14 +34,16 @@ class KubeVirt
   # Generous default: image uploads and puppet runs are both slow.
   DEFAULT_TIMEOUT = 900
 
-  attr_accessor :namespace, :kubeconfig, :kubectl, :virtctl, :ssh_key, :verbose
+  # The binaries are stored as kubectl_cmd/virtctl_cmd, not kubectl/virtctl: accessors with
+  # those names would be overwritten by the kubectl(args)/virtctl(args) methods below.
+  attr_accessor :namespace, :kubeconfig, :kubectl_cmd, :virtctl_cmd, :ssh_key, :verbose
 
   def initialize(namespace, kubeconfig: nil, kubectl: 'kubectl', virtctl: 'virtctl',
                  ssh_key: nil, verbose: false)
     self.namespace = namespace
     self.kubeconfig = kubeconfig
-    self.kubectl = kubectl
-    self.virtctl = virtctl
+    self.kubectl_cmd = kubectl
+    self.virtctl_cmd = virtctl
     self.ssh_key = ssh_key.nil? || ssh_key.empty? ? DEFAULT_SSH_KEY : ssh_key
     self.verbose = verbose
   end
@@ -83,7 +85,7 @@ class KubeVirt
   def virtctl(args, options = {})
     ns = namespace.to_s
     full_args = ns.empty? ? args : ['--namespace', ns] + args
-    run_cli(self.virtctl, full_args, options)
+    run_cli(virtctl_cmd, full_args, options)
   end
 
   # Run a CLI, returning stdout. Raises TransportError on non-zero exit or timeout.
