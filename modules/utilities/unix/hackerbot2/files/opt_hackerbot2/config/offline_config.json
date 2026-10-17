@@ -1,0 +1,86 @@
+{
+  "version": "1.0.0",
+  "offline_mode": {
+    "enabled": true,
+    "auto_detect": true,
+    "fallback_to_offline": true
+  },
+  "rag": {
+    "offline_mode": true,
+    "vector_db": {
+      "provider": "chromadb",
+      "storage_path": "/home/harry/opt_hackerbot/knowledge_bases/offline",
+      "persist_embeddings": true,
+      "compression_enabled": true
+    },
+    "embedding_service": {
+      "provider": "ollama",
+      "model": "nomic-embed-text",
+      "local_model_path": null,
+      "cache_embeddings": true,
+      "cache_path": "/home/harry/opt_hackerbot/cache/embeddings"
+    },
+    "document_preprocessing": {
+      "chunk_size": 1000,
+      "chunk_overlap": 200,
+      "normalize_text": true,
+      "remove_stopwords": false
+    }
+  },
+  "cag": {
+    "offline_mode": true,
+    "knowledge_graph": {
+      "provider": "in_memory",
+      "storage_path": "/home/harry/opt_hackerbot/knowledge_bases/offline",
+      "persist_graph": true,
+      "load_from_file": true
+    },
+    "entity_extractor": {
+      "provider": "rule_based",
+      "custom_patterns": null,
+      "cache_entities": true
+    },
+    "graph_traversal": {
+      "max_depth": 3,
+      "max_nodes": 50,
+      "enable_caching": true
+    }
+  },
+  "knowledge_bases": {
+    "auto_load": true,
+    "preload_on_startup": true,
+    "update_strategy": "manual",
+    "sources": [
+      {
+        "name": "mitre_attack",
+        "type": "builtin",
+        "enabled": true,
+        "version": "latest"
+      },
+      {
+        "name": "cybersecurity_essentials",
+        "type": "custom",
+        "enabled": true,
+        "path": "knowledge_bases/cybersecurity_essentials.json"
+      }
+    ]
+  },
+  "caching": {
+    "enabled": true,
+    "max_size_mb": 1024,
+    "ttl_seconds": 86400,
+    "persist_to_disk": true,
+    "cache_path": "/home/harry/opt_hackerbot/cache/offline"
+  },
+  "performance": {
+    "enable_memory_optimization": true,
+    "max_memory_usage_mb": 2048,
+    "enable_streaming": true,
+    "batch_size": 50
+  },
+  "monitoring": {
+    "log_performance_metrics": true,
+    "track_cache_hits": true,
+    "enable_offline_diagnostics": true
+  }
+}

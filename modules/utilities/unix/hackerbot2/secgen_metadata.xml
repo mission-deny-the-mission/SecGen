@@ -1,0 +1,42 @@
+<?xml version="1.0"?>
+
+<utility xmlns="http://www.github/cliffe/SecGen/utility"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://www.github/cliffe/SecGen/utility">
+  <name>Hackerbot2</name>
+  <author>Mission Deny the Mission</author>
+  <module_license>MIT</module_license>
+  <description>AI-Powered Cybersecurity Training Framework. An advanced chatbot with LLM integration (Ollama, OpenAI, VLLM, SGLang) that attacks and challenges users for educational purposes.
+    Connects to an IRC server (localhost by default), supports RAG (Retrieval Augmented Generation) for knowledge enhancement, and provides AI-powered conversations for cybersecurity training.
+    Enhanced version of the original Hackerbot with modern AI capabilities.</description>
+
+  <type>chatbot</type>
+  <platform>linux</platform>
+
+  <software_license>MIT</software_license>
+
+  <read_fact>server_ip</read_fact>
+  <read_fact>hackerbot_configs</read_fact>
+  <!--port for www hosting of lab sheets-->
+  <read_fact>port</read_fact>
+
+  <default_input into="port">
+    <value>80</value>
+  </default_input>
+
+  <default_input into="server_ip">
+    <value>localhost</value>
+  </default_input>
+
+  <default_input into="hackerbot_configs">
+    <value>localhost</value>
+  </default_input>
+
+  <requires>
+    <type>update</type>
+  </requires>
+  <requires>
+    <module_path>.*services/.*/apache.*</module_path>
+    <type>httpd</type>
+  </requires>
+</utility>

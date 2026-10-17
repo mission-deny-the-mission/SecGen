@@ -1,0 +1,62 @@
+<?xml version="1.0"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           targetNamespace="http://www.github/cliffe/SecGen/hackerbot"
+           xmlns="http://www.github/cliffe/SecGen/hackerbot"
+           elementFormDefault="qualified">
+
+  <xs:element name="hackerbot">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="name" type="xs:string" minOccurs="1" maxOccurs="1"/>
+
+        <xs:element name="greeting" type="xs:string" minOccurs="1" maxOccurs="1"/>
+
+        <!-- Attack element with optional vm_context -->
+        <xs:element name="attack" minOccurs="0" maxOccurs="unbounded">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="prompt" type="xs:string" minOccurs="0" maxOccurs="1"/>
+              <!-- Optional vm_context element -->
+              <xs:element name="vm_context" minOccurs="0" maxOccurs="1">
+                <xs:complexType>
+                  <xs:sequence>
+                    <!-- Optional bash_history element -->
+                    <xs:element name="bash_history" minOccurs="0" maxOccurs="1">
+                      <xs:complexType>
+                        <xs:attribute name="path" type="xs:string" use="optional" default="~/.bash_history"/>
+                        <xs:attribute name="limit" type="xs:positiveInteger" use="optional"/>
+                        <xs:attribute name="user" type="xs:string" use="optional"/>
+                      </xs:complexType>
+                    </xs:element>
+                    <!-- Optional commands element -->
+                    <xs:element name="commands" minOccurs="0" maxOccurs="1">
+                      <xs:complexType>
+                        <xs:sequence>
+                          <xs:element name="command" type="xs:string" minOccurs="0" maxOccurs="unbounded"/>
+                        </xs:sequence>
+                      </xs:complexType>
+                    </xs:element>
+                    <!-- Optional files element -->
+                    <xs:element name="files" minOccurs="0" maxOccurs="1">
+                      <xs:complexType>
+                        <xs:sequence>
+                          <xs:element name="file" minOccurs="0" maxOccurs="unbounded">
+                            <xs:complexType>
+                              <xs:attribute name="path" type="xs:string" use="required"/>
+                            </xs:complexType>
+                          </xs:element>
+                        </xs:sequence>
+                      </xs:complexType>
+                    </xs:element>
+                  </xs:sequence>
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+</xs:schema>
