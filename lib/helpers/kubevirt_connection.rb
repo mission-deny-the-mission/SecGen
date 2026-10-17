@@ -3,6 +3,7 @@ require 'json'
 require 'open3'
 require 'socket'
 require 'timeout'
+require 'tmpdir'
 
 require_relative './print.rb'
 
@@ -44,8 +45,19 @@ class KubeVirt
     self.kubeconfig = kubeconfig
     self.kubectl_cmd = kubectl
     self.virtctl_cmd = virtctl
-    self.ssh_key = ssh_key.nil? || ssh_key.empty? ? DEFAULT_SSH_KEY : ssh_key
+    self.ssh_key = usable_key(ssh_key.nil? || ssh_key.empty? ? DEFAULT_SSH_KEY : ssh_key)
     self.verbose = verbose
+  end
+
+  # ssh ignores a private key that group/others can read ("UNPROTECTED PRIVATE KEY FILE"), and a
+  # git checkout gives the vendored key whatever the umask allows (0664 under umask 002, the
+  # default for many container/dev setups). Hand ssh a 0600 copy instead of failing every login.
+  def usable_key(path)
+    return path unless File.file?(path) && (File.stat(path).mode & 0o077) != 0
+    copy = File.join(Dir.tmpdir, "secgen-kubevirt-key-#{Process.uid}-#{File.basename(path)}")
+    File.open(copy, File::WRONLY | File::CREAT | File::TRUNC, 0o600) { |f| f.write(File.read(path)) }
+    File.chmod(0o600, copy)
+    copy
   end
 
   # Build a transport from the command line options hash.
