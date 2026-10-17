@@ -12,7 +12,9 @@ class HackerbotConfigGenerator < StringGenerator
   attr_accessor :local_dir
   attr_accessor :templates_path
   attr_accessor :config_template_path
-
+  # No longer rendered (lab sheets are not hosted from the bot any more), but the hb2_* generators
+  # still set it, and without the accessor they die with NoMethodError before writing any config.
+  attr_accessor :html_template_path
   def initialize
     super
     self.module_name = 'Hackerbot Config Generator'
