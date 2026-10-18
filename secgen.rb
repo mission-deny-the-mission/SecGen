@@ -126,6 +126,10 @@ def usage
               (all on one node, which a lab needs when its VMs have to reach each other on a
               scenario network) or a node name. Multus lab networks only reach VMs on the
               same node: see 'Networking' in README-KubeVirt.md.
+   --kubevirt-lab-network [backend]: How a lab's scenario networks are built: 'ovn' (Kube-OVN
+                         logical switches that span every node, so a lab may spread over the
+                         cluster), 'bridge' (node-local Linux bridges; keep the lab on one node), or
+                         'auto' (default: ovn when the cluster serves the kubeovn.io API).
    --kubevirt-llm: Hand every guest the LiteLLM endpoint and key even when the egress tier
               is 'internet'. Implied by --kubevirt-egress litellm.
    --kubevirt-litellm-service [namespace/name]: the LiteLLM Service (default litellm/litellm).
@@ -719,6 +723,7 @@ opts = GetoptLong.new(
     ['--kubevirt-image-size', GetoptLong::REQUIRED_ARGUMENT],
     ['--kubevirt-egress', GetoptLong::REQUIRED_ARGUMENT],
     ['--kubevirt-placement', GetoptLong::REQUIRED_ARGUMENT],
+    ['--kubevirt-lab-network', GetoptLong::REQUIRED_ARGUMENT],
     ['--kubevirt-llm', GetoptLong::NO_ARGUMENT],
     ['--kubevirt-litellm-service', GetoptLong::REQUIRED_ARGUMENT],
     ['--kubevirt-litellm-secret', GetoptLong::REQUIRED_ARGUMENT],
@@ -910,6 +915,13 @@ opts.each do |opt, arg|
   when '--kubevirt-placement'
     Print.info "KubeVirt lab placement : #{arg} (spread, compact, or a node name)"
     options[:kubevirtplacement] = arg
+  when '--kubevirt-lab-network'
+    unless %w(auto ovn bridge).include?(arg)
+      Print.err "--kubevirt-lab-network must be auto, ovn or bridge (got '#{arg}')"
+      exit 1
+    end
+    Print.info "KubeVirt lab networks : #{arg}"
+    options[:kubevirtlabnetwork] = arg
   when '--kubevirt-llm'
     Print.info 'KubeVirt: labs will be given the LiteLLM endpoint and key'
     options[:kubevirtllm] = true
