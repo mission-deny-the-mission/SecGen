@@ -166,6 +166,32 @@ class KubeVirt
     default
   end
 
+  # Cluster-scoped objects (Kube-OVN Vpc/Subnet): same as jsonpath/delete, without -n.
+  def cluster_jsonpath(kind, name, path, default = '')
+    out = kubectl(['get', kind, name, '-o', "jsonpath=#{path}", '--ignore-not-found'], false, timeout: 60).strip
+    out.empty? ? default : out
+  rescue TransportError
+    default
+  end
+
+  def delete_cluster(kind, name, options = {})
+    kubectl(['delete', kind, name, '--ignore-not-found', '--wait=false'], false, options)
+  end
+
+  # Cluster-scoped objects of a kind matching a label selector, as parsed JSON items.
+  def cluster_list(kind, selector)
+    data = read_json(kubectl(['get', kind, '-l', selector, '-o', 'json'], false, timeout: 60),
+                     "#{kind} (#{selector})")
+    data.fetch('items', [])
+  end
+
+  # Does the API server serve this API group? (Discovery: readable by any authenticated client.)
+  def api_group_served?(group)
+    kubectl(['api-versions'], false, timeout: 60).lines.any? { |line| line.start_with?("#{group}/") }
+  rescue TransportError
+    false
+  end
+
   def namespace_exists?
     !kubectl(['get', 'namespace', namespace, '-o', 'jsonpath={.metadata.name}'], false,
              timeout: 60).strip.empty?

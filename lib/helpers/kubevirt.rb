@@ -5,6 +5,7 @@ require 'fileutils'
 require 'ipaddr'
 require 'json'
 require 'securerandom'
+require 'socket'
 require 'tmpdir'
 
 require_relative 'constants.rb'
@@ -25,10 +26,13 @@ require_relative 'kubevirt_connection'
 #
 # NETWORKING: every guest has a masquerade interface on the cluster pod network, which is how
 # SecGen reaches it (the API server) and the only way it gets a default route. Each scenario
-# <network> additionally becomes a Multus bridge interface on the lab's own L2 segment, with a
-# NetworkAttachmentDefinition pinned to the address SecGen assigned that interface. That is the
-# one thing to know about this mapping: a Multus L2 segment exists on a single node, so a lab's
-# VMs only reach each other on it while they are co-located (--kubevirt-placement).
+# <network> additionally becomes a Multus interface on the lab's own L2 segment, on the address
+# SecGen assigned that interface. Two backends (--kubevirt-lab-network):
+#   ovn     a Kube-OVN logical switch per scenario network, spanning every node (Geneve), each in
+#           a Vpc of its own so labs never see each other; addresses pinned per interface. The
+#           default when the cluster has Kube-OVN.
+#   bridge  a node-local Linux bridge per VLAN with whereabouts-pinned NADs: a lab's VMs only
+#           reach each other while they are co-located (--kubevirt-placement compact).
 # See "Networking" in README-KubeVirt.md.
 #
 # The lab can also be given an egress tier (--kubevirt-egress): the whole point of a lab VM on a
@@ -76,6 +80,7 @@ class KubeVirtFunctions
   NAMESPACE_QUOTA_TEMPLATE = "#{ROOT_DIR}/lib/templates/kubevirt_namespace_quota.yaml.erb"
   CLONE_RBAC_TEMPLATE = "#{ROOT_DIR}/lib/templates/kubevirt_clone_rbac.yaml.erb"
   NAD_TEMPLATE = "#{ROOT_DIR}/lib/templates/kubevirt_nad.yaml.erb"
+  OVN_TEMPLATE = "#{ROOT_DIR}/lib/templates/kubevirt_ovn.yaml.erb"
   EGRESS_CNP_TEMPLATE = "#{ROOT_DIR}/lib/templates/kubevirt_egress_cnp.yaml.erb"
 
   # The lab's network plan (non-secret: names, subnets and addresses) and the rendered
@@ -95,6 +100,20 @@ class KubeVirtFunctions
   DEFAULT_PLACEMENT = 'spread'
   PLACEMENT_SPREAD = 'spread'
   PLACEMENT_COMPACT = 'compact'
+
+  # Lab network backends (see NETWORKING above). 'auto' picks ovn when the cluster serves the
+  # kubeovn.io API, else bridge.
+  LAB_NETWORK_BACKENDS = %w(auto ovn bridge).freeze
+  LAB_NETWORK_OVN = 'ovn'
+  LAB_NETWORK_BRIDGE = 'bridge'
+  # Labels on the cluster-scoped Kube-OVN objects (Vpc, Subnet) a lab owns, so destroy can find
+  # them, and so the ones a Coder workspace created for its own leg are never deleted by a lab.
+  LAB_NETWORK_OWNER_LABEL = 'secgen.io/owner'
+  LAB_NETWORK_OWNER_PROVIDER = 'secgen-provider'
+  LAB_NETWORK_NAMESPACE_LABEL = 'secgen.io/lab-namespace'
+  # A lab's Kube-OVN Subnets refuse deletion while a port is still in use: the VMs' launcher
+  # pods take a little while to go after the VMs are deleted.
+  OVN_DELETE_TIMEOUT = 180
 
   # Egress tiers. 'internet' applies no policy at all (the cluster's default reach), 'litellm'
   # allows only the LiteLLM lane, 'none' allows nothing.
@@ -139,7 +158,7 @@ class KubeVirtFunctions
     attr_accessor :modules, :puppet_root, :puppet_system_dir
     # Lab networking and placement (kubevirt_vm.yaml.erb), the lab's own networks
     # (kubevirt_nad.yaml.erb) and the egress tier (kubevirt_egress_cnp.yaml.erb).
-    attr_accessor :lab_interfaces, :placement, :lab_id
+    attr_accessor :lab_interfaces, :placement, :lab_id, :lab_network_backend
     attr_accessor :nad_networks
     attr_accessor :egress_tier, :egress_port, :egress_dns_servers
 
@@ -198,6 +217,18 @@ class KubeVirtFunctions
   def self.placement(options)
     value = options[:kubevirtplacement].to_s
     value.empty? ? DEFAULT_PLACEMENT : value
+  end
+
+  # 'ovn' or 'bridge'. 'auto' (the default) asks the cluster whether it serves the kubeovn.io
+  # API (API discovery, which every authenticated client may read, so a workspace's restricted
+  # service account can answer it too). Resolved once and remembered in the options.
+  def self.lab_network_backend(options, transport = nil)
+    value = options[:kubevirtlabnetwork].to_s
+    value = 'auto' if value.empty?
+    return value unless value == 'auto'
+
+    transport ||= self.transport(options)
+    options[:kubevirtlabnetwork] = transport.api_group_served?('kubeovn.io') ? LAB_NETWORK_OVN : LAB_NETWORK_BRIDGE
   end
 
   # Is this lab handed the LiteLLM lane? It comes with the 'litellm' tier, and --kubevirt-llm
@@ -285,6 +316,9 @@ class KubeVirtFunctions
     # The scenario's networks become the lab's own L2 segments, before anything is generated:
     # the NADs have to exist before a VM that references them, and the interfaces are part of
     # the VM manifest.
+    if lab_network_backend(options, transport) == LAB_NETWORK_OVN
+      options[:ovnworkspace] = ovn_workspace_networks(transport, options[:kubevirtnamespace].to_s)
+    end
     plan = lab_network_plan(systems, options)
     write_lab_networks(out_dir, plan, options)
 
@@ -432,6 +466,7 @@ class KubeVirtFunctions
     context.lab_interfaces = interfaces
     context.placement = placement(options)
     context.lab_id = options[:kubevirtnamespace].to_s
+    context.lab_network_backend = lab_network_backend(options)
     context
   end
 
@@ -489,6 +524,10 @@ class KubeVirtFunctions
       interfaces[system.name] = list
     end
 
+    if lab_network_backend(options) == LAB_NETWORK_OVN
+      return ovn_lab_network_plan(namespace, vlans, want, interfaces, options)
+    end
+
     # One NAD per interface address, all of a VLAN's addresses on that VLAN's bridge.
     nad_networks = []
     vlans.keys.sort.each do |vlan|
@@ -525,7 +564,104 @@ class KubeVirtFunctions
       end
     end
 
-    { 'namespace' => namespace, 'networks' => nad_networks, 'systems' => attached }
+    { 'namespace' => namespace, 'backend' => LAB_NETWORK_BRIDGE, 'networks' => nad_networks,
+      'systems' => attached }
+  end
+
+  # The Kube-OVN form of the plan: one Vpc + Subnet + NAD per VLAN (not per address), and each
+  # interface carries its address for the ip_address annotation on the VM template. The NAD and
+  # provider names are fixed per VLAN, so a Coder workspace can pre-create the first network and
+  # join it (see ovn_existing_subnet): the lab then reuses that Subnet instead of creating one.
+  def self.ovn_lab_network_plan(namespace, vlans, want, interfaces, options)
+    nad_networks = vlans.keys.sort.map do |vlan|
+      range = vlans[vlan]['range']
+      used = want.fetch(vlan, []).map { |_system, address, _fixed| address }
+      names = ovn_names(namespace, vlan)
+      network = names.merge(
+        'range' => range,
+        'gateway' => ovn_gateway(range, used),
+        'vlan' => vlan,
+        'systems' => vlans[vlan]['systems'].uniq,
+        'addresses' => used,
+        'comment' => "VLAN #{vlan} (#{range}): #{vlans[vlan]['systems'].uniq.join(', ')} " \
+                     "(#{used.join(', ')}). Kube-OVN logical switch #{names['subnet']} in Vpc " \
+                     "#{names['vpc']}, spanning every node."
+      )
+      existing = (options[:ovnworkspace] || []).find { |ws| IPAddr.new(ws['range']) == IPAddr.new(range) }
+      if existing && !(options[:ovnworkspace_used] ||= []).include?(existing['subnet'])
+        # The workspace's own lab network has this VLAN's range: the lab joins it, so the
+        # workspace is on the segment with the lab's VMs.
+        options[:ovnworkspace_used] << existing['subnet']
+        network.merge!(existing.slice('vpc', 'subnet', 'name', 'provider', 'gateway'))
+        network['reuse'] = true
+        network['comment'] += " Joins the workspace's own lab network (#{existing['subnet']})."
+        (options[:ovnvlan_names] ||= {})[vlan] = existing.slice('name', 'provider')
+      end
+      network
+    end
+
+    attached = interfaces.each_with_object({}) do |(system_name, list), out|
+      out[system_name] = list.each_with_index.map do |interface, index|
+        names = ovn_names(namespace, interface['vlan']).merge((options[:ovnvlan_names] || {})[interface['vlan']] || {})
+        { 'name' => "net#{index + 1}",
+          'nad' => names['name'],
+          'nad_namespace' => namespace,
+          'provider' => names['provider'],
+          'address' => interface['address'],
+          'vlan' => interface['vlan'],
+          'comment' => "VLAN #{interface['vlan']} lab network, address #{interface['address']} " \
+                       "(Kube-OVN NAD #{names['name']}, pinned with the ip_address annotation)" }
+      end
+    end
+
+    unless (options[:ovnworkspace] || []).empty? || nad_networks.any? { |network| network['reuse'] }
+      Print.warn "KubeVirt: this workspace's lab network (#{options[:ovnworkspace].map { |ws| ws['range'] }.join(', ')}) " \
+                 'matches none of the scenario\'s networks, so the workspace is not on the lab\'s segments.'
+      Print.warn ' Remap the scenario onto it with --network-ranges (one range per scenario subnet, the'
+      Print.warn " workspace's first), e.g. --network-ranges #{options[:ovnworkspace].first['range'].split('/').first}"
+    end
+
+    { 'namespace' => namespace, 'backend' => LAB_NETWORK_OVN, 'networks' => nad_networks,
+      'systems' => attached }
+  end
+
+  # Lab networks a Coder workspace created for itself in this namespace (labelled
+  # secgen.io/owner=coder-workspace): a lab network with the same range joins it.
+  def self.ovn_workspace_networks(transport, namespace)
+    transport.cluster_list('subnets.kubeovn.io',
+                           "#{LAB_NETWORK_OWNER_LABEL}=coder-workspace,#{LAB_NETWORK_NAMESPACE_LABEL}=#{namespace}")
+             .map do |subnet|
+      provider = subnet.dig('spec', 'provider').to_s
+      { 'subnet' => subnet.dig('metadata', 'name').to_s, 'vpc' => subnet.dig('spec', 'vpc').to_s,
+        'range' => subnet.dig('spec', 'cidrBlock').to_s, 'gateway' => subnet.dig('spec', 'gateway').to_s,
+        'provider' => provider, 'name' => provider.split('.').first.to_s }
+    end.reject { |ws| ws['range'].empty? || ws['name'].empty? }
+  rescue KubeVirt::TransportError => e
+    Print.warn "KubeVirt: cannot read the workspace's lab network (#{e.message}); the lab gets its own."
+    []
+  end
+
+  # Names for a lab network on the Kube-OVN backend. The Vpc and Subnet are cluster-scoped, so
+  # they carry a hash of the namespace (the full name can be too long for some labels) plus the
+  # VLAN; the NAD is namespaced and named after the VLAN only, which makes it predictable for the
+  # Coder template. The provider string ties all three together: <nad>.<namespace>.ovn.
+  def self.ovn_names(namespace, vlan)
+    tag = "lab-#{Digest::SHA1.hexdigest(namespace.to_s)[0, 8]}-#{vlan}"
+    nad = "secgen-net-#{vlan}"
+    # Kube-OVN refuses a Subnet named like its Vpc ("cannot have the same name").
+    { 'vpc' => tag, 'subnet' => "#{tag}-net", 'name' => nad, 'provider' => "#{nad}.#{namespace}.ovn" }
+  end
+
+  # A Kube-OVN Subnet needs a gateway address. Nothing routes through it (the Vpc has no other
+  # subnet, and the guests get no default route on a lab network), so it only has to be an
+  # address no lab system uses: the highest host address that is free.
+  def self.ovn_gateway(range, used)
+    net = IPAddr.new(range)
+    first = net.to_range.first.to_i
+    last = net.to_range.last.to_i
+    candidate = last - 1
+    candidate -= 1 while used.include?(IPAddr.new(candidate, Socket::AF_INET).to_s) && candidate > first + 1
+    IPAddr.new(candidate, Socket::AF_INET).to_s
   end
 
   # Write the lab's NAD manifest and its plan into the project. Both are plain objects: the
@@ -538,12 +674,22 @@ class KubeVirtFunctions
       context = TemplateContext.new
       context.namespace = plan['namespace']
       context.nad_networks = networks
-      write_file(render(NAD_TEMPLATE, context), "#{out_dir}/#{LAB_NAD_MANIFEST}")
-      Print.std "Creating KubeVirt lab networks: #{out_dir}/#{LAB_NAD_MANIFEST} " \
-                "(#{networks.size} attachment definition(s))"
-      networks.each do |network|
-        Print.info " #{network['name']}: VLAN #{network['vlan']} #{network['range']} pinned to " \
-                   "#{network['range_start']} on #{network['bridge']}"
+      if plan['backend'] == LAB_NETWORK_OVN
+        write_file(render(OVN_TEMPLATE, context), "#{out_dir}/#{LAB_NAD_MANIFEST}")
+        Print.std "Creating KubeVirt lab networks (Kube-OVN, cross-node): " \
+                  "#{out_dir}/#{LAB_NAD_MANIFEST} (#{networks.size} network(s))"
+        networks.each do |network|
+          Print.info " #{network['name']}: VLAN #{network['vlan']} #{network['range']} for " \
+                     "#{network['addresses'].join(', ')}#{network['reuse'] ? ' (workspace subnet)' : ''}"
+        end
+      else
+        write_file(render(NAD_TEMPLATE, context), "#{out_dir}/#{LAB_NAD_MANIFEST}")
+        Print.std "Creating KubeVirt lab networks: #{out_dir}/#{LAB_NAD_MANIFEST} " \
+                  "(#{networks.size} attachment definition(s))"
+        networks.each do |network|
+          Print.info " #{network['name']}: VLAN #{network['vlan']} #{network['range']} pinned to " \
+                     "#{network['range_start']} on #{network['bridge']}"
+        end
       end
     end
     write_file(JSON.pretty_generate(plan), "#{out_dir}/#{LAB_NETWORKS_FILE}")
@@ -859,10 +1005,17 @@ class KubeVirtFunctions
     if options[:system].to_s.empty?
       plan = lab_network_plan_from_project(project_dir)
       (plan['networks'] || []).each do |network|
+        # A NAD the workspace created for its own leg stays: the workspace pod is attached to it.
+        next if network['reuse']
+
         transport.delete('network-attachment-definition', network['name'])
       end
       transport.delete('ciliumnetworkpolicy', EGRESS_CNP_NAME)
-      unless (plan['networks'] || []).empty?
+      if plan['backend'] == LAB_NETWORK_OVN
+        removed = delete_ovn_networks(transport, plan)
+        Print.info "KubeVirt: deleted #{removed} Kube-OVN lab network(s) and the egress policy" \
+                   "#{(plan['networks'] || []).any? { |n| n['reuse'] } ? " (the workspace's own network is kept)" : ''}"
+      elsif !(plan['networks'] || []).empty?
         Print.info "KubeVirt: deleted #{plan['networks'].size} lab network(s) and the egress policy"
         Print.info 'KubeVirt: whereabouts keeps its address records in kube-system/ippools; an empty'
         Print.info ' pool left behind is harmless and is reused by the next lab on that subnet.'
@@ -901,6 +1054,7 @@ class KubeVirtFunctions
     end
 
     check_lab_subnets(transport, networks)
+    check_ovn_networks(transport, plan) if plan['backend'] == LAB_NETWORK_OVN
 
     manifest = "#{project_dir}/#{LAB_NAD_MANIFEST}"
     unless File.exist?(manifest)
@@ -913,9 +1067,77 @@ class KubeVirtFunctions
     rescue KubeVirt::TransportError => e
       raise BuildError, "failed to create the lab's networks from #{manifest}: #{e.message}"
     end
+    wait_ovn_networks(transport, plan) if plan['backend'] == LAB_NETWORK_OVN
     Print.info "KubeVirt: #{networks.size} lab network(s) ready " \
                "(#{networks.map { |network| network['name'] }.join(', ')})"
     plan
+  end
+
+  # Before applying a Kube-OVN lab's networks: a Subnet the plan reuses must exist and match the
+  # range the lab was generated for (or every guest would be pinned to an address outside it), and
+  # a Subnet the plan creates must not already belong to someone else.
+  def self.check_ovn_networks(transport, plan)
+    (plan['networks'] || []).each do |network|
+      cidr = transport.cluster_jsonpath('subnets.kubeovn.io', network['subnet'], '{.spec.cidrBlock}')
+      if network['reuse']
+        if cidr.empty?
+          raise BuildError, "the lab reuses the workspace's lab network #{network['subnet']}, but it does " \
+            'not exist (was the workspace rebuilt?). Regenerate the project.'
+        end
+        unless IPAddr.new(cidr) == IPAddr.new(network['range'])
+          raise BuildError, "the workspace's lab network #{network['subnet']} is #{cidr}, but the lab " \
+            "was generated for #{network['range']}: regenerate the project from this workspace."
+        end
+      elsif !cidr.empty?
+        owner = transport.cluster_jsonpath('subnets.kubeovn.io', network['subnet'],
+                                           "{.metadata.labels.secgen\\.io/lab-namespace}")
+        unless owner == plan['namespace']
+          raise BuildError, "Kube-OVN subnet #{network['subnet']} already exists and belongs to " \
+            "'#{owner}', not this lab."
+        end
+      end
+    end
+  end
+
+  # Kube-OVN validates a Subnet asynchronously and only then creates its logical switch; a VM
+  # created before that has its address request resolved against the default subnet and never
+  # starts (AddressOutOfRange). Wait for Ready, and surface Kube-OVN's own reason if it refuses.
+  def self.wait_ovn_networks(transport, plan)
+    (plan['networks'] || []).each do |network|
+      reason = ''
+      transport.wait_until("lab network #{network['subnet']} to be ready", timeout: 120, interval: 3) do
+        status = transport.cluster_jsonpath('subnets.kubeovn.io', network['subnet'],
+                                            '{.status.conditions[?(@.type=="Ready")].status}')
+        reason = transport.cluster_jsonpath('subnets.kubeovn.io', network['subnet'],
+                                            '{.status.conditions[?(@.type=="Error")].message}')
+        status == 'True'
+      end
+    rescue KubeVirt::TransportError => e
+      raise BuildError, "Kube-OVN did not bring up lab network #{network['subnet']}" \
+                        "#{reason.empty? ? '' : " (#{reason})"}: #{e.message}"
+    end
+  end
+
+  # Remove the Kube-OVN objects a lab created (never a Subnet it reused). A Subnet with ports
+  # still in use is held by Kube-OVN's finalizer and goes by itself once the last launcher pod
+  # has; the Vpc is deleted after its Subnet is gone.
+  def self.delete_ovn_networks(transport, plan)
+    owned = (plan['networks'] || []).reject { |network| network['reuse'] }
+    owned.each do |network|
+      transport.delete_cluster('subnets.kubeovn.io', network['subnet'])
+    end
+    owned.each do |network|
+      transport.wait_until("lab network #{network['subnet']} to be released",
+                           timeout: OVN_DELETE_TIMEOUT, interval: 5) do
+        transport.cluster_jsonpath('subnets.kubeovn.io', network['subnet'], '{.metadata.name}').empty?
+      end
+      transport.delete_cluster('vpcs.kubeovn.io', network['vpc'])
+    end
+    owned.size
+  rescue KubeVirt::TransportError => e
+    Print.warn "KubeVirt: lab network cleanup incomplete (#{e.message}); Kube-OVN removes a Subnet " \
+               'once its last port is gone -- re-run kubevirt-destroy to finish.'
+    0
   end
 
   # ------------------------------------------------------------------ egress tier
@@ -1141,6 +1363,8 @@ class KubeVirtFunctions
   # matters more is the user's call, so the tradeoff is stated rather than chosen silently.
   def self.placement_limits(plan, options)
     return unless placement(options) == PLACEMENT_SPREAD
+    # Kube-OVN lab networks span the nodes: spreading a lab costs nothing.
+    return if plan['backend'] == LAB_NETWORK_OVN
 
     shared = {}
     (plan['networks'] || []).each do |network|

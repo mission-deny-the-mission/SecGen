@@ -36,6 +36,15 @@ spec:
               storage: <%= disk_size %>
   template:
     metadata:
+<% ovn_interfaces = lab_interfaces.select { |interface| interface['provider'] } -%>
+<% if ovn_interfaces.any? -%>
+      # Kube-OVN lab networks: pin each lab interface to the address SecGen assigned it. The
+      # annotation is per provider (one per lab network); KubeVirt's DHCP hands it to the guest.
+      annotations:
+<% ovn_interfaces.each do |interface| -%>
+        <%= interface['provider'] %>.kubernetes.io/ip_address: "<%= interface['address'] %>"
+<% end -%>
+<% end -%>
       labels:
         kubevirt.io/domain: <%= vm_name %>
         app.kubernetes.io/part-of: secgen
@@ -60,8 +69,8 @@ spec:
 <% end -%>
 <% end -%>
 <% if placement == 'compact' -%>
-      # --kubevirt-placement compact: keep the whole lab on one node, because the lab's Multus
-      # bridges are node-local (a bridge in one node's network namespace cannot see another
+      # --kubevirt-placement compact: keep the whole lab on one node (needed on the bridge
+      # backend, whose Multus bridges are node-local (a bridge in one node's network namespace cannot see another
       # node's). Required affinity, so the lab fails to schedule rather than silently coming up
       # with its VMs unable to reach each other on their lab networks.
       affinity:
@@ -75,9 +84,9 @@ spec:
       # Default: spread the lab's VMs over the cluster's nodes, so a lab whose VMs do not all
       # fit on one node can still be built. whenUnsatisfiable ScheduleAnyway, not
       # DoNotSchedule: a node with no room must not make the whole lab unschedulable.
-      # The tradeoff is documented in README-KubeVirt.md: lab networks only reach VMs on the
-      # same node, so a spread lab loses cross-VM connectivity on those networks (use
-      # --kubevirt-placement compact when the scenario needs it).
+      # On the Kube-OVN backend the lab networks span the nodes, so spreading costs nothing.
+      # On the bridge backend lab networks only reach VMs on the same node (README-KubeVirt.md),
+      # so a spread lab loses cross-VM connectivity there (use --kubevirt-placement compact).
       topologySpreadConstraints:
         - maxSkew: 1
           topologyKey: kubernetes.io/hostname
