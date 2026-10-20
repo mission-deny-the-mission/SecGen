@@ -1,4 +1,3 @@
-require 'base64'
 require 'json'
 require 'open3'
 require 'socket'
@@ -178,13 +177,6 @@ class KubeVirt
     kubectl(['delete', kind, name, '--ignore-not-found', '--wait=false'], false, options)
   end
 
-  # Cluster-scoped objects of a kind matching a label selector, as parsed JSON items.
-  def cluster_list(kind, selector)
-    data = read_json(kubectl(['get', kind, '-l', selector, '-o', 'json'], false, timeout: 60),
-                     "#{kind} (#{selector})")
-    data.fetch('items', [])
-  end
-
   # Does the API server serve this API group? (Discovery: readable by any authenticated client.)
   def api_group_served?(group)
     kubectl(['api-versions'], false, timeout: 60).lines.any? { |line| line.start_with?("#{group}/") }
@@ -270,13 +262,6 @@ class KubeVirt
     end.compact.map(&:to_s).reject { |address| address.empty? || address == 'None' }.uniq
   end
 
-  # The node a running VMI is on. The LLM lane has to be addressed at a node OTHER than this
-  # one: a masquerade guest cannot complete a service connection that stays on, or returns
-  # via, its own node (measured on this cluster).
-  def vmi_node_name(vm_name)
-    jsonpath('vmi', vm_name, '{.status.nodeName}')
-  end
-
   # The guest's interfaces as the cluster sees them: name ('default', 'net1', ...) and address.
   def vmi_interfaces(vm_name)
     data = read_json(kubectl(['get', 'vmi', vm_name, '-o', 'json'], true, timeout: 60),
@@ -284,32 +269,6 @@ class KubeVirt
     (data.dig('status', 'interfaces') || []).map do |interface|
       { 'name' => interface['name'].to_s, 'ip' => interface['ipAddress'].to_s }
     end
-  end
-
-  # The NodePort a Service is exposed on, or nil. A masquerade guest can only reach a service
-  # as a NodePort on another node: a ClusterIP is not routable from the guest at all.
-  def service_node_port(namespace, name)
-    out = kubectl(['get', 'service', name, '--namespace', namespace, '-o',
-                   'jsonpath={.spec.ports[0].nodePort}'], false, timeout: 60).strip
-    out.empty? ? nil : out
-  end
-
-  # The nodes that currently run an endpoint of a Service, so the lab's LLM lane can be pointed
-  # at a node that will actually answer (the Service is externalTrafficPolicy Local).
-  def endpoint_nodes(namespace, name)
-    out = kubectl(['get', 'endpoints', name, '--namespace', namespace, '-o',
-                   'jsonpath={.subsets[*].addresses[*].nodeName}'], false, timeout: 60)
-    out.to_s.split(/\s+/).reject(&:empty?).uniq
-  rescue TransportError
-    []
-  end
-
-  # Read one credential out of a Secret. Used to hand a lab guest the LiteLLM key; the value is
-  # never written into the project directory.
-  def secret_value(namespace, name, key)
-    encoded = kubectl(['get', 'secret', name, '--namespace', namespace, '-o',
-                       "jsonpath={.data.#{key}}"], false, timeout: 60).strip
-    encoded.empty? ? nil : Base64.decode64(encoded)
   end
 
   def read_json(output, description)

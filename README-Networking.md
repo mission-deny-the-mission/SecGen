@@ -195,29 +195,28 @@ network.
 
 ### KubeVirt
 
-Each `<network>` element becomes a Multus bridge interface on the lab's own L2 segment, and the
-address SecGen assigned that interface is pinned in the cluster's IPAM, so `<network_ip>` values
-are real addresses in the guest (verified: a guest pinned to `.7` reported
-`enp2s0 172.30.95.7/24`). Verified limits of that mapping:
+Each `<network>` element becomes a Multus interface on the lab's own L2 segment, and the address
+SecGen assigned that interface is pinned in the cluster, so `<network_ip>` values are real
+addresses in the guest. The segment is a Kube-OVN logical switch spanning every node when the
+cluster runs Kube-OVN (`--kubevirt-lab-network ovn`, picked automatically), or a node-local Linux
+bridge otherwise (`bridge`). Limits of that mapping:
 
 - **one interface per `<network>`**, in scenario order (`net1`, `net2`, ...), alongside an
   always-present `masquerade` interface on the cluster pod network, which is how SecGen reaches
   the guest and the only interface with a default route;
 - **no gateway, per-network nameservers, or routes**: an interface on a lab network gets an
   address and nothing else, and the segment has no router unless a lab VM is one;
-- **no DHCP** (`public_network`): there is no DHCP server on a cluster bridge, so no interface is
-  created for one and the guest's `masquerade` interface plays that role instead;
-- **no 802.1Q tag**: a VLAN is a separate bridge segment rather than a tag on a shared wire, so
-  two VMs on one VLAN share a segment and two on different VLANs cannot reach each other;
-- **node-local segments**: the bridge lives in one node's network namespace, so a lab network
-  connects only the VMs scheduled onto the same node (measured: 100% packet loss between two
-  guests on different nodes sharing a segment, no loss between two on one node).
-  `--kubevirt-placement compact` keeps a lab on one node; the default `spread` favours building a
-  lab that would not fit on any single node, at the cost of that connectivity.
+- **no DHCP** (`public_network`): no interface is created for one and the guest's `masquerade`
+  interface plays that role instead;
+- **no 802.1Q tag**: a VLAN is a separate segment rather than a tag on a shared wire, so two VMs
+  on one VLAN share a segment and two on different VLANs cannot reach each other;
+- **with `bridge` only, node-local segments**: a lab network connects only the VMs scheduled onto
+  the same node, so `--kubevirt-placement compact` keeps such a lab on one node. With `ovn` the
+  segment spans nodes and the default `spread` placement is safe.
 
 SecGen names every scenario network setting the KubeVirt provider cannot honour when it generates
 a project, rather than producing a lab whose addressing is silently wrong. `README-KubeVirt.md`
-has the details (its `Networking`, `Egress tiers` and `The LLM lane` sections).
+has the details (its `Networking` section).
 
 ## Example scenarios
 

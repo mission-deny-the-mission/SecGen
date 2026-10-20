@@ -26,7 +26,9 @@ spec:
             name: <%= golden_image %>
             namespace: <%= golden_namespace %>
         storage:
+<% if storage_class -%>
           storageClassName: <%= storage_class %>
+<% end -%>
           accessModes:
             - ReadWriteOnce
           resources:
@@ -48,9 +50,9 @@ spec:
       labels:
         kubevirt.io/domain: <%= vm_name %>
         app.kubernetes.io/part-of: secgen
-        # Consumed by the lab's CiliumNetworkPolicy (the egress tier) and by the placement
-        # constraints below. It has to be on the *template*: the policy selects the
-        # virt-launcher pod, not the VirtualMachine object.
+        # Matched by the placement constraints below, and available to a cluster's own
+        # NetworkPolicy. On the *template*, because a policy selects the virt-launcher pod,
+        # not the VirtualMachine object.
         secgen.io/lab-vm: "true"
         secgen.io/lab: "<%= lab_id %>"
     spec:

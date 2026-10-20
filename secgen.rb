@@ -87,7 +87,8 @@ def usage
    --kubevirt-namespace [namespace]: Run the lab in this namespace (this is what selects the
               KubeVirt provider). Defaults to no namespace, i.e. the provider is not used.
    --kubevirt-kubeconfig [path]: Kubeconfig to use (defaults to the ambient KUBECONFIG)
-   --kubevirt-storage-class [name]: Storage class for the cloned root disks (default: ceph-block)
+   --kubevirt-storage-class [name]: Storage class for the cloned root disks (default: the
+              cluster's default StorageClass)
    --kubevirt-golden-namespace [namespace]: Namespace holding the golden base images
               (default: secgen-bases)
    --kubevirt-cpus [number]: Virtual CPUs per VM (default: 2)
@@ -101,26 +102,15 @@ def usage
    --kubevirt-halt: Halt the VMs after provisioning (runStrategy Halted)
    --kubevirt-image-size [size]: Size of the cloned root disk (e.g. 34Gi). Must be at least
               the golden image's size. Default is to read it from the cluster.
-   --kubevirt-egress [tier]: Egress tier for the lab: 'internet' (default; no policy, i.e.
-              the cluster's default reach), 'litellm' (only the LiteLLM lane as a NodePort on
-              a node that is not the guest's own, plus the guest's resolver) or 'none' (no
-              egress at all). Applied after provisioning, which needs open egress.
    --kubevirt-placement [placement]: Where a lab's VMs go: 'spread' (default; over the
               cluster's nodes, so a lab bigger than any one node still builds), 'compact'
-              (all on one node, which a lab needs when its VMs have to reach each other on a
-              scenario network) or a node name. Multus lab networks only reach VMs on the
-              same node: see 'Networking' in README-KubeVirt.md.
+              (all on one node) or a node name. With the 'bridge' lab network backend a
+              scenario network only reaches VMs on one node, so such a lab needs 'compact':
+              see 'Networking' in README-KubeVirt.md.
    --kubevirt-lab-network [backend]: How a lab's scenario networks are built: 'ovn' (Kube-OVN
                          logical switches that span every node, so a lab may spread over the
                          cluster), 'bridge' (node-local Linux bridges; keep the lab on one node), or
                          'auto' (default: ovn when the cluster serves the kubeovn.io API).
-   --kubevirt-llm: Hand every guest the LiteLLM endpoint and key even when the egress tier
-              is 'internet'. Implied by --kubevirt-egress litellm.
-   --kubevirt-litellm-service [namespace/name]: the LiteLLM Service (default litellm/litellm).
-              Its NodePort is read from the cluster.
-   --kubevirt-litellm-secret [namespace/name:key]: Secret holding the LiteLLM master key
-              (default litellm/master-key:litellm-master-key). Read at build time and written
-              into the guests only, never into the project.
    COMMANDS:
    run, r: Builds project and then builds the VMs
    build-project, p: Builds project (vagrant and puppet config), but does not build VMs
@@ -705,12 +695,8 @@ opts = GetoptLong.new(
     ['--kubevirt-create-namespace', GetoptLong::NO_ARGUMENT],
     ['--kubevirt-halt', GetoptLong::NO_ARGUMENT],
     ['--kubevirt-image-size', GetoptLong::REQUIRED_ARGUMENT],
-    ['--kubevirt-egress', GetoptLong::REQUIRED_ARGUMENT],
     ['--kubevirt-placement', GetoptLong::REQUIRED_ARGUMENT],
     ['--kubevirt-lab-network', GetoptLong::REQUIRED_ARGUMENT],
-    ['--kubevirt-llm', GetoptLong::NO_ARGUMENT],
-    ['--kubevirt-litellm-service', GetoptLong::REQUIRED_ARGUMENT],
-    ['--kubevirt-litellm-secret', GetoptLong::REQUIRED_ARGUMENT],
     ['--esxiuser', GetoptLong::REQUIRED_ARGUMENT],
     ['--esxipass', GetoptLong::REQUIRED_ARGUMENT],
     ['--esxi-hostname', GetoptLong::REQUIRED_ARGUMENT],
@@ -870,15 +856,6 @@ opts.each do |opt, arg|
   when '--kubevirt-image-size'
     Print.info "KubeVirt cloned disk size : #{arg}"
     options[:kubevirtimagesize] = arg
-  when '--kubevirt-egress'
-    if %w(internet litellm none).include? arg
-      Print.info "KubeVirt lab egress tier : #{arg}"
-      options[:kubevirtegress] = arg
-    else
-      Print.err "KubeVirt egress tier '#{arg}' is not supported: use internet, litellm or none"
-      usage
-      exit 1
-    end
   when '--kubevirt-placement'
     Print.info "KubeVirt lab placement : #{arg} (spread, compact, or a node name)"
     options[:kubevirtplacement] = arg
@@ -889,16 +866,6 @@ opts.each do |opt, arg|
     end
     Print.info "KubeVirt lab networks : #{arg}"
     options[:kubevirtlabnetwork] = arg
-  when '--kubevirt-llm'
-    Print.info 'KubeVirt: labs will be given the LiteLLM endpoint and key'
-    options[:kubevirtllm] = true
-  when '--kubevirt-litellm-service'
-    Print.info "LiteLLM service : #{arg}"
-    options[:kubevirtlitellmservice] = arg
-  when '--kubevirt-litellm-secret'
-    # The value names the secret, not the key itself: nothing secret is passed on the command line.
-    Print.info "LiteLLM master key secret : #{arg}"
-    options[:kubevirtlitellmsecret] = arg
   # ESXi options
   when '--esxiuser'
     Print.info "ESXi Username : #{arg}"

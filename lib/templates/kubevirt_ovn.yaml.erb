@@ -5,21 +5,20 @@
 # OVN logical switch that spans every node (Geneve tunnels between the nodes), so a lab's VMs
 # share their L2 segment wherever they are scheduled -- unlike the node-local `bridge` backend.
 #
-# Shape, verified on this cluster (Kube-OVN v1.16 as a non-primary CNI beside Cilium):
+# Shape (Kube-OVN v1.16 as a secondary network through Multus, beside any primary CNI):
 #   * Each network gets a Vpc of its own. A Vpc is an OVN logical router, and Kube-OVN only
 #     checks CIDR overlap inside one Vpc, so two labs (or two networks of one lab) may use the
 #     same subnet at the same time and never see each other (measured: two labs both on
-#     172.31.250.0/24 with the same .11 address, 100% loss between them, 0% inside each).
+#     one /24 with the same address, 100% loss between them, 0% inside each).
 #     Nothing routes a lab Vpc to the cluster or to another Vpc.
 #   * A guest's address is pinned per interface with the pod annotation
 #     <provider>.kubernetes.io/ip_address on the VM template (kubevirt_vm.yaml.erb); KubeVirt's
-#     DHCP then hands that address to the guest, MTU included (1400: Geneve over the nodes'
-#     1500-byte LAN path, so fabric failover never drops large frames), and no router/gateway
+#     DHCP then hands that address to the guest, MTU included (Kube-OVN's default, 1400:
+#     a 1500-byte node network less the Geneve overhead), and no router/gateway
 #     (verified: the offer carries ip, subnet, dns and mtu only).
 #   * The Subnet's gateway is an address the scenario does not use; it only exists on the
 #     Vpc's router port and is never handed to a guest.
 <% nad_networks.each do |net| -%>
-<% unless net['reuse'] -%>
 ---
 # <%= net['comment'] %>
 apiVersion: kubeovn.io/v1
@@ -64,5 +63,4 @@ metadata:
     secgen.io/owner: secgen-provider
 spec:
   config: '{"cniVersion": "0.3.1", "type": "kube-ovn", "server_socket": "/run/openvswitch/kube-ovn-daemon.sock", "provider": "<%= net['provider'] %>"}'
-<% end -%>
 <% end -%>

@@ -35,16 +35,18 @@ require_relative 'kubevirt_connection'
 #           reach each other while they are co-located (--kubevirt-placement compact).
 # See "Networking" in README-KubeVirt.md.
 #
-# The lab can also be given an egress tier (--kubevirt-egress): the whole point of a lab VM on a
-# shared cluster is that it does not have the cluster's own network reach, so 'litellm' opens
-# only the LiteLLM lane and 'none' opens nothing. Applying that tier is the last step of a
-# build, because provisioning needs open egress.
+# What a lab VM may reach (egress, other namespaces) is the cluster's policy, not SecGen's: every
+# lab VM's launcher pod carries the labels secgen.io/lab-vm=true and secgen.io/lab=<namespace>
+# for a NetworkPolicy to select. Services a lab uses (an LLM gateway, say) are deployed once,
+# outside SecGen; scenarios are handed their address as ordinary module inputs.
 class KubeVirtFunctions
 
   # Raised when the lab cannot be built. secgen.rb turns it into a user-facing error.
   class BuildError < StandardError; end
 
-  DEFAULT_STORAGE_CLASS = 'ceph-block'
+  # No default: unless --kubevirt-storage-class names one, the clones use the cluster's
+  # default StorageClass.
+  DEFAULT_STORAGE_CLASS = nil
   DEFAULT_GOLDEN_NAMESPACE = 'secgen-bases'
   DEFAULT_CPUS = '2'
 
@@ -81,15 +83,14 @@ class KubeVirtFunctions
   CLONE_RBAC_TEMPLATE = "#{ROOT_DIR}/lib/templates/kubevirt_clone_rbac.yaml.erb"
   NAD_TEMPLATE = "#{ROOT_DIR}/lib/templates/kubevirt_nad.yaml.erb"
   OVN_TEMPLATE = "#{ROOT_DIR}/lib/templates/kubevirt_ovn.yaml.erb"
-  EGRESS_CNP_TEMPLATE = "#{ROOT_DIR}/lib/templates/kubevirt_egress_cnp.yaml.erb"
 
   # The lab's network plan (non-secret: names, subnets and addresses) and the rendered
   # NetworkAttachmentDefinitions, both kept in the project next to the VM manifests.
   LAB_NETWORKS_FILE = 'kubevirt/lab-networks.json'
   LAB_NAD_MANIFEST = 'kubevirt/lab-networks.yaml'
 
-  # Label carried by every lab VMI, hence by its virt-launcher pod: the egress tier's
-  # CiliumNetworkPolicy selects on it, and the placement constraints match it.
+  # Label carried by every lab VMI, hence by its virt-launcher pod: the placement constraints
+  # match it, and a cluster's NetworkPolicy can select lab VMs by it.
   LAB_VM_LABEL = 'secgen.io/lab-vm'
   LAB_VM_LABEL_VALUE = 'true'
   LAB_ID_LABEL = 'secgen.io/lab'
@@ -107,35 +108,13 @@ class KubeVirtFunctions
   LAB_NETWORK_OVN = 'ovn'
   LAB_NETWORK_BRIDGE = 'bridge'
   # Labels on the cluster-scoped Kube-OVN objects (Vpc, Subnet) a lab owns, so destroy can find
-  # them, and so the ones a Coder workspace created for its own leg are never deleted by a lab.
+  # them.
   LAB_NETWORK_OWNER_LABEL = 'secgen.io/owner'
   LAB_NETWORK_OWNER_PROVIDER = 'secgen-provider'
   LAB_NETWORK_NAMESPACE_LABEL = 'secgen.io/lab-namespace'
   # A lab's Kube-OVN Subnets refuse deletion while a port is still in use: the VMs' launcher
   # pods take a little while to go after the VMs are deleted.
   OVN_DELETE_TIMEOUT = 180
-
-  # Egress tiers. 'internet' applies no policy at all (the cluster's default reach), 'litellm'
-  # allows only the LiteLLM lane, 'none' allows nothing.
-  EGRESS_TIERS = %w(internet litellm none).freeze
-  DEFAULT_EGRESS = 'internet'
-  EGRESS_CNP_NAME = 'secgen-lab-egress'
-
-  # LiteLLM as it is deployed beside the labs: the Service's NodePort is the only address a
-  # masquerade guest can complete a connection to, and the master key is read out of the
-  # Secret at build time. Neither is ever written into the project: the key goes to the guest
-  # only, and the endpoint the guest is given is a hosts entry, so the guest needs no DNS.
-  DEFAULT_LITELLM_SERVICE = 'litellm/litellm'
-  DEFAULT_LITELLM_SECRET = 'litellm/master-key:litellm-master-key'
-  LLM_HOSTNAME = 'litellm.lab'
-  LLM_MODELS = %w(spark-active glm-5.3-flash).freeze
-  GUEST_LLM_ENV_PATH = '/etc/profile.d/secgen-llm.sh'
-  GUEST_HOSTS_PATH = '/etc/hosts'
-  # Where a generated script (which may carry the key) lands in the guest before it is run.
-  GUEST_LLM_SCRIPT_PATH = '/tmp/secgen-llm-access.sh'
-  # How long to wait for the egress policy to take effect in the datapath: measured at about a
-  # minute, so the check retries rather than testing once straight after the apply.
-  LLM_LANE_TIMEOUT = 300
 
   # Masquerade guests are given their default route on 10.0.2.0/24 (measured: the guest's
   # masquerade interface is 10.0.2.2/24, gateway 10.0.2.1). A lab network inside that range
@@ -156,11 +135,10 @@ class KubeVirtFunctions
     attr_accessor :storage_class, :golden_namespace, :golden_image, :disk_size
     attr_accessor :dns_nameservers, :dns_policy
     attr_accessor :modules, :puppet_root, :puppet_system_dir
-    # Lab networking and placement (kubevirt_vm.yaml.erb), the lab's own networks
-    # (kubevirt_nad.yaml.erb) and the egress tier (kubevirt_egress_cnp.yaml.erb).
+    # Lab networking and placement (kubevirt_vm.yaml.erb) and the lab's own networks
+    # (kubevirt_nad.yaml.erb / kubevirt_ovn.yaml.erb).
     attr_accessor :lab_interfaces, :placement, :lab_id, :lab_network_backend
     attr_accessor :nad_networks
-    attr_accessor :egress_tier, :egress_port, :egress_dns_servers
 
     def get_binding
       binding
@@ -196,19 +174,12 @@ class KubeVirtFunctions
 
   # Resolvers handed to the guest. A masquerade guest cannot reach the cluster's DNS, and
   # `dnsPolicy: Default` does not help: it merely substitutes the node's resolver
-  # (169.254.116.108 on Talos), which the guest equally cannot reach -- both verified on
+  # (a link-local address on some distributions), which the guest equally cannot reach -- both verified on
   # the cluster. So the provider always sets dnsPolicy None plus an explicit nameserver,
   # defaulting to a public resolver, and never depends on the cluster's DNS.
   def self.dns_nameservers(options)
     configured = options[:kubevirtdns].to_s.split(/[,\s]+/).reject { |nameserver| nameserver.empty? }
     configured.empty? ? DEFAULT_DNS_NAMESERVERS.dup : configured
-  end
-
-  # Which egress tier the lab gets. secgen.rb rejects anything outside EGRESS_TIERS, so this
-  # only has to fill in the default.
-  def self.egress_tier(options)
-    value = options[:kubevirtegress].to_s
-    EGRESS_TIERS.include?(value) ? value : DEFAULT_EGRESS
   end
 
   # 'spread' (default), 'compact', or a node name (see PLACEMENT_*). Validated by secgen.rb
@@ -220,7 +191,7 @@ class KubeVirtFunctions
   end
 
   # 'ovn' or 'bridge'. 'auto' (the default) asks the cluster whether it serves the kubeovn.io
-  # API (API discovery, which every authenticated client may read, so a workspace's restricted
+  # API (API discovery, which every authenticated client may read, so a restricted
   # service account can answer it too). Resolved once and remembered in the options.
   def self.lab_network_backend(options, transport = nil)
     value = options[:kubevirtlabnetwork].to_s
@@ -229,42 +200,6 @@ class KubeVirtFunctions
 
     transport ||= self.transport(options)
     options[:kubevirtlabnetwork] = transport.api_group_served?('kubeovn.io') ? LAB_NETWORK_OVN : LAB_NETWORK_BRIDGE
-  end
-
-  # Is this lab handed the LiteLLM lane? It comes with the 'litellm' tier, and --kubevirt-llm
-  # adds it to a lab whose tier is open. A 'none' lab has no egress at all, so there is nothing
-  # to hand it.
-  def self.inject_llm?(options)
-    tier = egress_tier(options)
-    return false if tier == 'none'
-
-    tier == 'litellm' || options[:kubevirtllm]
-  end
-
-  # The LiteLLM Service as <namespace, name>. A NodePort is the only way a masquerade guest can
-  # reach a service (a ClusterIP is not routable from the guest), so the provider reads the
-  # NodePort from the Service rather than being told it.
-  def self.litellm_service(options)
-    value = options[:kubevirtlitellmservice].to_s
-    value = DEFAULT_LITELLM_SERVICE if value.empty?
-    namespace, _, name = value.partition('/')
-    if namespace.empty? || name.empty?
-      raise BuildError, "--kubevirt-litellm-service wants <namespace>/<service>, got '#{value}'"
-    end
-    [namespace, name]
-  end
-
-  # The Secret holding the LiteLLM master key, as <namespace, name, key>. Read at build time and
-  # handed to the guest only; it is never written into the project.
-  def self.litellm_secret(options)
-    value = options[:kubevirtlitellmsecret].to_s
-    value = DEFAULT_LITELLM_SECRET if value.empty?
-    reference, separator, key = value.rpartition(':')
-    namespace, _, name = reference.partition('/')
-    if separator.empty? || namespace.empty? || name.empty? || key.empty?
-      raise BuildError, "--kubevirt-litellm-secret wants <namespace>/<name>:<key>, got '#{value}'"
-    end
-    [namespace, name, key]
   end
 
   # KubeVirt object names must be valid DNS-1123 labels, so system names have to be
@@ -316,9 +251,7 @@ class KubeVirtFunctions
     # The scenario's networks become the lab's own L2 segments, before anything is generated:
     # the NADs have to exist before a VM that references them, and the interfaces are part of
     # the VM manifest.
-    if lab_network_backend(options, transport) == LAB_NETWORK_OVN
-      options[:ovnworkspace] = ovn_workspace_networks(transport, options[:kubevirtnamespace].to_s)
-    end
+    lab_network_backend(options, transport)
     plan = lab_network_plan(systems, options)
     write_lab_networks(out_dir, plan, options)
 
@@ -569,9 +502,7 @@ class KubeVirtFunctions
   end
 
   # The Kube-OVN form of the plan: one Vpc + Subnet + NAD per VLAN (not per address), and each
-  # interface carries its address for the ip_address annotation on the VM template. The NAD and
-  # provider names are fixed per VLAN, so a Coder workspace can pre-create the first network and
-  # join it (see ovn_existing_subnet): the lab then reuses that Subnet instead of creating one.
+  # interface carries its address for the ip_address annotation on the VM template.
   def self.ovn_lab_network_plan(namespace, vlans, want, interfaces, options)
     nad_networks = vlans.keys.sort.map do |vlan|
       range = vlans[vlan]['range']
@@ -587,22 +518,12 @@ class KubeVirtFunctions
                      "(#{used.join(', ')}). Kube-OVN logical switch #{names['subnet']} in Vpc " \
                      "#{names['vpc']}, spanning every node."
       )
-      existing = (options[:ovnworkspace] || []).find { |ws| IPAddr.new(ws['range']) == IPAddr.new(range) }
-      if existing && !(options[:ovnworkspace_used] ||= []).include?(existing['subnet'])
-        # The workspace's own lab network has this VLAN's range: the lab joins it, so the
-        # workspace is on the segment with the lab's VMs.
-        options[:ovnworkspace_used] << existing['subnet']
-        network.merge!(existing.slice('vpc', 'subnet', 'name', 'provider', 'gateway'))
-        network['reuse'] = true
-        network['comment'] += " Joins the workspace's own lab network (#{existing['subnet']})."
-        (options[:ovnvlan_names] ||= {})[vlan] = existing.slice('name', 'provider')
-      end
       network
     end
 
     attached = interfaces.each_with_object({}) do |(system_name, list), out|
       out[system_name] = list.each_with_index.map do |interface, index|
-        names = ovn_names(namespace, interface['vlan']).merge((options[:ovnvlan_names] || {})[interface['vlan']] || {})
+        names = ovn_names(namespace, interface['vlan'])
         { 'name' => "net#{index + 1}",
           'nad' => names['name'],
           'nad_namespace' => namespace,
@@ -614,37 +535,13 @@ class KubeVirtFunctions
       end
     end
 
-    unless (options[:ovnworkspace] || []).empty? || nad_networks.any? { |network| network['reuse'] }
-      Print.warn "KubeVirt: this workspace's lab network (#{options[:ovnworkspace].map { |ws| ws['range'] }.join(', ')}) " \
-                 'matches none of the scenario\'s networks, so the workspace is not on the lab\'s segments.'
-      Print.warn ' Remap the scenario onto it with --network-ranges (one range per scenario subnet, the'
-      Print.warn " workspace's first), e.g. --network-ranges #{options[:ovnworkspace].first['range'].split('/').first}"
-    end
-
     { 'namespace' => namespace, 'backend' => LAB_NETWORK_OVN, 'networks' => nad_networks,
       'systems' => attached }
   end
 
-  # Lab networks a Coder workspace created for itself in this namespace (labelled
-  # secgen.io/owner=coder-workspace): a lab network with the same range joins it.
-  def self.ovn_workspace_networks(transport, namespace)
-    transport.cluster_list('subnets.kubeovn.io',
-                           "#{LAB_NETWORK_OWNER_LABEL}=coder-workspace,#{LAB_NETWORK_NAMESPACE_LABEL}=#{namespace}")
-             .map do |subnet|
-      provider = subnet.dig('spec', 'provider').to_s
-      { 'subnet' => subnet.dig('metadata', 'name').to_s, 'vpc' => subnet.dig('spec', 'vpc').to_s,
-        'range' => subnet.dig('spec', 'cidrBlock').to_s, 'gateway' => subnet.dig('spec', 'gateway').to_s,
-        'provider' => provider, 'name' => provider.split('.').first.to_s }
-    end.reject { |ws| ws['range'].empty? || ws['name'].empty? }
-  rescue KubeVirt::TransportError => e
-    Print.warn "KubeVirt: cannot read the workspace's lab network (#{e.message}); the lab gets its own."
-    []
-  end
-
   # Names for a lab network on the Kube-OVN backend. The Vpc and Subnet are cluster-scoped, so
   # they carry a hash of the namespace (the full name can be too long for some labels) plus the
-  # VLAN; the NAD is namespaced and named after the VLAN only, which makes it predictable for the
-  # Coder template. The provider string ties all three together: <nad>.<namespace>.ovn.
+  # VLAN; the NAD is namespaced and named after the VLAN only. The provider string ties all three together: <nad>.<namespace>.ovn.
   def self.ovn_names(namespace, vlan)
     tag = "lab-#{Digest::SHA1.hexdigest(namespace.to_s)[0, 8]}-#{vlan}"
     nad = "secgen-net-#{vlan}"
@@ -680,7 +577,7 @@ class KubeVirtFunctions
                   "#{out_dir}/#{LAB_NAD_MANIFEST} (#{networks.size} network(s))"
         networks.each do |network|
           Print.info " #{network['name']}: VLAN #{network['vlan']} #{network['range']} for " \
-                     "#{network['addresses'].join(', ')}#{network['reuse'] ? ' (workspace subnet)' : ''}"
+                     "#{network['addresses'].join(', ')}"
         end
       else
         write_file(render(NAD_TEMPLATE, context), "#{out_dir}/#{LAB_NAD_MANIFEST}")
@@ -750,8 +647,8 @@ class KubeVirtFunctions
   end
 
   # Widen a known address or small CIDR to the block the cluster reserved around it. The
-  # cluster does not publish its pod/service CIDRs in a way this provider can read (Talos puts
-  # them in the machine config), so they are inferred: per-node pod CIDRs are /24s out of one
+  # cluster does not publish its pod/service CIDRs in a way this provider can read (they live in
+  # the control plane's own configuration), so they are inferred: per-node pod CIDRs are /24s out of one
   # pool, and ClusterIPs are spread over the service CIDR's /16s.
   def self.widen(cidr)
     address = IPAddr.new(cidr)
@@ -831,13 +728,6 @@ class KubeVirtFunctions
       wait_for_ssh(transport, vm)
       provision(transport, project_dir, meta)
     end
-
-    # Only now, with every guest provisioned: provisioning needs open egress (apt, downloads),
-    # so a lab locked down before its modules ran would fail to build.
-    apply_egress_policy(transport, options)
-    # Last: the lab's LLM lane, given to each guest and then actually exercised from inside it,
-    # because the egress policy takes about a minute to reach the datapath.
-    inject_llm_lane(transport, vms, options) if inject_llm?(options)
 
     Print.info 'KubeVirt: all VM(s) are built and provisioned'
     true
@@ -986,7 +876,7 @@ class KubeVirtFunctions
   # Delete the lab VMs and the storage they own. The golden images live in another
   # namespace and are never touched.
   #
-  # The lab's own networks and its egress policy go with it, but only when the whole lab is being
+  # The lab's own networks go with it, but only when the whole lab is being
   # destroyed: --system leaves the other VMs running, and they still need their networks.
   def self.destroy(project_dir, options)
     vms = vm_metadata(project_dir)
@@ -1005,18 +895,13 @@ class KubeVirtFunctions
     if options[:system].to_s.empty?
       plan = lab_network_plan_from_project(project_dir)
       (plan['networks'] || []).each do |network|
-        # A NAD the workspace created for its own leg stays: the workspace pod is attached to it.
-        next if network['reuse']
-
         transport.delete('network-attachment-definition', network['name'])
       end
-      transport.delete('ciliumnetworkpolicy', EGRESS_CNP_NAME)
       if plan['backend'] == LAB_NETWORK_OVN
         removed = delete_ovn_networks(transport, plan)
-        Print.info "KubeVirt: deleted #{removed} Kube-OVN lab network(s) and the egress policy" \
-                   "#{(plan['networks'] || []).any? { |n| n['reuse'] } ? " (the workspace's own network is kept)" : ''}"
+        Print.info "KubeVirt: deleted #{removed} Kube-OVN lab network(s)"
       elsif !(plan['networks'] || []).empty?
-        Print.info "KubeVirt: deleted #{plan['networks'].size} lab network(s) and the egress policy"
+        Print.info "KubeVirt: deleted #{plan['networks'].size} lab network(s)"
         Print.info 'KubeVirt: whereabouts keeps its address records in kube-system/ippools; an empty'
         Print.info ' pool left behind is harmless and is reused by the next lab on that subnet.'
       end
@@ -1073,29 +958,18 @@ class KubeVirtFunctions
     plan
   end
 
-  # Before applying a Kube-OVN lab's networks: a Subnet the plan reuses must exist and match the
-  # range the lab was generated for (or every guest would be pinned to an address outside it), and
-  # a Subnet the plan creates must not already belong to someone else.
+  # Before applying a Kube-OVN lab's networks: a Subnet of the same name that already exists must
+  # belong to this lab (Vpc and Subnet are cluster-scoped, so another lab's would be clobbered).
   def self.check_ovn_networks(transport, plan)
     (plan['networks'] || []).each do |network|
-      cidr = transport.cluster_jsonpath('subnets.kubeovn.io', network['subnet'], '{.spec.cidrBlock}')
-      if network['reuse']
-        if cidr.empty?
-          raise BuildError, "the lab reuses the workspace's lab network #{network['subnet']}, but it does " \
-            'not exist (was the workspace rebuilt?). Regenerate the project.'
-        end
-        unless IPAddr.new(cidr) == IPAddr.new(network['range'])
-          raise BuildError, "the workspace's lab network #{network['subnet']} is #{cidr}, but the lab " \
-            "was generated for #{network['range']}: regenerate the project from this workspace."
-        end
-      elsif !cidr.empty?
-        owner = transport.cluster_jsonpath('subnets.kubeovn.io', network['subnet'],
-                                           "{.metadata.labels.secgen\\.io/lab-namespace}")
-        unless owner == plan['namespace']
-          raise BuildError, "Kube-OVN subnet #{network['subnet']} already exists and belongs to " \
-            "'#{owner}', not this lab."
-        end
-      end
+      next if transport.cluster_jsonpath('subnets.kubeovn.io', network['subnet'], '{.metadata.name}').empty?
+
+      owner = transport.cluster_jsonpath('subnets.kubeovn.io', network['subnet'],
+                                         "{.metadata.labels.secgen\\.io/lab-namespace}")
+      next if owner == plan['namespace']
+
+      raise BuildError, "Kube-OVN subnet #{network['subnet']} already exists and belongs to " \
+        "'#{owner}', not this lab."
     end
   end
 
@@ -1118,11 +992,11 @@ class KubeVirtFunctions
     end
   end
 
-  # Remove the Kube-OVN objects a lab created (never a Subnet it reused). A Subnet with ports
+  # Remove the Kube-OVN objects a lab created. A Subnet with ports
   # still in use is held by Kube-OVN's finalizer and goes by itself once the last launcher pod
   # has; the Vpc is deleted after its Subnet is gone.
   def self.delete_ovn_networks(transport, plan)
-    owned = (plan['networks'] || []).reject { |network| network['reuse'] }
+    owned = plan['networks'] || []
     owned.each do |network|
       transport.delete_cluster('subnets.kubeovn.io', network['subnet'])
     end
@@ -1138,223 +1012,6 @@ class KubeVirtFunctions
     Print.warn "KubeVirt: lab network cleanup incomplete (#{e.message}); Kube-OVN removes a Subnet " \
                'once its last port is gone -- re-run kubevirt-destroy to finish.'
     0
-  end
-
-  # ------------------------------------------------------------------ egress tier
-
-  # Give the lab its egress tier. 'internet' is the cluster's default reach, so it means no
-  # policy at all; the other tiers are one CiliumNetworkPolicy selecting every lab VM in the
-  # namespace. Runs after provisioning: the build itself needs open egress.
-  def self.apply_egress_policy(transport, options)
-    tier = egress_tier(options)
-    if tier == 'internet'
-      # A policy from an earlier build with a tighter tier would otherwise still be in force, so
-      # the lab would look like it has the default reach while the old allow-list applied.
-      if transport.exists?('ciliumnetworkpolicy', EGRESS_CNP_NAME)
-        transport.delete('ciliumnetworkpolicy', EGRESS_CNP_NAME)
-        Print.info "KubeVirt: egress tier 'internet': removed the lab's old egress policy"
-      else
-        Print.info "KubeVirt: egress tier 'internet' (no policy: the lab has the cluster's default reach)"
-      end
-      return true
-    end
-
-    port = nil
-    if tier == 'litellm'
-      namespace, service_name = litellm_service(options)
-      port = transport.service_node_port(namespace, service_name)
-      if port.to_s.empty?
-        raise BuildError, "the LiteLLM service #{namespace}/#{service_name} has no nodePort, so no " \
-          'guest can reach it: a masquerade guest cannot reach a ClusterIP. See "The LLM lane" in ' \
-          'README-KubeVirt.md.'
-      end
-    end
-
-    context = TemplateContext.new
-    context.namespace = transport.namespace.to_s
-    context.egress_tier = tier
-    context.egress_port = port.to_s
-    # Only IPv4 resolvers can be in the policy: a masquerade guest has no usable IPv6 outside the
-    # pod, and a toCIDR rule cannot mix the families.
-    context.egress_dns_servers = dns_nameservers(options).select { |server| ipv4?(server) }
-
-    begin
-      transport.apply(render(EGRESS_CNP_TEMPLATE, context))
-    rescue KubeVirt::TransportError => e
-      raise BuildError, "failed to apply the '#{tier}' egress tier: #{e.message}"
-    end
-
-    if tier == 'litellm'
-      Print.info "KubeVirt: egress tier 'litellm': the lab may reach node port #{port}/TCP and its " \
-                 'resolver, and nothing else (the rest of the cluster, the registry mirror and the ' \
-                 'internet are denied)'
-      Print.info 'KubeVirt: the policy takes about a minute to take effect, so the LLM lane is ' \
-                 'checked from inside each guest below'
-    else
-      Print.info "KubeVirt: egress tier 'none': the lab has no egress at all"
-    end
-    true
-  end
-
-  def self.ipv4?(address)
-    IPAddr.new(address).ipv4?
-  rescue StandardError
-    false
-  end
-
-  # ------------------------------------------------------------------ the LLM lane
-
-  # Hand every guest the lab's LLM endpoint. The key is read out of the cluster here, at build
-  # time, and written into the guest only: it never reaches the project directory, and it is not
-  # put on a command line (the process table, which --verbose also prints).
-  def self.inject_llm_lane(transport, vms, options)
-    namespace, service_name = litellm_service(options)
-    secret_namespace, secret_name, secret_key = litellm_secret(options)
-
-    port = transport.service_node_port(namespace, service_name).to_s
-    if port.empty?
-      raise BuildError, "the LiteLLM service #{namespace}/#{service_name} has no nodePort: the lab " \
-        'LLM lane is addressed as a NodePort because a masquerade guest cannot reach a ClusterIP. ' \
-        'See "The LLM lane" in README-KubeVirt.md.'
-    end
-
-    key = transport.secret_value(secret_namespace, secret_name, secret_key)
-    if key.to_s.empty?
-      raise BuildError, "secret #{secret_namespace}/#{secret_name} has no '#{secret_key}': pass " \
-        '--kubevirt-litellm-secret <namespace>/<name>:<key>. See "The LLM lane" in README-KubeVirt.md.'
-    end
-
-    serving_nodes = transport.endpoint_nodes(namespace, service_name)
-    if serving_nodes.empty?
-      Print.warn "KubeVirt: the LiteLLM service #{namespace}/#{service_name} reports no endpoints: " \
-                 'the lane will not answer until it has a ready replica'
-    end
-
-    vms.each do |meta|
-      vm = meta['vm_name']
-      node_ip = llm_node_ip(transport, transport.vmi_node_name(vm), serving_nodes)
-      push_and_run(transport, vm, llm_access_script(node_ip, port, key), GUEST_LLM_SCRIPT_PATH)
-      Print.info "KubeVirt: #{vm} has the LiteLLM lane at http://#{LLM_HOSTNAME}:#{port}/v1 " \
-                 "(via #{node_ip}; a guest cannot use its own node), models: #{LLM_MODELS.join(', ')}"
-    end
-
-    verify_llm_lane(transport, vms)
-    true
-  end
-
-  # Which node's NodePort a guest should use. Never its own node: a masquerade guest cannot
-  # complete a service connection that stays on, or returns via, its own node (measured -- its own
-  # node's NodePort times out while another node's answers). Preferably a node that runs a LiteLLM
-  # replica, because the Service is externalTrafficPolicy Local and a node without one answers
-  # nothing.
-  def self.llm_node_ip(transport, vm_node, serving_nodes)
-    nodes = transport.nodes
-    serving = nodes.select { |node| serving_nodes.include?(node['name']) && node['name'] != vm_node }
-    chosen = serving.first || nodes.find { |node| node['name'] != vm_node }
-    if chosen.nil?
-      raise BuildError, "no cluster node other than '#{vm_node}' to serve the lab's LLM lane"
-    end
-    chosen['ip']
-  end
-
-  # The script that hands a guest the lane: a hosts entry (so the guest needs no DNS to use the
-  # endpoint) and a login-shell snippet with the endpoint and the key. The key is base64-encoded
-  # in the script so that no character in it can break the quoting around it. (Every '$' below is
-  # escaped for Ruby's own string interpolation, so what the guest receives is a shell variable.)
-  def self.llm_access_script(node_ip, port, key)
-    base64_key = Base64.strict_encode64(key)
-    <<~SCRIPT
-      #!/bin/bash
-      # Generated by SecGen: this guest's access to the lab's LiteLLM lane. Removed after it runs.
-      # Runs as the vagrant user, which has passwordless sudo.
-      set -e
-      HOSTS=#{GUEST_HOSTS_PATH}
-      ENV_FILE=#{GUEST_LLM_ENV_PATH}
-
-      # The guest cannot use the cluster's DNS (see "Guest DNS" in README-KubeVirt.md), so the
-      # endpoint is given as an address: litellm.lab -> the node whose NodePort serves the lane.
-      # Replace rather than append, so re-running this does not pile up entries.
-      sudo sed -i '/[[:space:]]litellm\\.lab\\([[:space:]]\\|\$\\)/d' "\$HOSTS"
-      printf '%s\\t%s\\n' '#{node_ip}' '#{LLM_HOSTNAME}' | sudo tee -a "\$HOSTS" >/dev/null
-
-      # Decoded from base64 so no character in the key can break the quoting here.
-      KEY="\$(printf '%s' '#{base64_key}' | base64 -d)"
-      TMP_ENV=/tmp/secgen-llm-env.sh
-      cat > "\$TMP_ENV" <<EOF
-      # SecGen: the lab's LiteLLM lane (models: #{LLM_MODELS.join(', ')}).
-      export OPENAI_API_BASE="http://#{LLM_HOSTNAME}:#{port}/v1"
-      export OPENAI_BASE_URL="http://#{LLM_HOSTNAME}:#{port}/v1"
-      export OPENAI_API_KEY="\$KEY"
-      export LITELLM_MASTER_KEY="\$KEY"
-      EOF
-      sudo install -m 0644 "\$TMP_ENV" "\$ENV_FILE"
-      rm -f "\$TMP_ENV"
-      echo "SecGen: LLM lane -> http://#{LLM_HOSTNAME}:#{port}/v1"
-    SCRIPT
-  end
-
-  # Check the lane from inside each guest, retrying: the policy took about a minute to reach the
-  # datapath in testing, and until it does, traffic still flows. A failure is reported, not raised:
-  # the lab itself is built, and what to look at is more useful than a stack of retries. (The
-  # post-provision tests already fail a lab whose services do not answer.)
-  def self.verify_llm_lane(transport, vms)
-    vms.each do |meta|
-      vm = meta['vm_name']
-      state = :up
-      begin
-        transport.wait_until("the LLM lane to work in #{vm}", timeout: LLM_LANE_TIMEOUT, interval: 15) do
-          llm_lane_state(transport, vm) == :up
-        end
-      rescue KubeVirt::TransportError
-        state = llm_lane_state(transport, vm)
-      end
-
-      case state
-      when :up
-        Print.info "KubeVirt: #{vm} reached the LiteLLM lane from inside the guest"
-      when :untestable
-        Print.warn "KubeVirt: cannot check the LLM lane in #{vm}: the guest has no curl"
-      else
-        Print.warn "KubeVirt: #{vm} did not reach the LiteLLM lane within #{LLM_LANE_TIMEOUT}s"
-        Print.warn " The guest has the endpoint and the key (#{GUEST_LLM_ENV_PATH}); check it by hand with:"
-        Print.warn "   virtctl -n #{transport.namespace} ssh --username vagrant vm/#{vm} -- \\"
-        Print.warn "     '. #{GUEST_LLM_ENV_PATH}; curl -sS \"\$OPENAI_API_BASE/models\" " \
-                   '-H "Authorization: Bearer $OPENAI_API_KEY"\''
-        Print.warn ' An egress policy that has not reached the datapath, a node with no LiteLLM'
-        Print.warn ' replica, or another policy of your own can all cause this.'
-      end
-    end
-    true
-  end
-
-  # Probe the lane from inside the guest. 42 is "the guest has no curl", which is not a broken
-  # lane, so the two are told apart rather than reported as one.
-  def self.llm_lane_state(transport, vm)
-    transport.ssh(vm, llm_probe, timeout: 60)
-    :up
-  rescue KubeVirt::TransportError => e
-    e.message.include?('exit 42') ? :untestable : :down
-  end
-
-  def self.llm_probe
-    "command -v curl >/dev/null || exit 42; . #{GUEST_LLM_ENV_PATH}; " \
-      'curl -s -o /dev/null -w "%{http_code}" -m 10 ' \
-      '-H "Authorization: Bearer $OPENAI_API_KEY" "$OPENAI_API_BASE/models" | grep -q 200'
-  end
-
-  # Push a generated script into the guest and run it, then remove it. The script can carry a
-  # credential, so it goes to a scratch file (mode 0600) and is copied in rather than put on a
-  # command line: the process table is world-readable on the SecGen host, and --verbose prints
-  # command lines.
-  def self.push_and_run(transport, vm, script, guest_path)
-    file = File.join(Dir.tmpdir, "secgen-kubevirt-#{SecureRandom.hex(6)}.sh")
-    begin
-      File.open(file, File::WRONLY | File::CREAT | File::TRUNC, 0600) { |handle| handle.write(script) }
-      transport.scp(file, vm, guest_path, timeout: SCP_TIMEOUT)
-    ensure
-      File.delete(file) if File.exist?(file)
-    end
-    transport.ssh(vm, "bash #{guest_path} && rm -f #{guest_path}", timeout: 300)
   end
 
   # What spreading a lab costs, said out loud. A lab's Multus network is a bridge on one node, so

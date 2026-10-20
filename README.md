@@ -207,7 +207,8 @@ SecGen accepts arguments to change the way that it behaves, the currently implem
       --kubevirt-namespace [namespace]: Run the lab in this namespace (this is what selects the
               KubeVirt provider)
       --kubevirt-kubeconfig [path]: Kubeconfig to use (defaults to the ambient KUBECONFIG)
-      --kubevirt-storage-class [name]: Storage class for the cloned root disks (default: ceph-block)
+      --kubevirt-storage-class [name]: Storage class for the cloned root disks (default: the
+              cluster's default StorageClass)
       --kubevirt-golden-namespace [namespace]: Namespace holding the golden base images
               (default: secgen-bases)
       --kubevirt-cpus [number]: Virtual CPUs per VM (default: 2)
@@ -216,6 +217,8 @@ SecGen accepts arguments to change the way that it behaves, the currently implem
       --kubevirt-create-namespace: Create the namespace (with a quota and clone access) if missing
       --kubevirt-halt: Halt the VMs after provisioning
       --kubevirt-image-size [size]: Size of the cloned root disk (e.g. 34Gi); see README-KubeVirt.md
+      --kubevirt-placement [placement]: spread (default), compact, or a node name
+      --kubevirt-lab-network [backend]: ovn, bridge or auto (default: ovn when the cluster runs Kube-OVN)
 
       COMMANDS:
       run, r: Builds project and then builds the VMs

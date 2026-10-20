@@ -15,12 +15,13 @@ That has two consequences worth knowing before you start:
 
 **Networking:** every guest always has a `masquerade` interface on the cluster pod network,
 which is how SecGen reaches it and the only interface with a default route. On top of that,
-every `<network>` in a scenario becomes a Multus bridge interface on the lab's own L2 segment,
+every `<network>` in a scenario becomes a Multus interface on the lab's own L2 segment,
 carrying the address SecGen assigned it (fixed or auto-assigned), pinned in the cluster rather
-than left to the CNI. See [Networking](#networking). Egress is governed by a tier
-(`--kubevirt-egress`, default `internet`; `litellm` locks a lab down to the LLM lane), and
-`--kubevirt-placement` chooses between spreading a lab over the cluster's nodes and keeping it
-on one.
+than left to the CNI. That segment is a Kube-OVN logical switch spanning every node when the
+cluster runs Kube-OVN, or a node-local Linux bridge otherwise. See [Networking](#networking).
+
+What a lab may reach beyond its own networks is the cluster's business, not SecGen's: see
+[Egress and shared services](#egress-and-shared-services).
 
 ## Requirements
 
@@ -29,10 +30,14 @@ on one.
 - `kubectl` and `virtctl` on `PATH` on the machine running SecGen, with a kubeconfig
   (`--kubevirt-kubeconfig` chooses one; otherwise the ambient `KUBECONFIG`/default context is
   used).
-- A block storage class that supports the `ReadWriteOnce` volume mode for the lab disks
-  (default `ceph-block`, set with `--kubevirt-storage-class`).
+- A storage class for the lab disks that can clone the golden images (the cluster's default
+  StorageClass unless `--kubevirt-storage-class` names one).
 - A namespace holding the golden base images (default `secgen-bases`, set with
   `--kubevirt-golden-namespace`).
+- For scenarios with networks: [Multus](https://github.com/k8snetworkplumbingwg/multus-cni), and
+  either [Kube-OVN](https://kubeovn.github.io/docs/) (as a secondary network; lab networks span
+  nodes) or the bridge CNI with [whereabouts](https://github.com/k8snetworkplumbingwg/whereabouts)
+  IPAM (lab networks are node-local). Scenarios without networks need neither.
 - Nothing else: this is all `kubectl`/`virtctl`, so no new Ruby gems are needed.
 
 ## Preparing golden images
@@ -49,8 +54,7 @@ Images are named `secgen-base-<base-slug>`, and each base module declares the on
 
 in `modules/bases/<base>/secgen_metadata.xml` (the KubeVirt equivalent of `esxi_url` /
 `vagrant_box`). A base without the element is not usable on KubeVirt, and SecGen stops with a
-message naming the base. `secgen-base-bookworm-desktop-kde` (34Gi, `ceph-block`) already
-exists; `secgen-base-kali-light-msf` is what the Kali base expects.
+message naming the base.
 
 The image has to satisfy the same things a [Vagrant base box](README-Creating-Bases.md) does,
 because the guest is provisioned over ssh exactly as Vagrant would provision it:
@@ -70,7 +74,6 @@ mkdir /tmp/base && tar xf bookworm-base-1.1.0-virtualbox.box -C /tmp/base
 virtctl image-upload dv secgen-base-bookworm-desktop-kde \
   --namespace secgen-bases \
   --size=34Gi \
-  --storage-class=ceph-block \
   --image-path=/tmp/base/bookworm-base-disk.img
 ```
 
@@ -99,8 +102,8 @@ in clone source namespace secgen-bases
 ```
 
 SecGen recognises that error and prints what to do. The objects to create are the Role and
-RoleBinding rendered by `lib/templates/kubevirt_clone_rbac.yaml.erb`; `secgen-lab` already
-has them (they were applied by GitOps), so labs there just work.
+RoleBinding rendered by `lib/templates/kubevirt_clone_rbac.yaml.erb`; create them once per lab
+namespace (or let `--kubevirt-create-namespace` do it, below).
 
 `--kubevirt-create-namespace` does it for you when the lab namespace does not exist yet:
 SecGen creates the namespace, a `ResourceQuota` (storage/count only, so it cannot make
@@ -114,7 +117,7 @@ grant you - in that case create the namespace, quota and binding yourself.
 --kubevirt-namespace [namespace]   run the lab in this namespace (this is what selects the
                                    KubeVirt provider; without it the other providers apply)
 --kubevirt-kubeconfig [path]       kubeconfig to use instead of the ambient one
---kubevirt-storage-class [name]    storage class for the cloned root disks (ceph-block)
+--kubevirt-storage-class [name]    storage class for the cloned root disks (cluster default)
 --kubevirt-golden-namespace [ns]   namespace holding the golden images (secgen-bases)
 --kubevirt-cpus [number]           virtual CPUs per VM (2)
 --kubevirt-ssh-key [path]          private key for the guest's vagrant user (the published
@@ -125,19 +128,13 @@ grant you - in that case create the namespace, quota and binding yourself.
 --kubevirt-halt                    halt the VMs after provisioning (runStrategy Halted)
 --kubevirt-image-size [size]       size for the cloned root disk, e.g. 34Gi; needs no cluster
                                    access, but must be at least the golden image's size
---kubevirt-egress [tier]           egress tier for the lab: internet (default), litellm, none
 --kubevirt-placement [placement]   spread (default), compact, or a node name
---kubevirt-llm                     hand the guests the LLM endpoint and key even with
-                                   --kubevirt-egress internet (litellm implies it)
---kubevirt-litellm-service [ns/name]  LiteLLM Service to point labs at (litellm/litellm)
---kubevirt-litellm-secret [ns/name:key]  secret holding the LiteLLM master key
-                                   (litellm/master-key:litellm-master-key)
+--kubevirt-lab-network [backend]   ovn, bridge, or auto (default: ovn if the cluster serves
+                                   the kubeovn.io API, otherwise bridge)
 ```
 
-Multus, and a Multus-aware CNI with whereabouts IPAM, are needed for the lab's own networks;
-the cluster this provider was written against runs Multus v4.3.1 with whereabouts v0.9.4. No
-lab gets an interface on a scenario network without them, and SecGen says so if the
-NetworkAttachmentDefinition cannot be created.
+No lab gets an interface on a scenario network without Multus, and SecGen says so if the
+lab's networks cannot be created.
 
 ## Commands
 
@@ -160,7 +157,7 @@ ruby secgen.rb --project projects/kv1 --kubevirt-namespace secgen-lab kubevirt-b
 # what is running, where it is on the pod network and on its lab networks
 ruby secgen.rb --project projects/kv1 --kubevirt-namespace secgen-lab kubevirt-status
 
-# delete the lab VMs and their root disks, its networks and its egress policy
+# delete the lab VMs and their root disks, and its networks
 # (golden images are never touched)
 ruby secgen.rb --project projects/kv1 --kubevirt-namespace secgen-lab kubevirt-destroy
 ```
@@ -168,9 +165,8 @@ ruby secgen.rb --project projects/kv1 --kubevirt-namespace secgen-lab kubevirt-d
 `run`, `build-vms` and `kubevirt-build` all end with the same post-provision tests as the
 other providers, but the guests are reached over `virtctl` instead of a network path or the
 QEMU Guest Agent, and the pre-test reboot restarts the VMs through the API. The order in a
-build is: create the lab's networks, create and boot the VMs, provision them (open egress),
-then apply the egress tier and, if it is a `litellm` lab, hand the guests the LLM endpoint and
-key.
+build is: create the lab's networks (and wait for them to be ready), create and boot the VMs,
+provision them, test them.
 
 `--system <name>` restricts these commands to one system of the scenario (the same option
 that limits the Vagrant commands); `--retries` retries the whole lab rather than individual
@@ -178,7 +174,7 @@ VMs.
 
 ## Networking
 
-Every guest has a `masquerade` interface on the pod network, plus one Multus bridge interface
+Every guest has a `masquerade` interface on the pod network, plus one Multus interface
 for each `<network>` element in its system definition:
 
 - `masquerade` (always, named `default`) is how SecGen reaches the guest (`virtctl ssh`/`scp`,
@@ -189,11 +185,37 @@ for each `<network>` element in its system definition:
 - each scenario network is its own L2 segment (`net1`, `net2`, ... in the order the `<network>`
   elements appear) carrying the address SecGen assigned that interface.
 
-Guests reach each other on the pod network (subject to the cluster's NetworkPolicy, and to the
-egress tier below) and, while they are on the same node, on their lab networks. README-Networking.md
-describes the scenario model itself; this section is what the provider does with it.
+Guests reach each other on the pod network (subject to the cluster's NetworkPolicy) and on
+their lab networks - across nodes with the `ovn` backend, on one node with `bridge`.
+README-Networking.md describes the scenario model itself; this section is what the provider does
+with it.
 
-### Addresses are pinned, not left to the CNI
+### Two backends
+
+`--kubevirt-lab-network` chooses how a scenario network is built:
+
+| backend | a scenario VLAN becomes | VMs reach each other on it | address pinned by |
+|---|---|---|---|
+| `ovn` | a Kube-OVN `Vpc` + `Subnet` (an OVN logical switch) | on any node (Geneve tunnels) | `<provider>.kubernetes.io/ip_address` pod annotation |
+| `bridge` | a Linux bridge on each node | only on the same node | whereabouts IPAM pinned to one address |
+
+`auto` (the default) picks `ovn` when the cluster serves the `kubeovn.io` API. Both are attached
+through Multus, so Kube-OVN runs as a secondary network beside whatever the primary CNI is.
+
+**`ovn`:** every network gets a `Vpc` of its own. A `Vpc` is an OVN logical router, and Kube-OVN
+only checks CIDR overlap inside one `Vpc`, so two labs (or two networks of one lab) can use the
+same subnet at the same time without seeing each other - verified with two labs on the same /24
+using the same address: 0% loss inside each, 100% between them. Nothing routes a lab `Vpc` to the
+cluster or to another `Vpc`. KubeVirt's DHCP hands the guest its address and the subnet's MTU
+(Kube-OVN's default 1400) and no default route. `Vpc` and `Subnet` are cluster-scoped, so their
+names carry the lab namespace, they are labelled with it, and SecGen refuses to touch one that
+belongs to another lab. SecGen waits for each `Subnet` to be ready before creating VMs, because
+Kube-OVN validates a `Subnet` asynchronously and a VM on a rejected one never starts.
+
+The `bridge` backend is described in the next two sections; it is what the provider falls back to
+on a cluster without Kube-OVN.
+
+### Addresses are pinned, not left to the CNI (`bridge`)
 
 SecGen gives every interface its own address (a fixed `IP_address`, or auto-assigned from the
 network's range starting at `.2`) and hands that address to other modules as `<network_ip>`, so
@@ -225,14 +247,14 @@ different ranges (`--network-ranges`) if you have one.
 Interfaces on one VLAN share a bridge, named from the lab namespace and the VLAN tag, so two
 labs on one node never share a segment even if they compute the same VLAN tag.
 
-### A lab network is a bridge on one node
+### A `bridge` lab network is on one node
 
 The bridge CNI attaches the interface to a Linux bridge inside the node's network namespace, so a
 lab network reaches VMs **on the same node only**: two guests on one node sharing a
 NetworkAttachmentDefinition reached each other with no packet loss; two on different nodes
 sharing one lost 100% of packets both ways.
 
-The provider therefore defaults to spreading a lab over the cluster's nodes
+With `bridge`, the provider still defaults to spreading a lab over the cluster's nodes
 (`--kubevirt-placement spread`; `topologySpreadConstraints` with
 `whenUnsatisfiable: ScheduleAnyway`, so a node with no room is skipped rather than making the
 whole lab unschedulable), because a lab whose VMs do not all fit on one node has to be spread to
@@ -242,12 +264,13 @@ to talk over a lab network, build the lab with:
 
 ```bash
 --kubevirt-placement compact      # the whole lab on one node (required podAffinity)
---kubevirt-placement clarkson     # or one named node (nodeSelector)
+--kubevirt-placement node-1       # or one named node (nodeSelector)
 ```
 
 `compact` uses *required* affinity, so a lab that does not fit fails to schedule instead of
 coming up with its VMs unable to reach each other. SecGen also warns at generation time when a
-scenario puts two or more systems on one VLAN and the placement is `spread`.
+scenario puts two or more systems on one VLAN, the backend is `bridge` and the placement is
+`spread`. None of this applies to `ovn`, where `spread` is safe.
 
 ### What a scenario network cannot do
 
@@ -272,78 +295,36 @@ forwarding.
 
 Generating a project writes two files into it:
 
-- `kubevirt/lab-networks.yaml` - one NetworkAttachmentDefinition per scenario network interface,
-  applied before any VM is created;
+- `kubevirt/lab-networks.yaml` - the lab's networks (`Vpc`/`Subnet`/NetworkAttachmentDefinition per
+  VLAN for `ovn`; one NetworkAttachmentDefinition per interface for `bridge`), applied before any
+  VM is created;
 - `kubevirt/lab-networks.json` - the mapping the rest of the build uses (which system gets which
   interface, on which bridge, at which address).
 
-`kubevirt-destroy` deletes the lab's networks and its egress policy along with the VMs, unless
-`--system` limits it to one system - the other VMs are still running and still need their
-networks. Empty whereabouts pools are left behind in `kube-system/ippools`; they are harmless
-and are reused by the next lab on that subnet.
+`kubevirt-destroy` deletes the lab's networks along with the VMs, unless `--system` limits it to
+one system - the other VMs are still running and still need their networks. A Kube-OVN `Subnet`
+finishes deleting once its last VM port is gone. With `bridge`, empty whereabouts pools are left
+behind in `kube-system/ippools`; they are harmless and are reused by the next lab on that subnet.
 
-## Egress tiers
+## Egress and shared services
 
-`--kubevirt-egress` decides what a lab may reach. It is applied **after** provisioning, which
-needs open egress (package installs, downloads):
+SecGen does not decide what a lab may reach beyond its own networks, and it does not deploy or
+configure services that labs share. Both belong to whoever runs the cluster, and are set up once,
+not per lab:
 
-| tier | what the lab can reach |
-|---|---|
-| `internet` (default) | whatever the cluster allows any workload - no policy is created |
-| `litellm` | the LiteLLM NodePort on any node, and the resolver the guest was given; nothing else |
-| `none` | nothing at all, not even DNS |
+- **Egress.** Every lab VM's virt-launcher pod carries the labels `secgen.io/lab-vm: "true"` and
+  `secgen.io/lab: <lab namespace>`, so a cluster's own NetworkPolicy (or its CNI's equivalent) can
+  select lab VMs - per namespace, or across all labs. Note that provisioning needs whatever the
+  modules download (package mirrors, the internet), so a policy that cuts that off has to allow
+  it during the build. Traffic on a Kube-OVN or bridge lab network does not pass through the
+  primary CNI's policy at all; isolation there comes from each lab having its own segments.
+- **Shared services** (an LLM gateway for chatbot scenarios, a package mirror, ...) are deployed
+  once, outside SecGen. A scenario that needs one is handed its address through the ordinary
+  module inputs, the same as on any other provider.
 
-The policy is a `CiliumNetworkPolicy` selecting the lab VMs by the `secgen.io/lab-vm` label the VM
-template puts on the virt-launcher pod. Cilium replaces an endpoint's whole egress policy, so a
-tier is an allow-list and everything not listed is denied - verified from a guest: the registry
-mirror and the internet stopped working, with `action deny, match none` in `cilium-dbg monitor`,
-while the LiteLLM NodePort answered. Traffic on a Multus lab network does not pass Cilium at all,
-so no tier restricts a lab network: only the pod network.
-
-A Cilium rule list cannot be empty (the error is "rule must have at least one of Ingress,
-IngressDeny, Egress, EgressDeny", and traffic kept flowing when an empty list was tried), so
-`none` is written as an allow-list matching nothing routable: TEST-NET-1, `192.0.2.0/24`
-(RFC 5737). Verified from a guest: internet, every node's NodePort and DNS all fail.
-
-Propagation to the datapath took about a minute in testing, and traffic kept flowing until then,
-which is why the tier is applied last and the LLM lane is checked afterwards. A tier change is a
-rebuild with the new `--kubevirt-egress`: rebuilding with `internet` removes a policy left by an
-earlier tier, and `kubevirt-destroy` removes it with the lab.
-
-## The LLM lane
-
-A lab that needs an LLM uses the cluster's LiteLLM proxy rather than the internet. With
-`--kubevirt-egress litellm` (or `--kubevirt-llm` on its own, which leaves the rest of the egress
-open) every guest is handed:
-
-- an `/etc/hosts` entry `<a node's IP> litellm.lab` - an address, not a name, because a guest in
-  this tier has no working DNS (see [Guest DNS](#guest-dns));
-- `/etc/profile.d/secgen-llm.sh` with `OPENAI_API_BASE`, `OPENAI_BASE_URL` (and
-  `LITELLM_MASTER_KEY`) pointing at it, carrying the master key.
-
-Addressing it is the interesting part. A masquerade guest cannot reach a ClusterIP at all
-(verified: the LiteLLM ClusterIP fails and CoreDNS at `10.96.0.10:53` answers `No route to
-host`), which rules out a Service's normal address, and it cannot complete a service connection
-that stays on, or returns via, **its own** node - so the MetalLB VIP (a local endpoint answers
-it) and its own node's NodePort both fail too. What works, verified from a booted guest, is
-**any other node's IP on the LiteLLM NodePort**: `http://<other node>:30400` returned `200`,
-including an authenticated `/v1/models`, while `http://<its own node>:30400` timed out. SecGen
-therefore reads the NodePort off the Service, picks a node that is *not* the guest's own
-(preferring one running a replica, since the Service is `externalTrafficPolicy: Local` and a node
-without a replica answers nothing), and writes that address into the guest.
-
-The master key is read from the cluster with `kubectl get secret` at build time and reaches the
-guests **only**: it is not written into the project, not passed on a command line (the process
-table is world-readable on the SecGen host, and `--verbose` prints command lines), and the script
-carrying it is copied in with `virtctl scp` and deleted afterwards. Point the provider at another
-proxy with `--kubevirt-litellm-service <namespace>/<name>` and
-`--kubevirt-litellm-secret <namespace>/<name>:<key>`; the defaults are `litellm/litellm` and
-`litellm/master-key:litellm-master-key`. The model IDs the proxy serves are printed when the lane
-is set up.
-
-SecGen then checks the lane from inside each guest and waits for it, because a policy takes about
-a minute to reach the datapath. A guest that does not answer within five minutes gets a warning
-naming what to check, not a failed build; the guest keeps the endpoint and key either way.
+A masquerade guest cannot reach a ClusterIP Service directly (the address is not routed from
+inside the guest), so a service meant for labs should be published on an address the guests can
+route to - a LoadBalancer or NodePort address on the node network, for example.
 
 ## Guest DNS
 
@@ -351,8 +332,8 @@ KubeVirt hands a masquerade guest the *pod's* `resolv.conf` over DHCP, and which
 configured, the guest cannot use it:
 
 - with the default policy it is the cluster's DNS (CoreDNS ClusterIP) - `No route to host`;
-- with `dnsPolicy: Default` it is the *node's* resolver (on Talos, `169.254.116.108`) - the
-  guest cannot reach that either.
+- with `dnsPolicy: Default` it is the *node's* resolver, which on some distributions is a
+  link-local address the guest cannot reach either.
 
 Every puppet module that installs a package then fails, so SecGen always sets `dnsPolicy: None`
 together with an explicit `dnsConfig.nameservers`, defaulting to a public resolver: the guest is
@@ -360,7 +341,7 @@ handed exactly that nameserver, and resolution and package installation then wor
 to end on a booted VM). To point labs at the lab's own resolver instead:
 
 ```bash
---kubevirt-namespace secgen-lab --kubevirt-dns 10.1.0.53,10.1.0.54
+--kubevirt-namespace secgen-lab --kubevirt-dns 192.0.2.53,192.0.2.54
 ```
 
 The provisioning script also writes the same resolver into the guest's `/etc/resolv.conf` (after
@@ -400,9 +381,9 @@ Rebuilding a project that already exists in the same directory moves the previou
 ## What this provider does not do (yet)
 
 - **No VLAN tags on a lab network.** A scenario's VLAN is a *logical* grouping here: each VLAN
-  becomes its own isolated bridge segment, but the 802.1Q tag is not put on the wire (the
+  becomes its own isolated segment, but the 802.1Q tag is not put on the wire (the
   `--proxmox-vlan` tag arithmetic does not apply - Proxmox tags are for sharing a physical LAN,
-  which a cluster bridge does not have). Two VMs on the same VLAN share a segment; two on
+  which a cluster lab network does not have). Two VMs on the same VLAN share a segment; two on
   different VLANs do not.
 - **No DHCP on a lab network** (`public_network`), because a guest on one is a bridge member with
   a static address and there is no DHCP server on a cluster bridge. DHCP in the guest therefore
@@ -410,9 +391,9 @@ Rebuilding a project that already exists in the same directory moves the previou
   interface's existing behaviour rather than to a new one - see [Networking](#networking).
 - **No router per lab network** (`default_gateway`, per-network `dns_nameservers`, `routes`).
   Use a lab VM as the router if the scenario needs one.
-- **No cross-node lab networks.** The bridge is node-local, so a lab network only connects VMs on
-  one node - build such a lab with `--kubevirt-placement compact`. See
-  [A lab network is a bridge on one node](#a-lab-network-is-a-bridge-on-one-node).
+- **No cross-node lab networks without Kube-OVN.** The `bridge` backend is node-local, so a lab
+  network only connects VMs on one node - build such a lab with `--kubevirt-placement compact`.
+  See [A `bridge` lab network is on one node](#a-bridge-lab-network-is-on-one-node).
 - **No VirtualBox bases.** A base is usable here only if it declares `<kubevirt_image>`; the
   Windows bases and the older Debian bases have no golden image.
 - **No snapshots.** `--snapshot` is ignored (it is a Vagrant provider feature), and so is
