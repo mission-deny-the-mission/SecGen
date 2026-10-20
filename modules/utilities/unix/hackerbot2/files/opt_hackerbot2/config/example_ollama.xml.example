@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<hackerbot>
+  <name>ExBot</name>
+  
+  <!-- Ollama configuration - these are optional and will use command line defaults if not specified -->
+  <ollama_model>gemma3:1b</ollama_model>
+  <ollama_host>localhost</ollama_host>
+  <ollama_port>11434</ollama_port>
+  <system_prompt>You are a helpful cybersecurity training assistant. You help users learn about hacking techniques and security concepts. Be encouraging and educational in your responses. Keep explanations clear and practical.</system_prompt>
+  <max_tokens>150</max_tokens>
+  <model_temperature>0.7</model_temperature>
+  <streaming>true</streaming>
+  
+  <get_shell>false</get_shell>
+  
+  <messages>
+    <greeting>Hello! I'm an AI assistant powered by Ollama. How can I help you today?</greeting>
+    <help>I can help you with various tasks. Just ask me anything!</help>
+    <next>Moving to the next attack...</next>
+    <previous>Going back to the previous attack...</previous>
+    <goto>Jumping to attack...</goto>
+    <invalid>That's not a valid attack number.</invalid>
+    <correct_answer>Correct! Well done!</correct_answer>
+    <incorrect_answer>That's not quite right. Try again!</incorrect_answer>
+    <no_quiz>There's no quiz for this attack.</no_quiz>
+    <say_answer>Please provide your answer.</say_answer>
+    <first_attack>This is already the first attack.</first_attack>
+    <last_attack>This is the final attack.</last_attack>
+    <getting_shell>Getting shell access...</getting_shell>
+    <got_shell>Shell access obtained!</got_shell>
+    <shell_fail_message>Failed to get shell access.</shell_fail_message>
+    <repeat>Ready for the next command.</repeat>
+    <non_answer>I'm not sure how to answer that question.</non_answer>
+  </messages>
+  
+  <attacks>
+    <attack>
+      <prompt>This is an example attack. Ask me anything!</prompt>
+      <post_command>echo "Hello from the attack!"</post_command>
+      <condition>
+        <output_matches>Hello from the attack!</output_matches>
+        <message>Great! The command executed successfully.</message>
+        <trigger_next_attack>true</trigger_next_attack>
+      </condition>
+    </attack>
+  </attacks>
+</hackerbot> 

@@ -1,0 +1,42 @@
+NMAP(1)                    User Commands                   NMAP(1)
+
+NAME
+       nmap - Network exploration tool and security / port scanner
+
+SYNOPSIS
+       nmap [Scan Type(s)] [Options] {target specification}
+
+DESCRIPTION
+       Nmap is a utility for network exploration or security auditing.  Many
+       systems and network administrators also find it useful for network
+       inventory, managing service upgrade schedules, and monitoring host or
+       service uptime.
+
+OPTIONS
+       -sS TCP SYN Stealth Scan
+              This technique is often referred to as half-open scanning,
+              because you don't open a full TCP connection.
+
+       -sV Version detection
+              Probe open ports to determine service/version info.
+
+       -p port range
+              Only scan specified ports Ex: -p22; -p1-65535; -p U:53,137,T:21-25,80,139,8080
+
+       -O Enable OS detection
+              Enable OS detection via TCP/IP fingerprinting.
+
+       -A Aggressive scan options
+              Enables OS detection (-O), version detection (-sV), script
+              scanning (-sC) and traceroute (--traceroute).
+
+EXAMPLES
+       nmap -sS -O target.com
+              Stealth SYN scan with OS detection
+       nmap -sV -p 1-65535 target.com
+              Full port range with version detection
+
+SEE ALSO
+       wireshark(1), tcpdump(1)
+
+NMAP 7.80                         May 2020                       NMAP(1)

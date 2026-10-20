@@ -1,0 +1,31 @@
+LS(1)                    User Commands                   LS(1)
+
+NAME
+       ls - list directory contents
+
+SYNOPSIS
+       ls [OPTION]... [FILE]...
+
+DESCRIPTION
+       List information about FILEs (the current directory by default).
+       Sort entries alphabetically if none of -cftuvSUX nor --sort
+       is specified.
+
+OPTIONS
+       -a, --all
+              do not ignore entries starting with .
+       -l, --format=long
+              use a long listing format
+       -t, --sort=time
+              sort by modification time, newest first
+
+EXAMPLES
+       ls -l
+              Show files in long format
+       ls -a
+              Show all files including hidden ones
+
+SEE ALSO
+       dir(1), vdir(1)
+
+GNU coreutils 8.32                 March 2020                        LS(1)

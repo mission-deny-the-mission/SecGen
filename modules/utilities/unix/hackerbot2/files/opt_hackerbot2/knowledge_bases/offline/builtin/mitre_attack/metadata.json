@@ -1,0 +1,9 @@
+{
+  "name": "mitre_attack",
+  "type": "builtin",
+  "version": "latest",
+  "documents_count": 16,
+  "triplets_count": 116,
+  "created_at": "2025-10-22T00:13:59+01:00",
+  "loaded_at": "2025-10-22T00:13:59+01:00"
+}
