@@ -314,9 +314,14 @@ not per lab:
 
 - **Egress.** Every lab VM's virt-launcher pod carries the labels `secgen.io/lab-vm: "true"` and
   `secgen.io/lab: <lab namespace>`, so a cluster's own NetworkPolicy (or its CNI's equivalent) can
-  select lab VMs - per namespace, or across all labs. Note that provisioning needs whatever the
-  modules download (package mirrors, the internet), so a policy that cuts that off has to allow
-  it during the build. Traffic on a Kube-OVN or bridge lab network does not pass through the
+  select lab VMs - per namespace, or across all labs. Provisioning needs whatever the modules
+  download (package mirrors, the internet), but a finished lab usually should not have it, so
+  each VM also carries `secgen.io/phase`: `provisioning` from creation until its guest has been
+  provisioned, then `ready` (the KubeVirt counterpart of the Proxmox provider's temporary
+  provisioning NIC). A policy that selects `secgen.io/phase notin (provisioning)` isolates
+  finished labs and leaves builds alone; the post-provision tests run after a restart, so they
+  already see the finished lab's egress. `ready` is set on the VM template and, when the account
+  may patch pods, on the running pod too; otherwise it takes effect at the VM's next boot. Traffic on a Kube-OVN or bridge lab network does not pass through the
   primary CNI's policy at all; isolation there comes from each lab having its own segments.
 - **Shared services** (an LLM gateway for chatbot scenarios, a package mirror, ...) are deployed
   once, outside SecGen. A scenario that needs one is handed its address through the ordinary
