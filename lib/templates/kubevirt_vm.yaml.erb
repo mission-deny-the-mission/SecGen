@@ -55,6 +55,9 @@ spec:
         # not the VirtualMachine object.
         secgen.io/lab-vm: "true"
         secgen.io/lab: "<%= lab_id %>"
+        # 'provisioning' until the guest is provisioned, then SecGen sets 'ready' (here and on the
+        # running pod). A cluster can key egress policy on it; SecGen itself never restricts egress.
+        secgen.io/phase: provisioning
     spec:
       # A masquerade guest is handed the virt-launcher pod's resolv.conf over DHCP. With
       # the default policy that is the cluster's DNS (CoreDNS ClusterIP) and with

@@ -95,6 +95,15 @@ class KubeVirtFunctions
   LAB_VM_LABEL_VALUE = 'true'
   LAB_ID_LABEL = 'secgen.io/lab'
 
+  # Lifecycle label on every lab VM's virt-launcher pod: 'provisioning' from creation until the
+  # guest's provisioning script has run, then 'ready'. Building a lab needs open egress (package
+  # installs, downloads) but a finished lab usually should not have it - the KubeVirt counterpart
+  # of the Proxmox provider's temporary provisioning NIC. SecGen only sets the label; a cluster
+  # that wants finished labs isolated keys its own NetworkPolicy on it (see README-KubeVirt.md).
+  LAB_PHASE_LABEL = 'secgen.io/phase'
+  LAB_PHASE_PROVISIONING = 'provisioning'
+  LAB_PHASE_READY = 'ready'
+
   # Placement of a lab's VMs. 'spread' (the default) lets a lab bigger than any one node's
   # free memory still build; 'compact' keeps a lab on one node, which is what a lab needs when
   # its VMs have to reach each other on their Multus networks. Anything else is a node name.
@@ -727,6 +736,7 @@ class KubeVirtFunctions
       transport.wait_for_vmi_ready(vm, timeout: VMI_READY_TIMEOUT)
       wait_for_ssh(transport, vm)
       provision(transport, project_dir, meta)
+      mark_ready(transport, vm)
     end
 
     Print.info 'KubeVirt: all VM(s) are built and provisioned'
@@ -760,6 +770,17 @@ class KubeVirtFunctions
     ensure
       File.delete(tarball) if tarball && File.exist?(tarball)
     end
+  end
+
+  # Provisioning is done: move the VM to the 'ready' phase. Both the VM's template (so every later
+  # boot, including the post-provision test restart, starts as 'ready') and the running
+  # virt-launcher pod (so it applies now, without a reboot) are relabelled.
+  def self.mark_ready(transport, vm)
+    label = "#{LAB_PHASE_LABEL}=#{LAB_PHASE_READY}"
+    patch = { 'spec' => { 'template' => { 'metadata' => { 'labels' => { LAB_PHASE_LABEL => LAB_PHASE_READY } } } } }
+    transport.kubectl(['patch', 'vm', vm, '--type', 'merge', '-p', JSON.generate(patch)])
+    transport.kubectl(['label', 'pods', '-l', "vm.kubevirt.io/name=#{vm}", label, '--overwrite'])
+    Print.std " #{vm}: #{label}"
   end
 
   # One tarball holding the system's puppet modules plus the shared environments directory,
