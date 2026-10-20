@@ -772,15 +772,21 @@ class KubeVirtFunctions
     end
   end
 
-  # Provisioning is done: move the VM to the 'ready' phase. Both the VM's template (so every later
-  # boot, including the post-provision test restart, starts as 'ready') and the running
-  # virt-launcher pod (so it applies now, without a reboot) are relabelled.
+  # Provisioning is done: move the VM to the 'ready' phase. The VM's template is relabelled, so every
+  # later boot (including the post-provision test restart) starts as 'ready'. Relabelling the
+  # running virt-launcher pod as well makes it apply now, but needs 'patch' on pods, which a
+  # restricted lab account may rightly not have (it would also allow changing a pod's image): then
+  # the phase changes at the VM's next boot instead.
   def self.mark_ready(transport, vm)
     label = "#{LAB_PHASE_LABEL}=#{LAB_PHASE_READY}"
     patch = { 'spec' => { 'template' => { 'metadata' => { 'labels' => { LAB_PHASE_LABEL => LAB_PHASE_READY } } } } }
     transport.kubectl(['patch', 'vm', vm, '--type', 'merge', '-p', JSON.generate(patch)])
-    transport.kubectl(['label', 'pods', '-l', "vm.kubevirt.io/name=#{vm}", label, '--overwrite'])
-    Print.std " #{vm}: #{label}"
+    begin
+      transport.kubectl(['label', 'pods', '-l', "vm.kubevirt.io/name=#{vm}", label, '--overwrite'])
+      Print.std " #{vm}: #{label}"
+    rescue KubeVirt::TransportError
+      Print.std " #{vm}: #{label} from its next boot (no permission to relabel the running pod)"
+    end
   end
 
   # One tarball holding the system's puppet modules plus the shared environments directory,
