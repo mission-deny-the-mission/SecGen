@@ -25,6 +25,9 @@ What a lab may reach beyond its own networks is the cluster's business, not SecG
 
 ## Requirements
 
+This section is what SecGen needs from you; [README-KubeVirt-Cluster.md](README-KubeVirt-Cluster.md)
+is what the cluster needs, and one way to set it up.
+
 - A Kubernetes cluster running KubeVirt, with CDI (its `DataVolume` API clones the golden
   images).
 - `kubectl` and `virtctl` on `PATH` on the machine running SecGen, with a kubeconfig
