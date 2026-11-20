@@ -99,6 +99,8 @@ def usage
    --hb3-decision-threshold [0-1]: canned-answer confidence threshold (default: 0.5, env: HB3_DECISION_THRESHOLD)
    --hb3-embed-url [url]: embedding server for the twopass shortlist (env: HB3_EMBED_URL)
    --hb3-embed-model [model]: embedding model name (default: qwen3-embedding, env: HB3_EMBED_MODEL)
+   --hb3-api-key [key]: bearer key for the decision/embedding URLs, when they sit behind a gateway such as
+              LiteLLM (env: HB3_API_KEY; lands in the bot server's 0600 hb3.env)
 
    PROXMOX OPTIONS:
    --proxmoxuser [username]
@@ -743,6 +745,7 @@ opts = GetoptLong.new(
     ['--hb3-decision-threshold', GetoptLong::REQUIRED_ARGUMENT],
     ['--hb3-embed-url', GetoptLong::REQUIRED_ARGUMENT],
     ['--hb3-embed-model', GetoptLong::REQUIRED_ARGUMENT],
+    ['--hb3-api-key', GetoptLong::REQUIRED_ARGUMENT],
 )
 
 scenario = SCENARIO_XML
@@ -766,6 +769,7 @@ options[:hb3_decision_strategy]  = ENV['HB3_DECISION_STRATEGY']  || 'twopass'
 options[:hb3_decision_threshold] = ENV['HB3_DECISION_THRESHOLD'] || '0.5'
 options[:hb3_embed_url]          = ENV['HB3_EMBED_URL']
 options[:hb3_embed_model]        = ENV['HB3_EMBED_MODEL']        || 'qwen3-embedding'
+options[:hb3_api_key]            = ENV['HB3_API_KEY']
 
 # process option arguments
 opts.each do |opt, arg|
@@ -1018,6 +1022,9 @@ opts.each do |opt, arg|
   when '--hb3-embed-model'
     Print.info "Hackerbot 3 embedding model: #{arg}"
     options[:hb3_embed_model] = arg
+  when '--hb3-api-key'
+    Print.info "Hackerbot 3 API key: ********"
+    options[:hb3_api_key] = arg
   else
     Print.err "Argument not valid: #{arg}"
     usage

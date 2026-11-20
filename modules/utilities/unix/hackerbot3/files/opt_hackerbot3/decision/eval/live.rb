@@ -14,7 +14,7 @@ pairs = File.expand_path('../pairs/labhelp_pairs.json', __dir__)
 routers = {}
 mk = lambda do |lab|
   DecisionRouter.new(pairs_file: pairs, lab: lab, url: ENV.fetch('HB3_DECISION_URL'), model: ENV['HB3_DECISION_MODEL'],
-                     embed_url: ENV['HB3_EMBED_URL'], embed_model: ENV['HB3_EMBED_MODEL'], strategy: strategy,
+                     embed_url: ENV['HB3_EMBED_URL'], embed_model: ENV['HB3_EMBED_MODEL'], api_key: ENV['HB3_API_KEY'], strategy: strategy,
                      threshold: t, timeout: 30)
 end
 cases.map { |c| c['lab'] }.uniq.each { |lab| routers[lab] = mk.call(lab); 2.times { routers[lab].route('warmup message') } }

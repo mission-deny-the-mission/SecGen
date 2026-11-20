@@ -78,6 +78,7 @@ class HackerbotConfigGenerator < StringGenerator
       'HB3_DECISION_THRESHOLD' => ENV['HB3_DECISION_THRESHOLD'],
       'HB3_EMBED_URL'          => ENV['HB3_EMBED_URL'],
       'HB3_EMBED_MODEL'        => ENV['HB3_EMBED_MODEL'],
+      'HB3_API_KEY'            => ENV['HB3_API_KEY'],
     }.compact
 
     json = {'xml_config' => xml_config.force_encoding('UTF-8'), 'hb2_env' => hb2_env, 'hb3_env' => hb3_env}.to_json.force_encoding('UTF-8')

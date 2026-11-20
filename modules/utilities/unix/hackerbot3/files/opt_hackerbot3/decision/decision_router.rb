@@ -60,6 +60,8 @@ class DecisionRouter
   #   :embed_url, :embed_model               embedding server (/v1/embeddings); enables shortlist/twopass
   #   :shortlist_k (8)
   #   :timeout (4.0)                         seconds per HTTP call
+  #   :api_key                               optional bearer token for url/embed_url (e.g. a LiteLLM key
+  #                                          when the servers are reached through LiteLLM pass-through routes)
   #   :breaker_failures (5), :breaker_cooldown (30)
   #   :log_path                              optional JSONL decision log (stores student messages: off by default)
   #   :http_post                             injectable lambda(url, body, timeout) -> parsed JSON (tests)
@@ -75,6 +77,7 @@ class DecisionRouter
     @breaker_failures = (opts[:breaker_failures] || 5).to_i
     @breaker_cooldown = (opts[:breaker_cooldown] || 30).to_f
     @log_path = opts[:log_path]
+    @api_key = opts[:api_key].to_s.empty? ? nil : opts[:api_key].to_s
     @http_post = opts[:http_post] || method(:default_http_post)
 
     strategy = (opts[:strategy] || 'twopass').to_s
@@ -248,6 +251,7 @@ class DecisionRouter
     http.read_timeout = timeout
     http.proxy_from_env = false # lab servers are local; the build env sets proxies (see Hackerbot 2 proxy fix)
     req = Net::HTTP::Post.new(uri.request_uri, 'Content-Type' => 'application/json')
+    req['Authorization'] = "Bearer #{@api_key}" if @api_key
     req.body = JSON.generate(body)
     res = http.request(req)
     raise "HTTP #{res.code} from #{uri.host}:#{uri.port}#{uri.path}" unless res.code.start_with?('2')

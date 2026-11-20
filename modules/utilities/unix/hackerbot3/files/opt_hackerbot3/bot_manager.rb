@@ -1347,6 +1347,7 @@ class BotManager
       shortlist_k: text.call('shortlist_k') || ENV['HB3_DECISION_SHORTLIST_K'],
       embed_url: ENV['HB3_EMBED_URL'],
       embed_model: ENV['HB3_EMBED_MODEL'],
+      api_key: ENV['HB3_API_KEY'],
       timeout: ENV['HB3_DECISION_TIMEOUT'],
       log_path: ENV['HB3_DECISION_LOG']
     )
