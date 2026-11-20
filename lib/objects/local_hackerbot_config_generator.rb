@@ -15,6 +15,10 @@ class HackerbotConfigGenerator < StringGenerator
   # No longer rendered (lab sheets are not hosted from the bot any more), but the hb2_* generators
   # still set it, and without the accessor they die with NoMethodError before writing any config.
   attr_accessor :html_template_path
+  # Hackerbot 3: when set, a <decision_router> naming this lab (a lab id in the bot's
+  # decision/pairs/labhelp_pairs.json) is added to the rendered bot XML, so an hb3_* generator can
+  # reuse an hb2_* template unchanged. Hackerbot 2 ignores the element.
+  attr_accessor :decision_router_lab
   def initialize
     super
     self.module_name = 'Hackerbot Config Generator'
@@ -51,6 +55,7 @@ class HackerbotConfigGenerator < StringGenerator
     # Print.debug self.accounts.to_s
     xml_template_out = ERB.new(File.read(self.config_template_path), trim_mode: '<>-')
     xml_config = xml_template_out.result(self.get_binding)
+    xml_config = add_decision_router(xml_config) if self.decision_router_lab
 
     # Lab sheets are hosted externally upstream (HTML generation removed); only the
     # fork's hb2_env (per-bot LLM settings for the hackerbot2 service) is kept.
@@ -64,8 +69,27 @@ class HackerbotConfigGenerator < StringGenerator
       'HB2_EMBEDDING_MODEL' => ENV['HB2_EMBEDDING_MODEL'],
     }.compact
 
-    json = {'xml_config' => xml_config.force_encoding('UTF-8'), 'hb2_env' => hb2_env}.to_json.force_encoding('UTF-8')
+    # Hackerbot 3: decision router servers. Ignored by the hackerbot2 utility; the hackerbot3 utility writes
+    # them (with hb2_env, which carries the LLM fallback) into /opt/hackerbot3/config/hb3.env.
+    hb3_env = {
+      'HB3_DECISION_URL'       => ENV['HB3_DECISION_URL'],
+      'HB3_DECISION_MODEL'     => ENV['HB3_DECISION_MODEL'],
+      'HB3_DECISION_STRATEGY'  => ENV['HB3_DECISION_STRATEGY'],
+      'HB3_DECISION_THRESHOLD' => ENV['HB3_DECISION_THRESHOLD'],
+      'HB3_EMBED_URL'          => ENV['HB3_EMBED_URL'],
+      'HB3_EMBED_MODEL'        => ENV['HB3_EMBED_MODEL'],
+    }.compact
+
+    json = {'xml_config' => xml_config.force_encoding('UTF-8'), 'hb2_env' => hb2_env, 'hb3_env' => hb3_env}.to_json.force_encoding('UTF-8')
     self.outputs << json.to_s
+  end
+
+  # Insert <decision_router> straight after the bot's top-level <name> (first </name> in the file).
+  def add_decision_router(xml_config)
+    block = "\n  <!-- Hackerbot 3 canned-response decision router (servers come from HB3_* in hb3.env) -->\n" \
+            "  <decision_router>\n    <enabled>true</enabled>\n    <lab>#{self.decision_router_lab}</lab>\n  </decision_router>\n"
+    raise "no </name> in rendered bot XML; cannot add <decision_router>" unless xml_config.include?('</name>')
+    xml_config.sub('</name>', "</name>\n#{block}")
   end
 
   # Returns binding for erb files (access to variables in this classes scope)

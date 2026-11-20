@@ -1,0 +1,166 @@
+[
+  {
+    "id": "mitre_attack_T1003",
+    "content": "MITRE ATT&CK Attack Pattern: OS Credential Dumping\n\nID: T1003\nTactic: Credential Access\n\nDescription:\nAdversaries may attempt to dump credentials to obtain account login and credential material, commonly in the form of a hash or plaintext password.\n\nTechniques:\n- LSASS Memory (T1003.001): Adversaries may attempt to access credential material stored in the process memory of the Local Security Authority Subsystem Service (LSASS).\n- Security Account Manager (T1003.002): Adversaries may attempt to extract credentials material from the Security Account Manager (SAM) database.\n- NTDS (T1003.003): Adversaries may attempt to access or create a copy of the Active Directory database.\n\nRelated Tools:\n- Mimikatz\n- ProcDump\n- NMap\n\nMitigation:\nUse Credential Guard, enable protected process for LSASS, implement privileged access management",
+    "metadata": {
+      "source": "MITRE ATT&CK",
+      "type": "attack_pattern",
+      "tactic": "Credential Access",
+      "pattern_id": "T1003"
+    }
+  },
+  {
+    "id": "mitre_attack_T1059",
+    "content": "MITRE ATT&CK Attack Pattern: Command-Line Interface\n\nID: T1059\nTactic: Execution\n\nDescription:\nAdversaries may use command-line interfaces to interact with systems and execute commands, scripts, or binaries.\n\nTechniques:\n- PowerShell (T1059.001): Adversaries may abuse PowerShell commands to execute commands, scripts, or binaries.\n- Windows Command Shell (T1059.003): Adversaries may abuse the Windows command shell for execution.\n- Unix Shell (T1059.004): Adversaries may abuse Unix shell commands and scripts.\n\nRelated Tools:\n- PowerShell\n- Cmd.exe\n- Bash\n- Zsh\n\nMitigation:\n PowerShell command logging, audit command-line usage, implement application whitelisting",
+    "metadata": {
+      "source": "MITRE ATT&CK",
+      "type": "attack_pattern",
+      "tactic": "Execution",
+      "pattern_id": "T1059"
+    }
+  },
+  {
+    "id": "mitre_attack_T1078",
+    "content": "MITRE ATT&CK Attack Pattern: Valid Accounts\n\nID: T1078\nTactic: Defense Evasion\n\nDescription:\nAdversaries may obtain and abuse credentials of existing accounts as a means of gaining access to systems.\n\nTechniques:\n- Default Accounts (T1078.001): Adversaries may obtain and use credentials for default accounts.\n- Domain Accounts (T1078.002): Adversaries may compromise domain accounts to access systems and resources.\n- Local Accounts (T1078.003): Adversaries may obtain and use local account credentials.\n\nRelated Tools:\n- Pass-the-Hash\n- Pass-the-Ticket\n- Kerberoasting\n\nMitigation:\nDisable default accounts, implement strong password policies, use multi-factor authentication",
+    "metadata": {
+      "source": "MITRE ATT&CK",
+      "type": "attack_pattern",
+      "tactic": "Defense Evasion",
+      "pattern_id": "T1078"
+    }
+  },
+  {
+    "id": "mitre_attack_T1190",
+    "content": "MITRE ATT&CK Attack Pattern: Exploit Public-Facing Application\n\nID: T1190\nTactic: Initial Access\n\nDescription:\nAdversaries may attempt to exploit vulnerabilities in public-facing applications to gain initial access.\n\nTechniques:\n- Web Application Exploit (T1190.001): Adversaries may exploit web application vulnerabilities to gain access.\n\nRelated Tools:\n- Metasploit\n- SQLMap\n- NMap\n\nMitigation:\nKeep software updated, implement web application firewalls, use secure coding practices",
+    "metadata": {
+      "source": "MITRE ATT&CK",
+      "type": "attack_pattern",
+      "tactic": "Initial Access",
+      "pattern_id": "T1190"
+    }
+  },
+  {
+    "id": "mitre_attack_T1566",
+    "content": "MITRE ATT&CK Attack Pattern: Phishing\n\nID: T1566\nTactic: Initial Access\n\nDescription:\nAdversaries may send phishing emails to target users to steal credentials or deliver malware.\n\nTechniques:\n- Spearphishing Attachment (T1566.001): Adversaries may send spearphishing emails with malicious attachments.\n- Spearphishing Link (T1566.002): Adversaries may send spearphishing emails with malicious links.\n\nRelated Tools:\n- Social Engineering Toolkit\n- Gophish\n- Metasploit\n\nMitigation:\nSecurity awareness training, email filtering, sandbox suspicious attachments",
+    "metadata": {
+      "source": "MITRE ATT&CK",
+      "type": "attack_pattern",
+      "tactic": "Initial Access",
+      "pattern_id": "T1566"
+    }
+  },
+  {
+    "id": "malware_emotet",
+    "content": "Malware Family: Emotet\n\nType: Trojan\n\nDescription:\nModular malware that delivers banking trojans and ransomware\n\nCapabilities:\n- credential theft\n- email spreading\n- downloader\n\nAssociated Attack Patterns:\n- OS Credential Dumping (T1003)\n- Command-Line Interface (T1059)\n- Valid Accounts (T1078)\n",
+    "metadata": {
+      "source": "Malware Database",
+      "type": "malware_family",
+      "malware_type": "Trojan",
+      "name": "Emotet"
+    }
+  },
+  {
+    "id": "malware_wannacry",
+    "content": "Malware Family: WannaCry\n\nType: Ransomware\n\nDescription:\nRansomware worm that spreads using EternalBlue exploit\n\nCapabilities:\n- worm propagation\n- file encryption\n- ransom demand\n\nAssociated Attack Patterns:\n- Exploit Public-Facing Application (T1190)\n",
+    "metadata": {
+      "source": "Malware Database",
+      "type": "malware_family",
+      "malware_type": "Ransomware",
+      "name": "WannaCry"
+    }
+  },
+  {
+    "id": "malware_mirai",
+    "content": "Malware Family: Mirai\n\nType: Botnet\n\nDescription:\nIoT malware that creates botnets for DDoS attacks\n\nCapabilities:\n- DDoS attacks\n- device scanning\n- password cracking\n\nAssociated Attack Patterns:\n",
+    "metadata": {
+      "source": "Malware Database",
+      "type": "malware_family",
+      "malware_type": "Botnet",
+      "name": "Mirai"
+    }
+  },
+  {
+    "id": "tool_metasploit_framework",
+    "content": "Attack Tool: Metasploit Framework\n\nType: Exploitation Framework\n\nDescription:\nAdvanced penetration testing platform with exploit development and testing capabilities\n\nCapabilities:\n- exploit development\n- payload generation\n- post-exploitation\n\nDetection Methods:\nNetwork traffic monitoring, process monitoring, suspicious file creation",
+    "metadata": {
+      "source": "Attack Tools Database",
+      "type": "attack_tool",
+      "tool_type": "Exploitation Framework",
+      "name": "Metasploit Framework"
+    }
+  },
+  {
+    "id": "tool_mimikatz",
+    "content": "Attack Tool: Mimikatz\n\nType: Credential Theft\n\nDescription:\nAdvanced credential extraction tool focused on Windows systems\n\nCapabilities:\n- credential theft\n- pass-the-hash\n- kerberoasting\n\nDetection Methods:\n[\"LSASS access monitoring\", \"credentialdumping\", \"process monitoring\"]",
+    "metadata": {
+      "source": "Attack Tools Database",
+      "type": "attack_tool",
+      "tool_type": "Credential Theft",
+      "name": "Mimikatz"
+    }
+  },
+  {
+    "id": "tool_nmap",
+    "content": "Attack Tool: NMap\n\nType: Network Scanning\n\nDescription:\nNetwork discovery and security auditing tool\n\nCapabilities:\n- port scanning\n- service detection\n- OS fingerprinting\n\nDetection Methods:\n[\"Network scanning detection\", \"port scan detection\", \"service enumeration detection\"]",
+    "metadata": {
+      "source": "Attack Tools Database",
+      "type": "attack_tool",
+      "tool_type": "Network Scanning",
+      "name": "NMap"
+    }
+  },
+  {
+    "id": "tool_burp_suite",
+    "content": "Attack Tool: Burp Suite\n\nType: Web Testing\n\nDescription:\nIntegrated platform for performing security testing of web applications\n\nCapabilities:\n- web vulnerability scanning\n- interception\n- fuzzing\n\nDetection Methods:\n[\"Web application monitoring\", \"HTTP traffic analysis\", \"suspicious request patterns\"]",
+    "metadata": {
+      "source": "Attack Tools Database",
+      "type": "attack_tool",
+      "tool_type": "Web Testing",
+      "name": "Burp Suite"
+    }
+  },
+  {
+    "id": "defense_endpoint_detection_and_response_(edr)",
+    "content": "Security Defense: Endpoint Detection and Response (EDR)\n\nType: Prevention\n\nEffectiveness: High\n\nDescription:\nAdvanced security solutions that monitor and respond to threats on endpoints\n\nCapabilities:\n- process monitoring\n- behavior analysis\n- threat hunting\n\nMitigates Attack Patterns:\n- OS Credential Dumping (T1003)\n- Command-Line Interface (T1059)\n- Valid Accounts (T1078)\n",
+    "metadata": {
+      "source": "Security Defenses Database",
+      "type": "defense",
+      "defense_type": "Prevention",
+      "effectiveness": "High",
+      "name": "Endpoint Detection and Response (EDR)"
+    }
+  },
+  {
+    "id": "defense_security_information_and_event_management_(siem)",
+    "content": "Security Defense: Security Information and Event Management (SIEM)\n\nType: Detection\n\nEffectiveness: High\n\nDescription:\nCentralized log management and security monitoring system\n\nCapabilities:\n- log aggregation\n- correlation\n- alerting\n\nMitigates Attack Patterns:\n- Valid Accounts (T1078)\n- Exploit Public-Facing Application (T1190)\n- Phishing (T1566)\n",
+    "metadata": {
+      "source": "Security Defenses Database",
+      "type": "defense",
+      "defense_type": "Detection",
+      "effectiveness": "High",
+      "name": "Security Information and Event Management (SIEM)"
+    }
+  },
+  {
+    "id": "defense_multi-factor_authentication_(mfa)",
+    "content": "Security Defense: Multi-Factor Authentication (MFA)\n\nType: Prevention\n\nEffectiveness: Very High\n\nDescription:\nAuthentication method requiring multiple verification factors\n\nCapabilities:\n- additional authentication\n- phishing resistance\n- credential protection\n\nMitigates Attack Patterns:\n- Valid Accounts (T1078)\n- Phishing (T1566)\n",
+    "metadata": {
+      "source": "Security Defenses Database",
+      "type": "defense",
+      "defense_type": "Prevention",
+      "effectiveness": "Very High",
+      "name": "Multi-Factor Authentication (MFA)"
+    }
+  },
+  {
+    "id": "defense_network_segmentation",
+    "content": "Security Defense: Network Segmentation\n\nType: Prevention\n\nEffectiveness: Medium\n\nDescription:\nDividing network into smaller segments to limit attack surface\n\nCapabilities:\n- access control\n- lateral movement prevention\n- breach containment\n\nMitigates Attack Patterns:\n- Exploit Public-Facing Application (T1190)\n- OS Credential Dumping (T1003)\n",
+    "metadata": {
+      "source": "Security Defenses Database",
+      "type": "defense",
+      "defense_type": "Prevention",
+      "effectiveness": "Medium",
+      "name": "Network Segmentation"
+    }
+  }
+]

@@ -91,6 +91,15 @@ def usage
    --hb2-embedding-model [model]: Embedding model name for Hackerbot 2 RAG
               (default: text-embedding-ada-002, env: HB2_EMBEDDING_MODEL)
 
+   HACKERBOT 3 DECISION ROUTER OPTIONS (hackerbot3 utility; LLM fallback uses the --hb2-* options above):
+   --hb3-decision-url [url]: decision model server (OpenAI-compatible, e.g. Clef-Flash on vLLM)
+              (default: unset = router off, plain LLM fallback; env: HB3_DECISION_URL)
+   --hb3-decision-model [model]: decision model name (default: clef-flash, env: HB3_DECISION_MODEL)
+   --hb3-decision-strategy [twopass|full]: (default: twopass, env: HB3_DECISION_STRATEGY)
+   --hb3-decision-threshold [0-1]: canned-answer confidence threshold (default: 0.5, env: HB3_DECISION_THRESHOLD)
+   --hb3-embed-url [url]: embedding server for the twopass shortlist (env: HB3_EMBED_URL)
+   --hb3-embed-model [model]: embedding model name (default: qwen3-embedding, env: HB3_EMBED_MODEL)
+
    PROXMOX OPTIONS:
    --proxmoxuser [username]
    --proxmoxpass [password]
@@ -728,6 +737,12 @@ opts = GetoptLong.new(
     ['--hb2-openai-api-key', GetoptLong::REQUIRED_ARGUMENT],
     ['--hb2-openai-base-url', GetoptLong::REQUIRED_ARGUMENT],
     ['--hb2-embedding-model', GetoptLong::REQUIRED_ARGUMENT],
+    ['--hb3-decision-url', GetoptLong::REQUIRED_ARGUMENT],
+    ['--hb3-decision-model', GetoptLong::REQUIRED_ARGUMENT],
+    ['--hb3-decision-strategy', GetoptLong::REQUIRED_ARGUMENT],
+    ['--hb3-decision-threshold', GetoptLong::REQUIRED_ARGUMENT],
+    ['--hb3-embed-url', GetoptLong::REQUIRED_ARGUMENT],
+    ['--hb3-embed-model', GetoptLong::REQUIRED_ARGUMENT],
 )
 
 scenario = SCENARIO_XML
@@ -743,6 +758,14 @@ options[:hb2_llm_model]         = ENV['HB2_LLM_MODEL']         || 'gpt-4o-mini'
 options[:hb2_openai_api_key]    = ENV['HB2_OPENAI_API_KEY']    || 'no-key-needed'
 options[:hb2_openai_base_url]   = ENV['HB2_OPENAI_BASE_URL']   || "http://#{options[:hb2_llm_host]}:#{options[:hb2_llm_port]}"
 options[:hb2_embedding_model]   = ENV['HB2_EMBEDDING_MODEL']   || 'text-embedding-ada-002'
+
+# Hackerbot 3 decision router settings (only used by the hackerbot3 utility; unset URL = router off)
+options[:hb3_decision_url]       = ENV['HB3_DECISION_URL']
+options[:hb3_decision_model]     = ENV['HB3_DECISION_MODEL']     || 'clef-flash'
+options[:hb3_decision_strategy]  = ENV['HB3_DECISION_STRATEGY']  || 'twopass'
+options[:hb3_decision_threshold] = ENV['HB3_DECISION_THRESHOLD'] || '0.5'
+options[:hb3_embed_url]          = ENV['HB3_EMBED_URL']
+options[:hb3_embed_model]        = ENV['HB3_EMBED_MODEL']        || 'qwen3-embedding'
 
 # process option arguments
 opts.each do |opt, arg|
@@ -976,6 +999,25 @@ opts.each do |opt, arg|
   when '--hb2-embedding-model'
     Print.info "Hackerbot 2 embedding model: #{arg}"
     options[:hb2_embedding_model] = arg
+  # Hackerbot 3 decision router options
+  when '--hb3-decision-url'
+    Print.info "Hackerbot 3 decision URL: #{arg}"
+    options[:hb3_decision_url] = arg
+  when '--hb3-decision-model'
+    Print.info "Hackerbot 3 decision model: #{arg}"
+    options[:hb3_decision_model] = arg
+  when '--hb3-decision-strategy'
+    Print.info "Hackerbot 3 decision strategy: #{arg}"
+    options[:hb3_decision_strategy] = arg
+  when '--hb3-decision-threshold'
+    Print.info "Hackerbot 3 decision threshold: #{arg}"
+    options[:hb3_decision_threshold] = arg
+  when '--hb3-embed-url'
+    Print.info "Hackerbot 3 embedding URL: #{arg}"
+    options[:hb3_embed_url] = arg
+  when '--hb3-embed-model'
+    Print.info "Hackerbot 3 embedding model: #{arg}"
+    options[:hb3_embed_model] = arg
   else
     Print.err "Argument not valid: #{arg}"
     usage

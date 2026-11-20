@@ -376,6 +376,12 @@ class System
         hb2_env['HB2_OPENAI_API_KEY']  = options[:hb2_openai_api_key]  if options[:hb2_openai_api_key]
         hb2_env['HB2_OPENAI_BASE_URL'] = options[:hb2_openai_base_url] if options[:hb2_openai_base_url]
         hb2_env['HB2_EMBEDDING_MODEL'] = options[:hb2_embedding_model] if options[:hb2_embedding_model]
+        # Hackerbot 3 decision router settings (read by the hackerbot3 utility's generator output)
+        { 'HB3_DECISION_URL' => :hb3_decision_url, 'HB3_DECISION_MODEL' => :hb3_decision_model,
+          'HB3_DECISION_STRATEGY' => :hb3_decision_strategy, 'HB3_DECISION_THRESHOLD' => :hb3_decision_threshold,
+          'HB3_EMBED_URL' => :hb3_embed_url, 'HB3_EMBED_MODEL' => :hb3_embed_model }.each do |env_key, opt_key|
+          hb2_env[env_key] = options[opt_key].to_s if options[opt_key]
+        end
         stdout, stderr, status = Open3.capture3(hb2_env, command, :stdin_data => args_string)
         puts stderr
         outputs = stdout.chomp

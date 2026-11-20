@@ -1,0 +1,37 @@
+<?xml version="1.0"?>
+
+<utility xmlns="http://www.github/cliffe/SecGen/utility"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://www.github/cliffe/SecGen/utility">
+  <name>Hackerbot3</name>
+  <author>Mission Deny the Mission</author>
+  <module_license>MIT</module_license>
+  <description>Hackerbot 3: Hackerbot 2 (IRC attack chatbot with LLM fallback) plus a canned-response decision router.
+    Before falling back to the LLM, each student question is scored by a small decision model (e.g. Clef-Flash on vLLM)
+    against the lab's curated question/answer pairs (opt_hackerbot3/decision/pairs/); confident matches get the
+    instructor-written answer, everything else goes to the LLM as in Hackerbot 2. Attack/quiz/flag flow is unchanged,
+    so hackerbot_config generators written for Hackerbot 2 (hb2_*) work as-is.
+    The router is configured at build time with secgen.rb --hb3-* options (or HB3_* env vars) and per bot with a
+    &lt;decision_router&gt; element in the bot XML; with no decision URL it is off and the bot behaves like Hackerbot 2.
+    Connects to an IRC server on localhost (put an ircd on the same VM).</description>
+
+  <type>chatbot</type>
+  <platform>linux</platform>
+
+  <software_license>MIT</software_license>
+
+  <read_fact>server_ip</read_fact>
+  <read_fact>hackerbot_configs</read_fact>
+
+  <default_input into="server_ip">
+    <value>localhost</value>
+  </default_input>
+
+  <default_input into="hackerbot_configs">
+    <value>localhost</value>
+  </default_input>
+
+  <requires>
+    <type>update</type>
+  </requires>
+</utility>

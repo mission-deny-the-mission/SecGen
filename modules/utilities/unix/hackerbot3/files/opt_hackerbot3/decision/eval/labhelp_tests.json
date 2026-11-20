@@ -1,0 +1,1328 @@
+{
+ "version": 1,
+ "note": "Synthetic held-out messages (same author as the pairs: optimistic). kind: para|assess|lab_miss|offtopic. expected: pair id or 'escalate'.",
+ "cases": [
+  {
+   "message": "whats a siem",
+   "expected": "siem_what_is_siem",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "what does SIEM actually mean",
+   "expected": "siem_what_is_siem",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "can you explain what a siem is for",
+   "expected": "siem_what_is_siem",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "what are the parts of the elk stack",
+   "expected": "siem_elk_components",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "whats logstash vs elasticsearch",
+   "expected": "siem_elk_components",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "what does kibana do",
+   "expected": "siem_elk_components",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "is there anything other than elk for this",
+   "expected": "siem_elk_alternatives",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "what about splunk",
+   "expected": "siem_elk_alternatives",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "whats wazuh",
+   "expected": "siem_elk_alternatives",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "what is a soc",
+   "expected": "siem_soc",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "whats a security operations centre",
+   "expected": "siem_soc",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "do companies outsource their monitoring",
+   "expected": "siem_soc",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "explain auditbeat to me",
+   "expected": "siem_auditbeat_what",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "why do we need auditbeat",
+   "expected": "siem_auditbeat_what",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "whats the point of auditbeat",
+   "expected": "siem_auditbeat_what",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "which auditbeat modules are there",
+   "expected": "siem_auditbeat_modules",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "whats the auditd module",
+   "expected": "siem_auditbeat_modules",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "difference between the system and file_integrity modules",
+   "expected": "siem_auditbeat_modules",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "what does -w -p -k mean in the audit rules",
+   "expected": "siem_audit_rule_syntax",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "how do i write an auditbeat rule",
+   "expected": "siem_audit_rule_syntax",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "what does the -k flag do in the rules",
+   "expected": "siem_audit_rule_syntax",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "where do i put the audit rules",
+   "expected": "siem_audit_rule_file",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "which file do the rules go in",
+   "expected": "siem_audit_rule_file",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "whats monitor.conf for",
+   "expected": "siem_audit_rule_file",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "what do the -a always,exit rules do",
+   "expected": "siem_syscall_rules",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "whats execve in the audit rules",
+   "expected": "siem_syscall_rules",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "what is the external access rule for",
+   "expected": "siem_syscall_rules",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "auditbeat restart is taking ages",
+   "expected": "siem_auditbeat_restart_slow",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "is it normal for auditbeat to take minutes to restart",
+   "expected": "siem_auditbeat_restart_slow",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "service auditbeat restart seems frozen",
+   "expected": "siem_auditbeat_restart_slow",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "how do i get to kibana",
+   "expected": "siem_kibana_open",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "where do i open kibana",
+   "expected": "siem_kibana_open",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "what url is kibana on",
+   "expected": "siem_kibana_open",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "how do i create the index pattern",
+   "expected": "siem_kibana_index_pattern",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "what do i put for the index pattern name",
+   "expected": "siem_kibana_index_pattern",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "kibana is asking me to create an index pattern what do i enter",
+   "expected": "siem_kibana_index_pattern",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "discover is empty",
+   "expected": "siem_kibana_no_data",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "i cant see any audit logs in kibana",
+   "expected": "siem_kibana_no_data",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "kibana shows no results",
+   "expected": "siem_kibana_no_data",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "how do i make some audit events to look at",
+   "expected": "siem_generate_events",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "what should i do to get logs to show up",
+   "expected": "siem_generate_events",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "how do i trigger audit logs",
+   "expected": "siem_generate_events",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "how do i make a pie chart in kibana",
+   "expected": "siem_dashboard_mechanics",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "how do i create a dashboard",
+   "expected": "siem_dashboard_mechanics",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "how do i add a visualisation",
+   "expected": "siem_dashboard_mechanics",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "how do i get the file hashes logged",
+   "expected": "siem_file_integrity_module",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "how do i turn on file_integrity",
+   "expected": "siem_file_integrity_module",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "where do i add the file integrity config",
+   "expected": "siem_file_integrity_module",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "does spacing matter in auditbeat.yml",
+   "expected": "siem_yaml_spacing",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "auditbeat wont start after i edited the yml",
+   "expected": "siem_yaml_spacing",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "do i have to copy the yaml exactly",
+   "expected": "siem_yaml_spacing",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "which vm do i run this on",
+   "expected": "siem_which_vm",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "do i do this on the desktop or the siem box",
+   "expected": "siem_which_vm",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "where do i run the auditbeat commands",
+   "expected": "siem_which_vm",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "which vms should i start up",
+   "expected": "siem_vms_to_start",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "do i need to start the hackerbot server",
+   "expected": "siem_vms_to_start",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "what vms should be on",
+   "expected": "siem_vms_to_start",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "what do i need to submit for marks",
+   "expected": "siem_marking_logbook",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "what goes in the log book",
+   "expected": "siem_marking_logbook",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "is this lab assessed",
+   "expected": "siem_marking_logbook",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "what do the flags look like",
+   "expected": "siem_flags_format",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "where do i submit flags",
+   "expected": "siem_flags_format",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "whats the flag format",
+   "expected": "siem_flags_format",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "are there extra challenges",
+   "expected": "siem_additional_challenges",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "what are the additional challenges",
+   "expected": "siem_additional_challenges",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "do i have to do the xpack thing",
+   "expected": "siem_additional_challenges",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "whats the difference between journald and syslog",
+   "expected": "siem_journald_vs_syslog",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "why are there two logging systems",
+   "expected": "siem_journald_vs_syslog",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "is rsyslog the same as journald",
+   "expected": "siem_journald_vs_syslog",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "how do i see logs from today only in journalctl",
+   "expected": "siem_journalctl_time",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "show me logs from last boot",
+   "expected": "siem_journalctl_time",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "how do i see every time the machine booted",
+   "expected": "siem_journalctl_time",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "how do i see just ssh logs",
+   "expected": "siem_journalctl_service_priority",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "how to filter journalctl by priority",
+   "expected": "siem_journalctl_service_priority",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "how do i see only kernel messages",
+   "expected": "siem_journalctl_service_priority",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "how do i get out of journalctl",
+   "expected": "siem_journalctl_follow_pager",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "how do i stop the pager",
+   "expected": "siem_journalctl_follow_pager",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "can i watch the journal live",
+   "expected": "siem_journalctl_follow_pager",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "journalctl -p err shows nothing",
+   "expected": "siem_journalctl_no_errors",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "no error messages in journalctl",
+   "expected": "siem_journalctl_no_errors",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "why is journalctl -p err -b empty",
+   "expected": "siem_journalctl_no_errors",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "where are the logs stored",
+   "expected": "siem_var_log_files",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "which file has the sudo attempts",
+   "expected": "siem_var_log_files",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "whats in /var/log",
+   "expected": "siem_var_log_files",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "how do i read a syslog line",
+   "expected": "siem_syslog_entry_format",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "what are the parts of a log entry",
+   "expected": "siem_syslog_entry_format",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "what does each field in a syslog message mean",
+   "expected": "siem_syslog_entry_format",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "how do i write to syslog from the terminal",
+   "expected": "siem_logger",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "what does the logger command do",
+   "expected": "siem_logger",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "can logs be faked",
+   "expected": "siem_logger",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "how do i watch a log file live",
+   "expected": "siem_follow_file",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "how do i tail a file and keep following",
+   "expected": "siem_follow_file",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "what does watch -d do",
+   "expected": "siem_follow_file",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "how do i make a syslog rule for a program",
+   "expected": "siem_rsyslog_rule",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "where is the rsyslog config",
+   "expected": "siem_rsyslog_rule",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "my mymonitor rule isnt writing to the file",
+   "expected": "siem_rsyslog_rule",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "whats logrotate for",
+   "expected": "siem_logrotate",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "how do i force a log rotation",
+   "expected": "siem_logrotate",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "why are there compressed log files",
+   "expected": "siem_logrotate",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "why ship logs to a different server",
+   "expected": "siem_network_logging",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "whats the point of remote logging",
+   "expected": "siem_network_logging",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "what if the attacker deletes the logs",
+   "expected": "siem_network_logging",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "what are the regex special characters",
+   "expected": "siem_regex_basics",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "what does .* mean",
+   "expected": "siem_regex_basics",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "how do regexes work",
+   "expected": "siem_regex_basics",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "why does my grep with | not work",
+   "expected": "siem_grep_escape",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "grep regex isnt matching with brackets",
+   "expected": "siem_grep_escape",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "do i need egrep",
+   "expected": "siem_grep_escape",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "whats the password for the vm",
+   "expected": "shared_login_details",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "i forgot my login",
+   "expected": "shared_login_details",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "what are the login details",
+   "expected": "shared_login_details",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "how do i save in vi",
+   "expected": "shared_vi_basics",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "how do i exit vi",
+   "expected": "shared_vi_basics",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "im stuck in vi",
+   "expected": "shared_vi_basics",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "how do i talk to you",
+   "expected": "shared_pidgin_talk",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "where do i message hackerbot",
+   "expected": "shared_pidgin_talk",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "how do i start chatting with you",
+   "expected": "shared_pidgin_talk",
+   "lab": "hb2_siem",
+   "kind": "para"
+  },
+  {
+   "message": "how do i make sudo send a message to all users",
+   "expected": "siem_logbook_syslog_pointer",
+   "lab": "hb2_siem",
+   "kind": "assess"
+  },
+  {
+   "message": "what is the solution to the logbook syslog question",
+   "expected": "siem_logbook_syslog_pointer",
+   "lab": "hb2_siem",
+   "kind": "assess"
+  },
+  {
+   "message": "write the rsyslog rule for sudo for me",
+   "expected": "siem_logbook_syslog_pointer",
+   "lab": "hb2_siem",
+   "kind": "assess"
+  },
+  {
+   "message": "what am i meant to do for your challenge",
+   "expected": "siem_hackerbot_challenge_pointer",
+   "lab": "hb2_siem",
+   "kind": "assess"
+  },
+  {
+   "message": "how do i beat you",
+   "expected": "siem_hackerbot_challenge_pointer",
+   "lab": "hb2_siem",
+   "kind": "assess"
+  },
+  {
+   "message": "i did the kibana stuff now what do you want me to do",
+   "expected": "siem_hackerbot_challenge_pointer",
+   "lab": "hb2_siem",
+   "kind": "assess"
+  },
+  {
+   "message": "give me the flag",
+   "expected": "shared_no_flags_given",
+   "lab": "hb2_siem",
+   "kind": "assess"
+  },
+  {
+   "message": "what file was the flag stored in",
+   "expected": "shared_no_flags_given",
+   "lab": "hb2_siem",
+   "kind": "assess"
+  },
+  {
+   "message": "just tell me the quiz solution",
+   "expected": "shared_no_flags_given",
+   "lab": "hb2_siem",
+   "kind": "assess"
+  },
+  {
+   "message": "i give up just tell me the flags",
+   "expected": "shared_no_flags_given",
+   "lab": "hb2_siem",
+   "kind": "assess"
+  },
+  {
+   "message": "what is the second flag",
+   "expected": "shared_no_flags_given",
+   "lab": "hb2_siem",
+   "kind": "assess"
+  },
+  {
+   "message": "why is elasticsearch eating all my ram",
+   "expected": "escalate",
+   "lab": "hb2_siem",
+   "kind": "lab_miss"
+  },
+  {
+   "message": "kibana just says connection refused when i open it",
+   "expected": "escalate",
+   "lab": "hb2_siem",
+   "kind": "lab_miss"
+  },
+  {
+   "message": "how do i install auditbeat",
+   "expected": "escalate",
+   "lab": "hb2_siem",
+   "kind": "lab_miss"
+  },
+  {
+   "message": "what does auid>=1000 mean in the audit rule",
+   "expected": "escalate",
+   "lab": "hb2_siem",
+   "kind": "lab_miss"
+  },
+  {
+   "message": "can you explain how the linux audit framework works in the kernel",
+   "expected": "escalate",
+   "lab": "hb2_siem",
+   "kind": "lab_miss"
+  },
+  {
+   "message": "how do i write a kibana query to filter by username",
+   "expected": "escalate",
+   "lab": "hb2_siem",
+   "kind": "lab_miss"
+  },
+  {
+   "message": "my desktop vm is really slow",
+   "expected": "escalate",
+   "lab": "hb2_siem",
+   "kind": "lab_miss"
+  },
+  {
+   "message": "whats the difference between elasticsearch and a normal database",
+   "expected": "escalate",
+   "lab": "hb2_siem",
+   "kind": "lab_miss"
+  },
+  {
+   "message": "can auditbeat send to something other than logstash",
+   "expected": "escalate",
+   "lab": "hb2_siem",
+   "kind": "lab_miss"
+  },
+  {
+   "message": "how would i design a good dashboard for the logbook",
+   "expected": "escalate",
+   "lab": "hb2_siem",
+   "kind": "lab_miss"
+  },
+  {
+   "message": "what does integrity mean in security",
+   "expected": "ip_what_is_integrity",
+   "lab": "hb2_integrity_protection",
+   "kind": "para"
+  },
+  {
+   "message": "whats the difference between confidentiality integrity and availability",
+   "expected": "ip_what_is_integrity",
+   "lab": "hb2_integrity_protection",
+   "kind": "para"
+  },
+  {
+   "message": "why does integrity matter",
+   "expected": "ip_what_is_integrity",
+   "lab": "hb2_integrity_protection",
+   "kind": "para"
+  },
+  {
+   "message": "what topics is this lab about",
+   "expected": "ip_lab_scope",
+   "lab": "hb2_integrity_protection",
+   "kind": "para"
+  },
+  {
+   "message": "do i need to learn acls for this",
+   "expected": "ip_lab_scope",
+   "lab": "hb2_integrity_protection",
+   "kind": "para"
+  },
+  {
+   "message": "what techniques are we using in this lab",
+   "expected": "ip_lab_scope",
+   "lab": "hb2_integrity_protection",
+   "kind": "para"
+  },
+  {
+   "message": "how do i use chmod",
+   "expected": "ip_permissions_notation",
+   "lab": "hb2_integrity_protection",
+   "kind": "para"
+  },
+  {
+   "message": "what does go-rw mean",
+   "expected": "ip_permissions_notation",
+   "lab": "hb2_integrity_protection",
+   "kind": "para"
+  },
+  {
+   "message": "how do i stop other users writing to a file",
+   "expected": "ip_permissions_notation",
+   "lab": "hb2_integrity_protection",
+   "kind": "para"
+  },
+  {
+   "message": "how do i read ls -la output",
+   "expected": "ip_read_ls_output",
+   "lab": "hb2_integrity_protection",
+   "kind": "para"
+  },
+  {
+   "message": "what does rw-r--r-- mean",
+   "expected": "ip_read_ls_output",
+   "lab": "hb2_integrity_protection",
+   "kind": "para"
+  },
+  {
+   "message": "whos allowed to edit this file according to ls",
+   "expected": "ip_read_ls_output",
+   "lab": "hb2_integrity_protection",
+   "kind": "para"
+  },
+  {
+   "message": "why can root still read my file",
+   "expected": "ip_root_override",
+   "lab": "hb2_integrity_protection",
+   "kind": "para"
+  },
+  {
+   "message": "does chmod stop root",
+   "expected": "ip_root_override",
+   "lab": "hb2_integrity_protection",
+   "kind": "para"
+  },
+  {
+   "message": "what does sudo do",
+   "expected": "ip_root_override",
+   "lab": "hb2_integrity_protection",
+   "kind": "para"
+  },
+  {
+   "message": "what are file attributes",
+   "expected": "ip_attributes_what",
+   "lab": "hb2_integrity_protection",
+   "kind": "para"
+  },
+  {
+   "message": "whats lsattr",
+   "expected": "ip_attributes_what",
+   "lab": "hb2_integrity_protection",
+   "kind": "para"
+  },
+  {
+   "message": "what is chattr",
+   "expected": "ip_attributes_what",
+   "lab": "hb2_integrity_protection",
+   "kind": "para"
+  },
+  {
+   "message": "what does the immutable flag do",
+   "expected": "ip_immutable_effect",
+   "lab": "hb2_integrity_protection",
+   "kind": "para"
+  },
+  {
+   "message": "why cant i delete my file even with sudo",
+   "expected": "ip_immutable_effect",
+   "lab": "hb2_integrity_protection",
+   "kind": "para"
+  },
+  {
+   "message": "how do i remove the i flag",
+   "expected": "ip_immutable_effect",
+   "lab": "hb2_integrity_protection",
+   "kind": "para"
+  },
+  {
+   "message": "whats an append only file",
+   "expected": "ip_append_only_why",
+   "lab": "hb2_integrity_protection",
+   "kind": "para"
+  },
+  {
+   "message": "why can i use >> but not >",
+   "expected": "ip_append_only_why",
+   "lab": "hb2_integrity_protection",
+   "kind": "para"
+  },
+  {
+   "message": "why would you make a log file append only",
+   "expected": "ip_append_only_why",
+   "lab": "hb2_integrity_protection",
+   "kind": "para"
+  },
+  {
+   "message": "does chattr work on every filesystem",
+   "expected": "ip_attr_fs_support",
+   "lab": "hb2_integrity_protection",
+   "kind": "para"
+  },
+  {
+   "message": "what is the e flag in lsattr",
+   "expected": "ip_attr_fs_support",
+   "lab": "hb2_integrity_protection",
+   "kind": "para"
+  },
+  {
+   "message": "do i need sudo for chattr",
+   "expected": "ip_attr_fs_support",
+   "lab": "hb2_integrity_protection",
+   "kind": "para"
+  },
+  {
+   "message": "what is a bind mount",
+   "expected": "ip_bind_mount_concept",
+   "lab": "hb2_integrity_protection",
+   "kind": "para"
+  },
+  {
+   "message": "what does remount ro do",
+   "expected": "ip_bind_mount_concept",
+   "lab": "hb2_integrity_protection",
+   "kind": "para"
+  },
+  {
+   "message": "how can a directory be mounted twice",
+   "expected": "ip_bind_mount_concept",
+   "lab": "hb2_integrity_protection",
+   "kind": "para"
+  },
+  {
+   "message": "can root get round a read only mount",
+   "expected": "ip_ro_mount_limits",
+   "lab": "hb2_integrity_protection",
+   "kind": "para"
+  },
+  {
+   "message": "can you bypass read only mounting",
+   "expected": "ip_ro_mount_limits",
+   "lab": "hb2_integrity_protection",
+   "kind": "para"
+  },
+  {
+   "message": "is read only mounting secure against root",
+   "expected": "ip_ro_mount_limits",
+   "lab": "hb2_integrity_protection",
+   "kind": "para"
+  },
+  {
+   "message": "why mount something read only",
+   "expected": "ip_ro_mount_why",
+   "lab": "hb2_integrity_protection",
+   "kind": "para"
+  },
+  {
+   "message": "whats the benefit of read only filesystems",
+   "expected": "ip_ro_mount_why",
+   "lab": "hb2_integrity_protection",
+   "kind": "para"
+  },
+  {
+   "message": "why would i make /etc read only",
+   "expected": "ip_ro_mount_why",
+   "lab": "hb2_integrity_protection",
+   "kind": "para"
+  },
+  {
+   "message": "what are the limits of integrity checking",
+   "expected": "ip_compromise_limitations",
+   "lab": "hb2_integrity_protection",
+   "kind": "para"
+  },
+  {
+   "message": "what if the attacker replaces my tools",
+   "expected": "ip_compromise_limitations",
+   "lab": "hb2_integrity_protection",
+   "kind": "para"
+  },
+  {
+   "message": "can i trust hashes stored on a compromised box",
+   "expected": "ip_compromise_limitations",
+   "lab": "hb2_integrity_protection",
+   "kind": "para"
+  },
+  {
+   "message": "you deleted my file what now",
+   "expected": "ip_attack_failed_now_what",
+   "lab": "hb2_integrity_protection",
+   "kind": "para"
+  },
+  {
+   "message": "it said we managed to write to your file",
+   "expected": "ip_attack_failed_now_what",
+   "lab": "hb2_integrity_protection",
+   "kind": "para"
+  },
+  {
+   "message": "i failed the challenge how do i retry",
+   "expected": "ip_attack_failed_now_what",
+   "lab": "hb2_integrity_protection",
+   "kind": "para"
+  },
+  {
+   "message": "which vm do i do this on",
+   "expected": "ip_which_vm",
+   "lab": "hb2_integrity_protection",
+   "kind": "para"
+  },
+  {
+   "message": "do i need to log into hackerbot_server",
+   "expected": "ip_which_vm",
+   "lab": "hb2_integrity_protection",
+   "kind": "para"
+  },
+  {
+   "message": "where do i run these commands",
+   "expected": "ip_which_vm",
+   "lab": "hb2_integrity_protection",
+   "kind": "para"
+  },
+  {
+   "message": "whats my password",
+   "expected": "shared_login_details",
+   "lab": "hb2_integrity_protection",
+   "kind": "para"
+  },
+  {
+   "message": "what are the vm login details",
+   "expected": "shared_login_details",
+   "lab": "hb2_integrity_protection",
+   "kind": "para"
+  },
+  {
+   "message": "how do i exit vi",
+   "expected": "shared_vi_basics",
+   "lab": "hb2_integrity_protection",
+   "kind": "para"
+  },
+  {
+   "message": "how do i save a file in vi",
+   "expected": "shared_vi_basics",
+   "lab": "hb2_integrity_protection",
+   "kind": "para"
+  },
+  {
+   "message": "how do i chat to you",
+   "expected": "shared_pidgin_talk",
+   "lab": "hb2_integrity_protection",
+   "kind": "para"
+  },
+  {
+   "message": "where do i send messages to hackerbot",
+   "expected": "shared_pidgin_talk",
+   "lab": "hb2_integrity_protection",
+   "kind": "para"
+  },
+  {
+   "message": "what command do i run to stop your attack",
+   "expected": "ip_challenge_solution_pointer",
+   "lab": "hb2_integrity_protection",
+   "kind": "assess"
+  },
+  {
+   "message": "how do i beat challenge 3",
+   "expected": "ip_challenge_solution_pointer",
+   "lab": "hb2_integrity_protection",
+   "kind": "assess"
+  },
+  {
+   "message": "just tell me how to protect the file",
+   "expected": "ip_challenge_solution_pointer",
+   "lab": "hb2_integrity_protection",
+   "kind": "assess"
+  },
+  {
+   "message": "give me the flag",
+   "expected": "shared_no_flags_given",
+   "lab": "hb2_integrity_protection",
+   "kind": "assess"
+  },
+  {
+   "message": "tell me the flags please",
+   "expected": "shared_no_flags_given",
+   "lab": "hb2_integrity_protection",
+   "kind": "assess"
+  },
+  {
+   "message": "what is the solution to the challenge",
+   "expected": "shared_no_flags_given",
+   "lab": "hb2_integrity_protection",
+   "kind": "assess"
+  },
+  {
+   "message": "how do i set the sticky bit",
+   "expected": "escalate",
+   "lab": "hb2_integrity_protection",
+   "kind": "lab_miss"
+  },
+  {
+   "message": "what is selinux",
+   "expected": "escalate",
+   "lab": "hb2_integrity_protection",
+   "kind": "lab_miss"
+  },
+  {
+   "message": "explain umask",
+   "expected": "escalate",
+   "lab": "hb2_integrity_protection",
+   "kind": "lab_miss"
+  },
+  {
+   "message": "how do i stop you getting a shell on my system",
+   "expected": "escalate",
+   "lab": "hb2_integrity_protection",
+   "kind": "lab_miss"
+  },
+  {
+   "message": "what is the difference between a hard link and a symlink",
+   "expected": "escalate",
+   "lab": "hb2_integrity_protection",
+   "kind": "lab_miss"
+  },
+  {
+   "message": "how does tripwire work",
+   "expected": "escalate",
+   "lab": "hb2_integrity_protection",
+   "kind": "lab_miss"
+  },
+  {
+   "message": "what is an acl and how do i set one",
+   "expected": "escalate",
+   "lab": "hb2_integrity_protection",
+   "kind": "lab_miss"
+  },
+  {
+   "message": "how do i check a file hash with sha256sum",
+   "expected": "escalate",
+   "lab": "hb2_integrity_protection",
+   "kind": "lab_miss"
+  },
+  {
+   "message": "tell me a joke",
+   "expected": "escalate",
+   "lab": "hb2_siem",
+   "kind": "offtopic"
+  },
+  {
+   "message": "whats the weather like",
+   "expected": "escalate",
+   "lab": "hb2_siem",
+   "kind": "offtopic"
+  },
+  {
+   "message": "do you like cats",
+   "expected": "escalate",
+   "lab": "hb2_siem",
+   "kind": "offtopic"
+  },
+  {
+   "message": "thanks",
+   "expected": "escalate",
+   "lab": "hb2_siem",
+   "kind": "offtopic"
+  },
+  {
+   "message": "who made you",
+   "expected": "escalate",
+   "lab": "hb2_siem",
+   "kind": "offtopic"
+  },
+  {
+   "message": "are you an ai",
+   "expected": "escalate",
+   "lab": "hb2_siem",
+   "kind": "offtopic"
+  },
+  {
+   "message": "lol",
+   "expected": "escalate",
+   "lab": "hb2_siem",
+   "kind": "offtopic"
+  },
+  {
+   "message": "what is the meaning of life",
+   "expected": "escalate",
+   "lab": "hb2_siem",
+   "kind": "offtopic"
+  },
+  {
+   "message": "tell me a joke",
+   "expected": "escalate",
+   "lab": "hb2_integrity_protection",
+   "kind": "offtopic"
+  },
+  {
+   "message": "whats the weather like",
+   "expected": "escalate",
+   "lab": "hb2_integrity_protection",
+   "kind": "offtopic"
+  },
+  {
+   "message": "do you like cats",
+   "expected": "escalate",
+   "lab": "hb2_integrity_protection",
+   "kind": "offtopic"
+  },
+  {
+   "message": "thanks",
+   "expected": "escalate",
+   "lab": "hb2_integrity_protection",
+   "kind": "offtopic"
+  },
+  {
+   "message": "who made you",
+   "expected": "escalate",
+   "lab": "hb2_integrity_protection",
+   "kind": "offtopic"
+  },
+  {
+   "message": "are you an ai",
+   "expected": "escalate",
+   "lab": "hb2_integrity_protection",
+   "kind": "offtopic"
+  },
+  {
+   "message": "lol",
+   "expected": "escalate",
+   "lab": "hb2_integrity_protection",
+   "kind": "offtopic"
+  },
+  {
+   "message": "what is the meaning of life",
+   "expected": "escalate",
+   "lab": "hb2_integrity_protection",
+   "kind": "offtopic"
+  }
+ ],
+ "guarded_today": [
+  "how do i list boots",
+  "what is the answer to the logbook syslog question",
+  "just tell me the quiz answer",
+  "what is the answer to the challenge",
+  "is my answer right",
+  "can you list the flags"
+ ]
+}

@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<hackerbot>
+  <name>E2EBot</name>
+  <llm_provider>openai</llm_provider>
+  <openai_api_key>none</openai_api_key>
+  <openai_base_url>http://127.0.0.1:18080/v1</openai_base_url>
+  <ollama_model>fake-llm</ollama_model>
+  <system_prompt>You are a test bot.</system_prompt>
+  <get_shell>false</get_shell>
+  <streaming>false</streaming>
+  <rag_cag_enabled>false</rag_cag_enabled>
+  <decision_router>
+    <enabled>true</enabled>
+    <lab>hb2_siem</lab>
+    <strategy>full</strategy>
+  </decision_router>
+  <messages>
+    <greeting>Hello from the e2e bot</greeting>
+    <help>e2e help</help>
+    <non_answer>Hmm, no idea.</non_answer>
+  </messages>
+  <attacks>
+    <attack>
+      <prompt>Attack one prompt</prompt>
+      <quiz>
+        <question>What is 1+1?</question>
+        <answer>2</answer>
+        <correct_answer_response>Right</correct_answer_response>
+        <incorrect_answer_response>Wrong</incorrect_answer_response>
+      </quiz>
+    </attack>
+  </attacks>
+</hackerbot>

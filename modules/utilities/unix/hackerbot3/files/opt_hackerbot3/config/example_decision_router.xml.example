@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Minimal bot with the canned-response decision router. Set HB3_DECISION_URL (and optionally HB3_EMBED_URL) in the
+     environment; see decision/README.md. The <lab> must match a lab id used in decision/pairs/labhelp_pairs.json. -->
+<hackerbot>
+  <name>SIEMLabBot</name>
+  <llm_provider>openai</llm_provider>
+  <openai_base_url>http://localhost:8000/v1</openai_base_url>
+  <ollama_model>your-model</ollama_model>
+  <system_prompt>You are a lab assistant for a security course.</system_prompt>
+  <get_shell>false</get_shell>
+
+  <decision_router>
+    <enabled>true</enabled>
+    <lab>hb2_siem</lab>
+  </decision_router>
+
+  <messages>
+    <greeting>Hello!</greeting>
+    <non_answer>Sorry, I'm not sure about that one.</non_answer>
+  </messages>
+
+  <attacks>
+    <attack>
+      <prompt>Replace with this lab's real attack prompt</prompt>
+    </attack>
+  </attacks>
+</hackerbot>

@@ -1,0 +1,592 @@
+{
+ "version": 1,
+ "note": "DRAFT lab-help pairs, synthetic, answers restate the lab sheet only. Harry reviews wording. Never put quiz/flag/attack content here.",
+ "instructions": "Which canned question is the student asking? Pick the option whose question asks the same thing as the student's message. If no option asks the same thing, pick 'escalate'.",
+ "escalate_desc": "None of the above: a question not covered by any other option, small talk, or anything the other options do not answer",
+ "pairs": [
+  {
+   "id": "siem_what_is_siem",
+   "labs": [
+    "hb2_siem"
+   ],
+   "tier": "concept",
+   "src": "SIEM section",
+   "q": "What is a SIEM?",
+   "a": "A SIEM (security information and event management) system collects logs and events from servers, network and security devices and workstations into one place. You get dashboards and queries to see the state of your network, and often rule- or ML-based detection of threats. In this lab, Elastic Stack plays that role."
+  },
+  {
+   "id": "siem_elk_components",
+   "labs": [
+    "hb2_siem"
+   ],
+   "tier": "concept",
+   "src": "Elastic (ELK) Stack as a SIEM",
+   "q": "What are the parts of the Elastic (ELK) Stack?",
+   "a": "Elasticsearch is the search and analysis engine, Logstash is the server-side collection point for data like logs, Kibana is the dashboard, visualisation and query web interface, and Beats are agents running on devices that feed data in. Auditbeat is the Beat you use in this lab."
+  },
+  {
+   "id": "siem_elk_alternatives",
+   "labs": [
+    "hb2_siem"
+   ],
+   "tier": "concept",
+   "src": "Elastic (ELK) Stack as a SIEM",
+   "q": "Are there other SIEM tools besides Elastic Stack?",
+   "a": "Yes. Splunk is another well-known one, and Wazuh is a more out-of-the-box SIEM that is itself based on Elastic Stack. Many organisations use Elastic Stack as the backbone of their SIEM."
+  },
+  {
+   "id": "siem_soc",
+   "labs": [
+    "hb2_siem"
+   ],
+   "tier": "concept",
+   "src": "SOC and SIEM",
+   "q": "What is a SOC (Security Operations Centre)?",
+   "a": "A SOC is where security staff monitor systems and respond to incidents, and a SIEM is a critical part of it. Smaller organisations often outsource this (SOC-as-a-Service) by forwarding critical logs to a remote team. The lab sheet links the NCSC's recommended monitoring requirements."
+  },
+  {
+   "id": "siem_auditbeat_what",
+   "labs": [
+    "hb2_siem"
+   ],
+   "tier": "concept",
+   "src": "Using Auditbeat",
+   "q": "What does Auditbeat do?",
+   "a": "Auditbeat runs on servers and workstations and watches user and process activity, including changes to and access of critical files, programs and configs. It ships those events into the Elastic Stack in real time so you can search them in Kibana."
+  },
+  {
+   "id": "siem_auditbeat_modules",
+   "labs": [
+    "hb2_siem"
+   ],
+   "tier": "concept",
+   "src": "Using Auditbeat",
+   "q": "What modules does Auditbeat have?",
+   "a": "Auditd is Linux-specific and uses the Linux Audit Framework in the kernel. System monitors running processes, installed packages and users changing passwords. File Integrity detects file contents changing."
+  },
+  {
+   "id": "siem_audit_rule_syntax",
+   "labs": [
+    "hb2_siem"
+   ],
+   "tier": "concept",
+   "src": "Using Auditbeat",
+   "q": "What do -w, -p and -k mean in an audit rule?",
+   "a": "A file-watch rule looks like `-w <file or directory> -p <permissions> -k <key>`. -w is what to watch, -p is which kinds of access to watch for, and -k is a key that groups the related log entries so you can find them. The sheet's identity rules are good examples, e.g. `-w /etc/passwd -p wa -k identity`."
+  },
+  {
+   "id": "siem_syscall_rules",
+   "labs": [
+    "hb2_siem"
+   ],
+   "tier": "concept",
+   "src": "Using Auditbeat",
+   "q": "What do the '-a always,exit' system call rules do?",
+   "a": "Rules starting `-a always,exit` monitor system calls rather than files. In the sheet, the first set logs failed attempts to open or modify files (EACCES/EPERM), like a user trying to access files they are not allowed to. The execve rule logs program executions, and the accept/bind/connect rule logs external network access, which can be expensive to audit."
+  },
+  {
+   "id": "siem_additional_challenges",
+   "labs": [
+    "hb2_siem"
+   ],
+   "tier": "concept",
+   "src": "Additional challenges",
+   "q": "Are there extra optional challenges in the SIEM lab?",
+   "a": "The sheet lists two optional, unmarked extras: configure filebeat to send /var/log/messages to the siem_manager VM, and enable the xpack Security module to explore incident detection rules. The second needs changes to the ELK server config and some self-directed troubleshooting. The sheet links the Elastic filebeat docs."
+  },
+  {
+   "id": "siem_journald_vs_syslog",
+   "labs": [
+    "hb2_siem"
+   ],
+   "tier": "concept",
+   "src": "Introduction to logging and systemd",
+   "q": "What is the difference between journald and syslog?",
+   "a": "journald is systemd's log collector, handled with `journalctl`, and keeps logs in the journal. Syslog (e.g. rsyslog) is the traditional approach of separate text log files in /var/log. On modern systems they run side by side."
+  },
+  {
+   "id": "siem_var_log_files",
+   "labs": [
+    "hb2_siem"
+   ],
+   "tier": "concept",
+   "src": "Syslog basics",
+   "q": "Where are the log files stored and which file has what?",
+   "a": "System logs live in /var/log (try `ls /var/log`). The main syslog file is /var/log/messages or /var/log/syslog depending on the distro. su/sudo attempts show up in files like /var/log/auth.log, and `logger` messages for the user facility go to /var/log/user.log. Exact files vary by distribution and config."
+  },
+  {
+   "id": "siem_syslog_entry_format",
+   "labs": [
+    "hb2_siem"
+   ],
+   "tier": "concept",
+   "src": "Syslog basics",
+   "q": "How do I read a syslog log entry?",
+   "a": "A syslog entry starts with a timestamp, then the computer's name, then the name of the service or program that sent it, then the message. For example: `Jan 21 17:16:26 linux-leedsbeckett pppd[32076]: Exit.`"
+  },
+  {
+   "id": "siem_logrotate",
+   "labs": [
+    "hb2_siem"
+   ],
+   "tier": "concept",
+   "src": "Logrotate",
+   "q": "What is logrotate?",
+   "a": "Logrotate moves old log events into separate compressed files so busy logs don't grow forever. It normally runs daily (see /etc/cron.daily/), is configured in /etc/logrotate.conf and /etc/logrotate.d/, and you can force it with `sudo /usr/sbin/logrotate -f /etc/logrotate.d/rsyslog`."
+  },
+  {
+   "id": "siem_network_logging",
+   "labs": [
+    "hb2_siem"
+   ],
+   "tier": "concept",
+   "src": "Network logging",
+   "q": "Why send logs to another server?",
+   "a": "If an attacker breaks into one machine (not the log server) they can't delete or alter the logs already sent. It also gives you a backup of your logs, though you should keep a separate backup too in case both systems are compromised. A spool can retry sending if there are network problems."
+  },
+  {
+   "id": "siem_regex_basics",
+   "labs": [
+    "hb2_siem"
+   ],
+   "tier": "concept",
+   "src": "Regular expressions (refresher)",
+   "q": "How do regular expressions work?",
+   "a": "A regex is a pattern describing text, used by grep, awk, sed, less and vi to filter or capture matching text. Common pieces: `*` zero or more, `+` one or more, `?` zero or one, `{n}` and `{n,m}` repeat counts, `[a-z]` a range, `.` any character, `|` alternatives."
+  },
+  {
+   "id": "siem_audit_rule_file",
+   "labs": [
+    "hb2_siem"
+   ],
+   "tier": "howto",
+   "src": "Using Auditbeat",
+   "q": "Where do I put my Auditbeat audit rules?",
+   "a": "On the desktop VM your rules go in `/etc/auditbeat/audit.rules.d/monitor.conf` (create it with sudo vi). `/etc/auditbeat/auditbeat.yml` is the main config, where the auditd module is loaded. After editing rules, restart with `sudo service auditbeat restart`."
+  },
+  {
+   "id": "siem_auditbeat_restart_slow",
+   "labs": [
+    "hb2_siem"
+   ],
+   "tier": "howto",
+   "src": "Using Auditbeat",
+   "q": "Auditbeat is taking ages to restart.",
+   "a": "Restarting auditbeat can take a few minutes, that's normal. Check progress with `sudo service auditbeat status` before assuming it's broken."
+  },
+  {
+   "id": "siem_kibana_open",
+   "labs": [
+    "hb2_siem"
+   ],
+   "tier": "howto",
+   "src": "Using Auditbeat",
+   "q": "How do I open Kibana?",
+   "a": "On the siem_management VM, open Firefox and browse to that VM's own IP address to get Kibana. Click 'Explore on my own', then use the hamburger menu to get to Discover and Dashboard."
+  },
+  {
+   "id": "siem_kibana_index_pattern",
+   "labs": [
+    "hb2_siem"
+   ],
+   "tier": "howto",
+   "src": "Using Auditbeat",
+   "q": "How do I create the Kibana index pattern?",
+   "a": "In Kibana: hamburger menu, then Discover, then Create index pattern. Name: `auditbeat*`, timestamp field: `@timestamp`, then Create index pattern. After that Discover shows the audit messages that have been collected."
+  },
+  {
+   "id": "siem_kibana_no_data",
+   "labs": [
+    "hb2_siem"
+   ],
+   "tier": "howto",
+   "src": "Using Auditbeat",
+   "q": "Kibana Discover shows no audit logs.",
+   "a": "If Discover is empty, check these in order: your rules are saved in monitor.conf and auditbeat has been restarted (it can take a few minutes; see `sudo service auditbeat status`), the `auditbeat*` index pattern exists, and you've actually generated activity on the desktop VM (e.g. edit a file in /etc/). Then refresh Discover on siem_management."
+  },
+  {
+   "id": "siem_generate_events",
+   "labs": [
+    "hb2_siem"
+   ],
+   "tier": "howto",
+   "src": "Using Auditbeat",
+   "q": "How do I generate audit events to look at?",
+   "a": "On the desktop VM: run some commands, try to access files you're not authorised to without sudo, read the shadow file using sudo, and run sudo with a wrong password three times. Then look at the results in Kibana's Discover view on siem_management."
+  },
+  {
+   "id": "siem_dashboard_mechanics",
+   "labs": [
+    "hb2_siem"
+   ],
+   "tier": "howto",
+   "src": "Using Auditbeat",
+   "q": "How do I create a dashboard or chart in Kibana?",
+   "a": "In Kibana: hamburger menu, Dashboard, Create new dashboard, Create visualisation. Drag a field such as `agent.hostname.keyword` or `event.category.keyword` onto the chart, choose the chart type (e.g. Pie) from the dropdown, then 'Save and return'. You can drop in more than one field and apply filters. Which charts are actually useful is up to you."
+  },
+  {
+   "id": "siem_file_integrity_module",
+   "labs": [
+    "hb2_siem"
+   ],
+   "tier": "howto",
+   "src": "Using Auditbeat",
+   "q": "How do I enable the file_integrity module?",
+   "a": "Add the `file_integrity` module block to the end of `/etc/auditbeat/auditbeat.yml` exactly as shown in the lab sheet (paths /bin, /usr/bin, /sbin, /usr/sbin and /etc), restart auditbeat, then edit some files and look at the hashes that get logged."
+  },
+  {
+   "id": "siem_yaml_spacing",
+   "labs": [
+    "hb2_siem"
+   ],
+   "tier": "howto",
+   "src": "Using Auditbeat",
+   "q": "Does spacing matter when editing auditbeat.yml?",
+   "a": "auditbeat.yml is YAML, so spacing and indentation matter. The sheet says to add the lines to the end of the file exactly as given, including the spacing. If auditbeat misbehaves after editing, check the indentation first."
+  },
+  {
+   "id": "siem_which_vm",
+   "labs": [
+    "hb2_siem"
+   ],
+   "tier": "howto",
+   "src": "Using Auditbeat",
+   "q": "Which VM do I do each step on?",
+   "a": "Auditbeat config and generating events happen on the desktop VM. Kibana is viewed in Firefox on the siem_management VM. The hackerbot_server VM has to stay running but you never log into it."
+  },
+  {
+   "id": "siem_vms_to_start",
+   "labs": [
+    "hb2_siem"
+   ],
+   "tier": "howto",
+   "src": "Getting started",
+   "q": "Which VMs do I need running?",
+   "a": "Start hackerbot_server (leave it running, you don't log into it), desktop, and siem_management."
+  },
+  {
+   "id": "siem_journalctl_time",
+   "labs": [
+    "hb2_siem"
+   ],
+   "tier": "howto",
+   "src": "Journald basics",
+   "q": "How do I limit journalctl output by time or boot?",
+   "a": "Use `--since` and `--until` (e.g. `sudo journalctl --since today`, `--since yesterday`, or full timestamps), `-b` for this boot, `-b -1` for the previous boot, and `--list-boots` to list boots. The system may not keep a persistent journal, so older boots might be missing."
+  },
+  {
+   "id": "siem_journalctl_service_priority",
+   "labs": [
+    "hb2_siem"
+   ],
+   "tier": "howto",
+   "src": "Journald basics",
+   "q": "How do I filter journalctl by service, process or priority?",
+   "a": "`sudo journalctl -u ssh` shows one service's entries (combine with `--since`), `-k` shows kernel messages, `_PID=<pid>` filters by process id, and `-p err -b` filters by priority. Priorities: 0 emerg, 1 alert, 2 crit, 3 err, 4 warning, 5 notice, 6 info, 7 debug."
+  },
+  {
+   "id": "siem_journalctl_follow_pager",
+   "labs": [
+    "hb2_siem"
+   ],
+   "tier": "howto",
+   "src": "Journald basics",
+   "q": "How do I get out of journalctl, or follow it live?",
+   "a": "journalctl opens in the `less` pager: press `q` to quit, or add `--no-pager` (e.g. `sudo journalctl --no-pager > journalroot.txt`). `-r` reverses the order, `-n 20` shows the last 20 lines, and `-f` follows new entries live; press Ctrl+C to stop following."
+  },
+  {
+   "id": "siem_journalctl_no_errors",
+   "labs": [
+    "hb2_siem"
+   ],
+   "tier": "howto",
+   "src": "Journald basics",
+   "q": "journalctl -p err -b shows nothing.",
+   "a": "If `journalctl -p err -b` shows nothing, try it without `-b` to see all logged error messages on the system."
+  },
+  {
+   "id": "siem_logger",
+   "labs": [
+    "hb2_siem"
+   ],
+   "tier": "howto",
+   "src": "Writing to syslog from the command line",
+   "q": "How do I write a message to syslog from the command line?",
+   "a": "`logger Hello, world!` writes a message to syslog, `logger -t name ...` sets the program name it's logged under, and `-p user.emerg` sets facility.level. Any local program can write to syslog, so you can't fully trust log entries: an attacker on the box can forge entries that look like they came from other programs."
+  },
+  {
+   "id": "siem_follow_file",
+   "labs": [
+    "hb2_siem"
+   ],
+   "tier": "howto",
+   "src": "Watching for file changes",
+   "q": "How do I watch a log file as it grows?",
+   "a": "`sudo tail -f /var/log/user.log` follows the end of a file. `sudo less` on it then Shift+F does the same, and `watch -d ls -la <file>` highlights changes such as the size growing. Ctrl+C to exit (and q to leave less)."
+  },
+  {
+   "id": "siem_rsyslog_rule",
+   "labs": [
+    "hb2_siem"
+   ],
+   "tier": "howto",
+   "src": "Writing syslog configuration rules",
+   "q": "How do I write an rsyslog rule?",
+   "a": "Syslog behaviour is configured in /etc/rsyslog.conf. The sheet's example sends one program's messages to its own file: `if ($programname == 'mymonitor') then /var/log/mymonitor`. Restart with `sudo systemctl restart rsyslog`, test with `sudo logger -t mymonitor Hello, World!`, then check the file. Remove the rule when the sheet says to, or you'll get extra output everywhere."
+  },
+  {
+   "id": "siem_grep_escape",
+   "labs": [
+    "hb2_siem"
+   ],
+   "tier": "howto",
+   "src": "Regular expressions (refresher)",
+   "q": "Why does my grep regex with | or ( ) not match?",
+   "a": "In basic grep regexes, characters like `|` and `( )` need a backslash, e.g. `sudo grep --color 'sudo:\\|su:' /var/log/auth.log`. Most other regex tools do it the other way round. Some greps don't enable regex by default, so use `grep -E` or `egrep`."
+  },
+  {
+   "id": "siem_marking_logbook",
+   "labs": [
+    "hb2_siem"
+   ],
+   "tier": "process",
+   "src": "Intro: for marks in the module",
+   "q": "What do I need to submit for marks and what goes in the Log Book?",
+   "a": "For marks you submit your flags (use the link on the module page; your flags and challenges differ from other students') and document your work in a Log Book: screenshots, including the flags, of how you solved each Hackerbot challenge, a writeup of each solution, and answers to any Log Book Questions. The Log Book is submitted later in the semester."
+  },
+  {
+   "id": "siem_flags_format",
+   "labs": [
+    "hb2_siem"
+   ],
+   "tier": "process",
+   "src": "Intro: for marks in the module",
+   "q": "What do flags look like and where do I submit them?",
+   "a": "Flags look like `flag{somethingrandom}`. I reveal them as you complete my challenges, and yours differ from other students'. Submit them via the link on the module page."
+  },
+  {
+   "id": "siem_logbook_syslog_pointer",
+   "labs": [
+    "hb2_siem"
+   ],
+   "tier": "challenge_adjacent",
+   "src": "Writing syslog configuration rules (Log Book question)",
+   "q": "How do I make sudo send a message to all users? (Log Book question)",
+   "a": "That one's a Log Book question, so I can't solve it for you. The lab sheet's hint: look at how the existing emergency-messages rule works, combine that way of sending output with the rule you wrote for 'mymonitor', modified to trigger on sudo, and remember to reload syslog."
+  },
+  {
+   "id": "siem_hackerbot_challenge_pointer",
+   "labs": [
+    "hb2_siem"
+   ],
+   "tier": "challenge_adjacent",
+   "src": "Hackerbot! section",
+   "q": "What do I need to do for the Hackerbot challenge?",
+   "a": "Finish the Elastic Stack tasks first, with events being logged and showing up in Kibana, then tell me when you're ready. The lab sheet's hint for my challenge: you have to add rules to recursively monitor directories. Use what you've learned in Kibana to track down what changed."
+  },
+  {
+   "id": "ip_what_is_integrity",
+   "labs": [
+    "hb2_integrity_protection"
+   ],
+   "tier": "concept",
+   "src": "Integrity intro",
+   "q": "What is integrity in security?",
+   "a": "Integrity is one of confidentiality, integrity and availability: preventing and detecting unauthorised changes to information. In many commercial organisations it's the top security goal, which is why managing who can change files, and monitoring them for changes, matters."
+  },
+  {
+   "id": "ip_lab_scope",
+   "labs": [
+    "hb2_integrity_protection"
+   ],
+   "tier": "concept",
+   "src": "Protecting integrity",
+   "q": "What does this lab cover?",
+   "a": "This lab focuses on techniques aimed at protecting integrity: file permissions, file attributes (immutable and append-only) and read-only mounting. Other controls, like authentication, firewalls, ACLs and capabilities, matter too but are outside this lab's scope."
+  },
+  {
+   "id": "ip_permissions_notation",
+   "labs": [
+    "hb2_integrity_protection"
+   ],
+   "tier": "howto",
+   "src": "File permissions",
+   "q": "How do I use chmod to change file permissions?",
+   "a": "`ls -la <file>` shows permissions. `chmod` changes them using who (u owner, g group, o others), + or -, and r/w/x: for example `-w` removes write for everyone, and `go-rw` removes read and write for group and others. The file permissions section of the lab sheet walks through it on an example file."
+  },
+  {
+   "id": "ip_read_ls_output",
+   "labs": [
+    "hb2_integrity_protection"
+   ],
+   "tier": "concept",
+   "src": "File permissions",
+   "q": "How do I read the permissions in ls -la output?",
+   "a": "In `-rw-r--r-- 1 user user ...` the first character is the file type, then three sets: owner (rw-), group (r--) and others (r--). So the owner can read and write, and everyone else can only read."
+  },
+  {
+   "id": "ip_root_override",
+   "labs": [
+    "hb2_integrity_protection"
+   ],
+   "tier": "concept",
+   "src": "File permissions",
+   "q": "Why can root still access my file?",
+   "a": "Root can access any file regardless of file permissions. `sudo` runs a command as another user (typically root), the superuser with uid 0, so permissions alone won't stop root from changing a file."
+  },
+  {
+   "id": "ip_attributes_what",
+   "labs": [
+    "hb2_integrity_protection"
+   ],
+   "tier": "concept",
+   "src": "File attributes",
+   "q": "What are file attributes and chattr?",
+   "a": "File attributes are extra flags on files in Unix filesystems. `lsattr` lists them and `chattr` changes them. The interesting ones for security are `i` (immutable) and `a` (append only). Read `man chattr` (q to leave) for details."
+  },
+  {
+   "id": "ip_immutable_effect",
+   "labs": [
+    "hb2_integrity_protection"
+   ],
+   "tier": "concept",
+   "src": "File attributes",
+   "q": "What does the immutable attribute do?",
+   "a": "A file with the immutable (`i`) attribute can't be deleted or changed, even by root, until the attribute is changed back first."
+  },
+  {
+   "id": "ip_append_only_why",
+   "labs": [
+    "hb2_integrity_protection"
+   ],
+   "tier": "concept",
+   "src": "File attributes",
+   "q": "What is an append-only file and why use one?",
+   "a": "With the append-only (`a`) attribute you can add to the end of a file with `>>`, but you can't overwrite it with `>`. That suits log files: they can still be written to without letting anyone alter existing content. `tail <file>` shows what you appended."
+  },
+  {
+   "id": "ip_attr_fs_support",
+   "labs": [
+    "hb2_integrity_protection"
+   ],
+   "tier": "concept",
+   "src": "File attributes",
+   "q": "Do file attributes work on every filesystem and do I need sudo?",
+   "a": "File attributes depend on a compatible filesystem (most Unix filesystems such as ext have them), and the sheet runs `chattr` with sudo. `lsattr <file>` shows the current flags; an `e` flag is common on ext and isn't important here."
+  },
+  {
+   "id": "ip_bind_mount_concept",
+   "labs": [
+    "hb2_integrity_protection"
+   ],
+   "tier": "concept",
+   "src": "Read-only mounting",
+   "q": "What is a bind mount and what does remounting read-only do?",
+   "a": "A bind mount makes a directory appear at a second place in the filesystem, and that mount can have its own options. If you remount it read-only, even root can't change things through it. The read-only mounting section of the lab sheet walks through the commands on an example directory."
+  },
+  {
+   "id": "ip_ro_mount_limits",
+   "labs": [
+    "hb2_integrity_protection"
+   ],
+   "tier": "concept",
+   "src": "Read-only mounting",
+   "q": "Can read-only mounting be bypassed by root?",
+   "a": "Yes: root (or a user with enough privilege) can get around read-only mounting by accessing the underlying device files directly, or by remounting read-write, unless the read-only is enforced remotely, like on a network share."
+  },
+  {
+   "id": "ip_ro_mount_why",
+   "labs": [
+    "hb2_integrity_protection"
+   ],
+   "tier": "concept",
+   "src": "Read-only mounting",
+   "q": "Why mount something read-only?",
+   "a": "It protects things you don't need to change, like important config in /etc/, from accidental or unauthorised changes. It's especially effective when the disk is external and read-only is enforced remotely, e.g. when sharing files over the network."
+  },
+  {
+   "id": "ip_compromise_limitations",
+   "labs": [
+    "hb2_integrity_protection"
+   ],
+   "tier": "concept",
+   "src": "Limitations of integrity checking",
+   "q": "What are the limitations of integrity checking?",
+   "a": "If a system is compromised you may not be able to trust its tools, or even the operating system. Configuration files, and any hashes stored locally, may have been altered, and tools may have been replaced by Trojan horses."
+  },
+  {
+   "id": "ip_attack_failed_now_what",
+   "labs": [
+    "hb2_integrity_protection"
+   ],
+   "tier": "howto",
+   "src": "Hackerbot challenges",
+   "q": "Hackerbot managed to change or delete my file, what now?",
+   "a": "Read my message: it says what went wrong, either that the attack succeeded or that you protected the file in a different way to the one the challenge asks for. Create a fresh file where needed, apply the protection the challenge names, and tell me when you're ready again."
+  },
+  {
+   "id": "ip_challenge_solution_pointer",
+   "labs": [
+    "hb2_integrity_protection"
+   ],
+   "tier": "challenge_adjacent",
+   "src": "Hackerbot challenges",
+   "q": "What exact command stops the Hackerbot attack?",
+   "a": "Each challenge names the technique it wants, and the matching section of the lab sheet teaches it with a worked example on a practice file, so work through that first. I can explain how a mechanism works, but I won't hand you the solution to a challenge."
+  },
+  {
+   "id": "ip_which_vm",
+   "labs": [
+    "hb2_integrity_protection"
+   ],
+   "tier": "howto",
+   "src": "Getting started",
+   "q": "Which VM do I do this lab on?",
+   "a": "Everything in this lab happens on the desktop VM, in a terminal such as Konsole. The hackerbot_server VM needs to be running but you never log into it."
+  },
+  {
+   "id": "shared_login_details",
+   "labs": [
+    "hb2_siem",
+    "hb2_integrity_protection"
+   ],
+   "tier": "pointer",
+   "src": "Getting started",
+   "q": "What are my VM login details?",
+   "a": "Your login details are in the 'Getting started' section at the top of this lab's tutorial. The hackerbot_server VM isn't one you log into."
+  },
+  {
+   "id": "shared_vi_basics",
+   "labs": [
+    "hb2_siem",
+    "hb2_integrity_protection"
+   ],
+   "tier": "howto",
+   "src": "vi reminders in the sheets",
+   "q": "How do I use vi: edit, save and quit?",
+   "a": "In vi: press `i` to insert/edit text, then Esc, then `:wq` to write your changes and quit."
+  },
+  {
+   "id": "shared_pidgin_talk",
+   "labs": [
+    "hb2_siem",
+    "hb2_integrity_protection"
+   ],
+   "tier": "howto",
+   "src": "Meet Hackerbot",
+   "q": "How do I talk to Hackerbot?",
+   "a": "On the desktop VM, open Pidgin and message me. Try 'help', 'list' and 'hello'. When you're set, say 'ready' and I'll attack."
+  },
+  {
+   "id": "shared_no_flags_given",
+   "labs": [
+    "hb2_siem",
+    "hb2_integrity_protection"
+   ],
+   "tier": "challenge_adjacent",
+   "src": "Meet Hackerbot / marking",
+   "q": "Can you just give me the flag or the quiz answer?",
+   "a": "Nice try :) I reveal flags when you complete my challenges, and quiz answers are yours to work out. I'm happy to explain concepts or point you to the right part of the lab sheet."
+  }
+ ]
+}

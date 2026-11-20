@@ -1,0 +1,20 @@
+[Unit]
+Description=Hackerbot3 IRC attack chatbot with canned-response decision router (SecGen project)
+After=network.target
+
+[Service]
+ExecStart=/bin/bash -c "/usr/bin/ruby /opt/hackerbot3/hackerbot.rb"
+ExecReload=/bin/kill -HUP $MAINPID
+KillMode=process
+WorkingDirectory=/opt/hackerbot3
+Restart=always
+Environment="SHELL=/bin/bash"
+Environment="HOME=/root"
+# Bypass proxy for local/private network traffic (LLM servers, decision model, IRC)
+Environment="no_proxy=localhost,127.0.0.1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
+Environment="NO_PROXY=localhost,127.0.0.1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
+# LLM fallback (HB2_*) and decision router (HB3_*) settings, written by puppet from the generator's hb3_env
+EnvironmentFile=-/opt/hackerbot3/config/hb3.env
+
+[Install]
+WantedBy=multi-user.target
