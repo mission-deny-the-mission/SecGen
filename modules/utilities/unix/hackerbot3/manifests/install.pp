@@ -8,8 +8,11 @@ class hackerbot3::install {
     group   => 'root',
   }
 
+  # Lab sheet web root: css/js/images for the generated sheet (index.html is written by config.pp)
   file { '/var/www/labs2':
     ensure  => directory,
+    recurse => true,
+    source  => 'puppet:///modules/hackerbot3/www',
     mode    => '0755',
     owner   => 'root',
     group   => 'root',

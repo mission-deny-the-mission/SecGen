@@ -56,6 +56,9 @@ class HackerbotConfigGenerator < StringGenerator
     xml_template_out = ERB.new(File.read(self.config_template_path), trim_mode: '<>-')
     xml_config = xml_template_out.result(self.get_binding)
     xml_config = add_decision_router(xml_config) if self.decision_router_lab
+    # Hackerbot 3 serves its lab sheet from the bot server (hackerbot3 utility, apache on 'port'), as
+    # Hackerbot 1 did. The hb2_* generators (no decision_router_lab) keep upstream's externally hosted sheets.
+    html_lab_sheet = render_lab_sheet(xml_config) if self.decision_router_lab
 
     # Lab sheets are hosted externally upstream (HTML generation removed); only the
     # fork's hb2_env (per-bot LLM settings for the hackerbot2 service) is kept.
@@ -81,9 +84,50 @@ class HackerbotConfigGenerator < StringGenerator
       'HB3_API_KEY'            => ENV['HB3_API_KEY'],
     }.compact
 
-    json = {'xml_config' => xml_config.force_encoding('UTF-8'), 'hb2_env' => hb2_env, 'hb3_env' => hb3_env}.to_json.force_encoding('UTF-8')
+    out = {'xml_config' => xml_config.force_encoding('UTF-8'), 'hb2_env' => hb2_env, 'hb3_env' => hb3_env}
+    out['html_lab_sheet'] = html_lab_sheet.force_encoding('UTF-8') if html_lab_sheet
+    json = out.to_json.force_encoding('UTF-8')
     self.outputs << json.to_s
   end
+
+  # Lab sheet markdown from the rendered bot XML: the intro tutorial, each attack's tutorial snippets and a
+  # challenge box, then the footer (restored from Hackerbot 1's generate_lab_sheet).
+  def lab_sheet_markdown(xml_config)
+    require 'nokogiri'
+    doc = Nokogiri::XML(xml_config)
+    doc.remove_namespaces!
+    hackerbot = doc.xpath('/hackerbot')
+    name = hackerbot.xpath('name').first.content
+    md = "#{hackerbot.xpath('tutorial_info/tutorial').first&.content}\n"
+    doc.xpath('//attack').each_with_index do |attack, index|
+      attack.xpath('tutorial').each { |snippet| md += snippet.content + "\n" }
+      md += "#### #{name} Attack ##{index + 1}\n"
+      md += "Use what you have learned to complete the bot's challenge. You can skip the bot to here, by saying '**goto #{index + 1}**'\n\n"
+      md += "> #{name}: \"#{attack.xpath('prompt').first.content}\" \n\n"
+      md += "Do any necessary preparation, then when you are ready for the bot to complete the action/attack, ==say 'ready'==\n\n"
+      md += "There is a quiz to complete. Once Hackerbot asks you the question you can =='answer *YOURANSWER*'==\n\n" if attack.xpath('quiz').size > 0
+      md += "Don't forget to ==save and submit any flags!==\n\n"
+    end
+    md + "#{hackerbot.xpath('tutorial_info/footer').first&.content}\n"
+  rescue StandardError => e
+    abort "Failed to generate lab sheet: #{e.message}"
+  end
+
+  # Full HTML page: markdown rendered with redcarpet into the generator's labsheet.html.erb
+  # (which reads html_rendered / html_TOC_rendered), assets from the hackerbot3 utility's files/www.
+  def render_lab_sheet(xml_config)
+    require 'redcarpet'
+    md = lab_sheet_markdown(xml_config)
+    body = Redcarpet::Markdown.new(Redcarpet::Render::HTML.new(prettify: true, hard_wrap: true, with_toc_data: true),
+                                   footnotes: true, fenced_code_blocks: true, no_intra_emphasis: true, autolink: true,
+                                   highlight: true, lax_spacing: true, tables: true)
+    @html_rendered = body.render(md).force_encoding('UTF-8')
+    @html_TOC_rendered = Redcarpet::Markdown.new(Redcarpet::Render::HTML_TOC.new).render(md).force_encoding('UTF-8')
+    template = "#{self.templates_path}labsheet.html.erb"
+    raise "no lab sheet template at #{template}" unless File.exist?(template)
+    ERB.new(File.read(template), trim_mode: '<>-').result(self.get_binding)
+  end
+  attr_reader :html_rendered, :html_TOC_rendered
 
   # Insert <decision_router> straight after the bot's top-level <name> (first </name> in the file).
   def add_decision_router(xml_config)
