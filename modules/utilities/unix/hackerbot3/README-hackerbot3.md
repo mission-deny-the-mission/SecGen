@@ -46,3 +46,11 @@ VLAN that means a route or proxy to them.
 - Multi-alternative messages (`say_ready`, `next`, ...) were sent as a Ruby array string; one is now picked.
 - `hb2_integrity_protection` attack 5 had no `<condition>`s, so the bot crashed when it did get a shell.
 - `teaching_assistant_bot.xml` is shipped as `.example` so lab servers run only the lab's bot.
+
+## Lab sheet
+
+The bot server hosts the lab sheet on `http://<hackerbot_server>/` (port input, default 80), so
+students open it from the lab desktop. The hackerbot_config generator renders it from the bot XML's
+`<tutorial>` elements into the generator's `templates/labsheet.html.erb`, and assets come from
+`files/www`. Upstream Hackerbot 2 dropped this in favour of externally hosted sheets; Hackerbot 3
+keeps it, so a lab works offline.
