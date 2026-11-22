@@ -15,7 +15,8 @@ routers = {}
 mk = lambda do |lab|
   DecisionRouter.new(pairs_file: pairs, lab: lab, url: ENV.fetch('HB3_DECISION_URL'), model: ENV['HB3_DECISION_MODEL'],
                      embed_url: ENV['HB3_EMBED_URL'], embed_model: ENV['HB3_EMBED_MODEL'], api_key: ENV['HB3_API_KEY'], strategy: strategy,
-                     threshold: t, timeout: 30)
+                     threshold: t, timeout: (ENV['HB3_DECISION_TIMEOUT'] || 30).to_f,
+                     fit_check: ENV['HB3_DECISION_FIT_CHECK'], fit_threshold: ENV['HB3_DECISION_FIT_THRESHOLD'])
 end
 cases.map { |c| c['lab'] }.uniq.each { |lab| routers[lab] = mk.call(lab); 2.times { routers[lab].route('warmup message') } }
 tally = Hash.new(0); lat = []; second = 0; misses = []

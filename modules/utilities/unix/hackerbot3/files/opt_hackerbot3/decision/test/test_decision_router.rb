@@ -8,10 +8,14 @@ class TestDecisionRouter < Minitest::Test
   PAIRS = File.expand_path('../pairs/labhelp_pairs.json', __dir__)
   LAB = 'hb2_siem'.freeze
 
-  def router(probs_for: nil, calls: [], **opts)
+  def router(probs_for: nil, calls: [], fit_p: 0.9, **opts)
     post = lambda do |url, body, _t|
       calls << [url, body]
-      if url.end_with?('/v1/systemone')
+      if url.end_with?('/v1/systemone') && body['questions'].key?('fit')
+        p = fit_p.respond_to?(:call) ? fit_p.call(body) : fit_p
+        raise Net::ReadTimeout if p == :timeout
+        { 'answers' => { 'fit' => { 'probabilities' => { 'answers' => p, 'off' => 1.0 - p } } } }
+      elsif url.end_with?('/v1/systemone')
         crit = body['questions']['best_match']['criteria']
         probs = probs_for ? probs_for.call(crit) : { 'escalate' => 1.0 }
         { 'answers' => { 'best_match' => { 'probabilities' => probs } } }
@@ -33,6 +37,73 @@ class TestDecisionRouter < Minitest::Test
     assert res.canned?
     assert_equal id, res.pair_id
     refute_empty res.answer
+  end
+
+  def canned_first
+    id = first_id
+    ->(c) { c.keys.to_h { |k| [k, k == id ? 0.9 : 0.1 / (c.size - 1)] } }
+  end
+
+  def fit_calls(calls)
+    calls.count { |u, b| u.end_with?('systemone') && b['questions'].key?('fit') }
+  end
+
+  def test_fit_check_off_by_default_makes_no_extra_call
+    calls = []
+    r = router(calls: calls, probs_for: canned_first, fit_p: 0.0)
+    refute r.fit_check
+    assert r.route('what is a siem').canned?
+    assert_equal 0, fit_calls(calls)
+  end
+
+  def test_fit_check_keeps_answer_that_fits
+    calls = []
+    r = router(calls: calls, probs_for: canned_first, fit_p: 0.8, fit_check: 'true')
+    res = r.route('what is a siem')
+    assert res.canned?
+    assert_in_delta 0.8, res.fit
+    assert_equal 1, fit_calls(calls)
+    _, body = calls.find { |u, b| u.end_with?('systemone') && b['questions'].key?('fit') }
+    assert_equal 'what is a siem', body['state']['user_message']
+    assert_equal res.answer, body['state']['candidate_answer']
+  end
+
+  def test_fit_check_escalates_answer_that_does_not_fit
+    r = router(probs_for: canned_first, fit_p: 0.1, fit_check: true)
+    res = r.route('what are the arguments for chattr')
+    refute res.canned?
+    assert_equal 'answer does not fit', res.reason
+    assert_equal first_id, res.top_other
+    assert_nil res.answer
+  end
+
+  def test_fit_threshold_is_configurable
+    assert router(probs_for: canned_first, fit_p: 0.3, fit_check: '1').route('x y').canned?           # 0.3 >= 0.25 default
+    refute router(probs_for: canned_first, fit_p: 0.3, fit_check: '1', fit_threshold: '0.5').route('x y').canned?
+  end
+
+  def test_fit_check_error_escalates_and_counts_towards_breaker
+    r = router(probs_for: canned_first, fit_p: :timeout, fit_check: true, breaker_failures: 2)
+    res = r.route('what is a siem')
+    refute res.canned?
+    assert res.reason.start_with?('error')
+  end
+
+  def test_fit_check_not_called_when_router_already_escalates
+    calls = []
+    r = router(calls: calls, fit_check: true) # default probs: escalate
+    refute r.route('tell me a joke').canned?
+    assert_equal 0, fit_calls(calls)
+  end
+
+  def test_timeout_option_reaches_http_calls
+    seen = []
+    post = lambda do |_u, _b, t|
+      seen << t
+      { 'answers' => { 'best_match' => { 'probabilities' => { 'escalate' => 1.0 } } } }
+    end
+    DecisionRouter.new(pairs_file: PAIRS, lab: LAB, url: 'http://dm', http_post: post, strategy: 'full', timeout: '10').route('hi there')
+    assert_equal [10.0], seen.uniq
   end
 
   def test_escalates_when_model_says_escalate

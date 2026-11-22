@@ -97,6 +97,12 @@ def usage
    --hb3-decision-model [model]: decision model name (default: clef-flash, env: HB3_DECISION_MODEL)
    --hb3-decision-strategy [twopass|full]: (default: twopass, env: HB3_DECISION_STRATEGY)
    --hb3-decision-threshold [0-1]: canned-answer confidence threshold (default: 0.5, env: HB3_DECISION_THRESHOLD)
+   --hb3-decision-timeout [seconds]: per-call timeout to the decision/embedding servers (default: 10; 4 is
+              too short when a class of 30+ asks at once, env: HB3_DECISION_TIMEOUT)
+   --hb3-fit-check [true|false]: answer-fit check, a second decision-model call that rejects canned answers
+              that are on-topic but do not answer the question (default: true, env: HB3_DECISION_FIT_CHECK)
+   --hb3-fit-threshold [0-1]: p(answer fits) needed to keep a canned answer (default: 0.25,
+              env: HB3_DECISION_FIT_THRESHOLD)
    --hb3-embed-url [url]: embedding server for the twopass shortlist (env: HB3_EMBED_URL)
    --hb3-embed-model [model]: embedding model name (default: qwen3-embedding, env: HB3_EMBED_MODEL)
    --hb3-api-key [key]: bearer key for the decision/embedding URLs, when they sit behind a gateway such as
@@ -743,6 +749,9 @@ opts = GetoptLong.new(
     ['--hb3-decision-model', GetoptLong::REQUIRED_ARGUMENT],
     ['--hb3-decision-strategy', GetoptLong::REQUIRED_ARGUMENT],
     ['--hb3-decision-threshold', GetoptLong::REQUIRED_ARGUMENT],
+    ['--hb3-decision-timeout', GetoptLong::REQUIRED_ARGUMENT],
+    ['--hb3-fit-check', GetoptLong::REQUIRED_ARGUMENT],
+    ['--hb3-fit-threshold', GetoptLong::REQUIRED_ARGUMENT],
     ['--hb3-embed-url', GetoptLong::REQUIRED_ARGUMENT],
     ['--hb3-embed-model', GetoptLong::REQUIRED_ARGUMENT],
     ['--hb3-api-key', GetoptLong::REQUIRED_ARGUMENT],
@@ -767,6 +776,9 @@ options[:hb3_decision_url]       = ENV['HB3_DECISION_URL']
 options[:hb3_decision_model]     = ENV['HB3_DECISION_MODEL']     || 'clef-flash'
 options[:hb3_decision_strategy]  = ENV['HB3_DECISION_STRATEGY']  || 'twopass'
 options[:hb3_decision_threshold] = ENV['HB3_DECISION_THRESHOLD'] || '0.5'
+options[:hb3_decision_timeout]   = ENV['HB3_DECISION_TIMEOUT']   || '10'
+options[:hb3_fit_check]          = ENV['HB3_DECISION_FIT_CHECK'] || 'true'
+options[:hb3_fit_threshold]      = ENV['HB3_DECISION_FIT_THRESHOLD'] || '0.25'
 options[:hb3_embed_url]          = ENV['HB3_EMBED_URL']
 options[:hb3_embed_model]        = ENV['HB3_EMBED_MODEL']        || 'qwen3-embedding'
 options[:hb3_api_key]            = ENV['HB3_API_KEY']
@@ -1016,6 +1028,15 @@ opts.each do |opt, arg|
   when '--hb3-decision-threshold'
     Print.info "Hackerbot 3 decision threshold: #{arg}"
     options[:hb3_decision_threshold] = arg
+  when '--hb3-decision-timeout'
+    Print.info "Hackerbot 3 decision timeout: #{arg}s"
+    options[:hb3_decision_timeout] = arg
+  when '--hb3-fit-check'
+    Print.info "Hackerbot 3 answer-fit check: #{arg}"
+    options[:hb3_fit_check] = arg
+  when '--hb3-fit-threshold'
+    Print.info "Hackerbot 3 answer-fit threshold: #{arg}"
+    options[:hb3_fit_threshold] = arg
   when '--hb3-embed-url'
     Print.info "Hackerbot 3 embedding URL: #{arg}"
     options[:hb3_embed_url] = arg

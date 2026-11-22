@@ -42,7 +42,9 @@ Servers and tuning come from the environment (e.g. `config/hb2.env`):
 | `HB3_DECISION_STRATEGY` | `full`, `shortlist` or `twopass` (default `twopass`; falls back to `full` with no embedder) |
 | `HB3_DECISION_SHORTLIST_K` | Embedder shortlist size (default 8) |
 | `HB3_EMBED_URL`, `HB3_EMBED_MODEL` | OpenAI-compatible embeddings server (e.g. Qwen3-Embedding-0.6B) |
-| `HB3_DECISION_TIMEOUT` | Seconds per HTTP call (default 4) |
+| `HB3_DECISION_TIMEOUT` | Seconds per HTTP call (default 4). Use ~10 for classes of 30+: when many students ask at once, requests queue at the decision model and a short timeout trips the circuit breaker, sending every message to the LLM for 30 s. |
+| `HB3_DECISION_FIT_CHECK` | `true` adds the answer-fit check: after a canned match, one more decision-model call asks whether the canned answer answers what was actually asked. Stops topic-level matches ("arguments for chattr" -> "what is chattr"). Default off. |
+| `HB3_DECISION_FIT_THRESHOLD` | p(answers) needed to keep the canned answer (default 0.25). |
 | `HB3_DECISION_LOG` | Optional JSONL decision log. **Stores student messages**: leave unset unless students have been told. |
 | `HB3_DECISION_PAIRS` | Alternative pairs file |
 

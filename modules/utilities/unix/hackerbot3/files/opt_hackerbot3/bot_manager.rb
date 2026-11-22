@@ -1349,9 +1349,13 @@ class BotManager
       embed_model: ENV['HB3_EMBED_MODEL'],
       api_key: ENV['HB3_API_KEY'],
       timeout: ENV['HB3_DECISION_TIMEOUT'],
+      fit_check: text.call('fit_check') || ENV['HB3_DECISION_FIT_CHECK'],
+      fit_threshold: text.call('fit_threshold') || ENV['HB3_DECISION_FIT_THRESHOLD'],
       log_path: ENV['HB3_DECISION_LOG']
     )
-    Print.info "Bot #{bot_name}: decision router on (lab #{lab}, #{router.pair_count} pairs, #{router.strategy}, threshold #{router.threshold})"
+    Print.info "Bot #{bot_name}: decision router on (lab #{lab}, #{router.pair_count} pairs, #{router.strategy}, " \
+               "threshold #{router.threshold}, timeout #{router.timeout}s, " \
+               "fit check #{router.fit_check ? "on (#{router.fit_threshold})" : 'off'})"
     router
   rescue StandardError => e
     Print.err "Bot #{bot_name}: decision router disabled: #{e.message}"

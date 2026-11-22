@@ -21,6 +21,10 @@ require_relative '../print.rb'
 #      the candidates plus an explicit `escalate` option (always last).
 #   4. Gate on the TOP option's own probability: serve the canned answer only if the top option
 #      is not `escalate` and p >= threshold; otherwise escalate to the LLM.
+#   5. Optional answer-fit check (fit_check): ask the decision model once more whether the chosen
+#      canned ANSWER answers what the student actually asked. Catches topic-level matches
+#      ("what are the arguments for chattr" -> "what is chattr"). Below fit_threshold -> escalate.
+#      Costs one small extra call (~50-70 ms) on canned answers only.
 #
 # Strategies:
 #   full       every candidate goes to the decision model (no embedder needed)
@@ -41,15 +45,18 @@ class DecisionRouter
                           "or anything the other options do not answer".freeze
   STRATEGIES = %w[full shortlist twopass].freeze
   MAX_MESSAGE_CHARS = 500
+  FIT_INSTRUCTIONS = 'Does candidate_answer directly answer what the student asked in user_message?'.freeze
+  FIT_CRITERIA = { 'answers' => 'Yes: it answers the specific question asked',
+                   'off' => 'No: it is only on a related topic, or misses what was specifically asked' }.freeze
 
   Result = Struct.new(:action, :pair_id, :answer, :tier, :probability, :strategy, :second_pass,
-                      :latency_ms, :reason, :top_other, keyword_init: true) do
+                      :latency_ms, :reason, :top_other, :fit, keyword_init: true) do
     def canned?
       action == :canned
     end
   end
 
-  attr_reader :lab, :threshold, :strategy
+  attr_reader :lab, :threshold, :strategy, :timeout, :fit_check, :fit_threshold
 
   # @param opts [Hash]
   #   :pairs_file, :lab (required)           pairs JSON and the lab id whose pairs are candidates
@@ -59,7 +66,10 @@ class DecisionRouter
   #   :strategy ('twopass')                  full | shortlist | twopass
   #   :embed_url, :embed_model               embedding server (/v1/embeddings); enables shortlist/twopass
   #   :shortlist_k (8)
-  #   :timeout (4.0)                         seconds per HTTP call
+  #   :timeout (4.0)                         seconds per HTTP call (raise it for big classes: under a burst
+  #                                          requests queue at the decision model; see decision/README.md)
+  #   :fit_check (false)                     answer-fit check on canned matches (step 5)
+  #   :fit_threshold (0.25)                  p('answers') needed to keep the canned answer
   #   :api_key                               optional bearer token for url/embed_url (e.g. a LiteLLM key
   #                                          when the servers are reached through LiteLLM pass-through routes)
   #   :breaker_failures (5), :breaker_cooldown (30)
@@ -78,6 +88,8 @@ class DecisionRouter
     @breaker_cooldown = (opts[:breaker_cooldown] || 30).to_f
     @log_path = opts[:log_path]
     @api_key = opts[:api_key].to_s.empty? ? nil : opts[:api_key].to_s
+    @fit_check = %w[1 true yes on].include?(opts[:fit_check].to_s.strip.downcase)
+    @fit_threshold = (opts[:fit_threshold] || 0.25).to_f
     @http_post = opts[:http_post] || method(:default_http_post)
 
     strategy = (opts[:strategy] || 'twopass').to_s
@@ -149,8 +161,32 @@ class DecisionRouter
                         reason: top_id == ESCALATE ? 'model chose escalate' : 'below threshold')
     end
     pair = @pairs[top_id]
+    fit = nil
+    if @fit_check
+      fit = answer_fit(text, pair['a'])
+      latency = ((monotonic - t0) * 1000).round
+      if fit < @fit_threshold
+        return Result.new(action: :escalate, pair_id: nil, probability: top_p, strategy: @strategy,
+                          second_pass: second_pass, latency_ms: latency, top_other: top_id, fit: fit,
+                          reason: 'answer does not fit')
+      end
+    end
     Result.new(action: :canned, pair_id: top_id, answer: pair['a'], tier: pair['tier'], probability: top_p,
-               strategy: @strategy, second_pass: second_pass, latency_ms: latency, reason: 'matched')
+               strategy: @strategy, second_pass: second_pass, latency_ms: latency, fit: fit, reason: 'matched')
+  end
+
+  # Probability that `answer` directly answers `text` (step 5). Errors propagate (-> escalate).
+  def answer_fit(text, answer)
+    body = {
+      'state' => { 'user_message' => text, 'candidate_answer' => answer.to_s },
+      'questions' => { 'fit' => { 'type' => 'choice', 'instructions' => FIT_INSTRUCTIONS, 'criteria' => FIT_CRITERIA } }
+    }
+    body['model'] = @model if @model && !@model.to_s.empty?
+    a = @http_post.call("#{@url}/v1/systemone", body, @timeout).dig('answers', 'fit') or
+      raise 'decision model returned no fit answer'
+    probs = a['probabilities'] || {}
+    return probs['answers'].to_f unless probs.empty?
+    a['choice'] == 'answers' ? 1.0 : 0.0
   end
 
   def escalating?(probs)
@@ -283,7 +319,7 @@ class DecisionRouter
     line = { 't' => Time.now.utc.iso8601, 'lab' => @lab, 'message' => text, 'action' => result.action,
              'pair' => result.pair_id, 'p' => result.probability && result.probability.round(4),
              'other' => result.top_other, 'strategy' => result.strategy, 'second_pass' => result.second_pass,
-             'ms' => result.latency_ms, 'reason' => result.reason }
+             'fit' => result.fit && result.fit.round(4), 'ms' => result.latency_ms, 'reason' => result.reason }
     @mutex.synchronize { File.open(@log_path, 'a') { |f| f.puts(JSON.generate(line)) } }
   rescue StandardError => e
     Print.err "DecisionRouter: could not write decision log: #{e.message}"
