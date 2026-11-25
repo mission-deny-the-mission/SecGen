@@ -86,6 +86,7 @@ class HackerbotConfigGenerator < StringGenerator
       'HB3_DECISION_TIMEOUT'   => ENV['HB3_DECISION_TIMEOUT'],
       'HB3_DECISION_FIT_CHECK' => ENV['HB3_DECISION_FIT_CHECK'],
       'HB3_DECISION_FIT_THRESHOLD' => ENV['HB3_DECISION_FIT_THRESHOLD'],
+      'HB3_DECISION_LOG'       => ENV['HB3_DECISION_LOG'],
       'HB3_EMBED_URL'          => ENV['HB3_EMBED_URL'],
       'HB3_EMBED_MODEL'        => ENV['HB3_EMBED_MODEL'],
       'HB3_API_KEY'            => ENV['HB3_API_KEY'],

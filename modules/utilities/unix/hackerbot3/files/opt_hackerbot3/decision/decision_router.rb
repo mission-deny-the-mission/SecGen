@@ -1,5 +1,6 @@
 require 'net/http'
 require 'json'
+require 'fileutils'
 require 'uri'
 require 'thread'
 require 'time'
@@ -333,7 +334,10 @@ class DecisionRouter
              'pair' => result.pair_id, 'p' => result.probability && result.probability.round(4),
              'other' => result.top_other, 'strategy' => result.strategy, 'second_pass' => result.second_pass,
              'fit' => result.fit && result.fit.round(4), 'ms' => result.latency_ms, 'reason' => result.reason }
-    @mutex.synchronize { File.open(@log_path, 'a') { |f| f.puts(JSON.generate(line)) } }
+    @mutex.synchronize do
+      FileUtils.mkdir_p(File.dirname(@log_path))
+      File.open(@log_path, 'a', 0o600) { |f| f.puts(JSON.generate(line)) }
+    end
   rescue StandardError => e
     Print.err "DecisionRouter: could not write decision log: #{e.message}"
   end

@@ -103,6 +103,9 @@ def usage
               that are on-topic but do not answer the question (default: true, env: HB3_DECISION_FIT_CHECK)
    --hb3-fit-threshold [0-1]: p(answer fits) needed to keep a canned answer (default: 0.25,
               env: HB3_DECISION_FIT_THRESHOLD)
+   --hb3-decision-log [on|path]: log every routing decision (canned answer vs LLM, which answer, scores, why)
+              as JSON lines; 'on' = /opt/hackerbot3/logs/decisions.jsonl. Root-only; it stores what students
+              type, so it is off by default (env: HB3_DECISION_LOG)
    --hb3-embed-url [url]: embedding server for the twopass shortlist (env: HB3_EMBED_URL)
    --hb3-embed-model [model]: embedding model name (default: qwen3-embedding, env: HB3_EMBED_MODEL)
    --hb3-api-key [key]: bearer key for the decision/embedding URLs, when they sit behind a gateway such as
@@ -752,6 +755,7 @@ opts = GetoptLong.new(
     ['--hb3-decision-timeout', GetoptLong::REQUIRED_ARGUMENT],
     ['--hb3-fit-check', GetoptLong::REQUIRED_ARGUMENT],
     ['--hb3-fit-threshold', GetoptLong::REQUIRED_ARGUMENT],
+    ['--hb3-decision-log', GetoptLong::REQUIRED_ARGUMENT],
     ['--hb3-embed-url', GetoptLong::REQUIRED_ARGUMENT],
     ['--hb3-embed-model', GetoptLong::REQUIRED_ARGUMENT],
     ['--hb3-api-key', GetoptLong::REQUIRED_ARGUMENT],
@@ -1037,6 +1041,10 @@ opts.each do |opt, arg|
   when '--hb3-fit-threshold'
     Print.info "Hackerbot 3 answer-fit threshold: #{arg}"
     options[:hb3_fit_threshold] = arg
+  when '--hb3-decision-log'
+    arg = '/opt/hackerbot3/logs/decisions.jsonl' if %w[on true yes 1].include?(arg.to_s.downcase)
+    Print.info "Hackerbot 3 decision log: #{arg}"
+    options[:hb3_decision_log] = arg
   when '--hb3-embed-url'
     Print.info "Hackerbot 3 embedding URL: #{arg}"
     options[:hb3_embed_url] = arg
