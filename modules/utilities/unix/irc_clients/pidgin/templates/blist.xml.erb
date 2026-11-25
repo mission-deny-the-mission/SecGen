@@ -4,12 +4,16 @@
 	<blist>
 		<group>
 			<setting name='collapsed' type='bool'>0</setting>
+<% @buddies.each do |buddy| -%>
 			<contact>
 				<buddy account='<%=@username-%>@<%=@ip%>' proto='prpl-irc'>
-					<name>Hackerbot</name>
+					<name><%= buddy %></name>
 				</buddy>
+<% if buddy == 'Hackerbot' -%>
 				<setting name="custom_buddy_icon" type="string">skullandusb.svg</setting>
+<% end -%>
 			</contact>
+<% end -%>
 		</group>
 	</blist>
 	<privacy>

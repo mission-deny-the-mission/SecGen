@@ -3,6 +3,7 @@ class pidgin::config {
   $accounts = $secgen_params['accounts']
   $autostart = str2bool($secgen_params['autostart'][0])
   $ip = $secgen_params['server_ip'][0]
+  $buddies = $secgen_params['buddies'] ? { undef => ['Hackerbot'], default => $secgen_params['buddies'] }
 
   # Set.up Pidgin for each user account
   unless $accounts == undef {

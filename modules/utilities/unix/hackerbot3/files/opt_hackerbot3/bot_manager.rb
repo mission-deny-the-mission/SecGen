@@ -1385,7 +1385,8 @@ class BotManager
         Print.debug bot_name
         @bots[bot_name] = {}
 
-        get_shell = hackerbot.at_xpath('get_shell').text
+        # Optional: a chat-only bot (no <attack>s, e.g. a staff-tutor role-play bot) has no shell to get.
+        get_shell = hackerbot.at_xpath('get_shell')&.text || 'false'
         Print.debug get_shell
         @bots[bot_name]['get_shell'] = get_shell
 
@@ -2350,6 +2351,23 @@ class BotManager
     msg.is_a?(Array) ? msg.sample : msg
   end
 
+  # Would another handler answer this message? Then the catch-all (router/LLM) must stay quiet, or the student
+  # gets two replies. Mirrors the handler patterns in create_bot exactly: Cinch anchors String patterns, so
+  # 'next' only matches the whole message. The old catch-all filter dropped ANY message containing
+  # next/list/ready/answer/... ("what's next after chattr?", "how do I list attributes?") with no reply at all.
+  # Chat-only bots: 'hello'/'help' are commands only when sent bare.
+  COMMAND_EXACT = /\A(next|previous|ready|list|clear_history|show_history|personalities|personality)\z/i
+  COMMAND_PREFIX = /\A((goto|attack) [0-9]+|(the answer is|answer):? .+|(switch|personality) .+)\z/i
+  def self.command_message?(text, chat_only = false)
+    t = text.to_s.strip
+    return true if t =~ COMMAND_EXACT || t =~ COMMAND_PREFIX
+    if chat_only
+      !!(t =~ /\A\W*(hello|help)\W*\z/i)
+    else
+      !!(t =~ /hello|help/i)
+    end
+  end
+
   def create_bot(bot_name, system_prompt)
     bots_ref = @bots
     irc_server_ip_address = @irc_server_ip_address
@@ -2371,6 +2389,18 @@ class BotManager
     # there: capture them like the helpers above (Hackerbot 2 crashed with NoMethodError on every attack result).
     update_bot_state_fn = method(:update_bot_state)
     check_output_conditions_fn = method(:check_output_conditions)
+    # Chat-only bots (no <attack>s): attack commands get a pointer instead of crashing on attacks[nil], and only a
+    # bare 'hello'/'help' is a command, so "can you help me with chattr" reaches the router/LLM.
+    chat_only = bots_ref[bot_name]['attacks'].nil? || bots_ref[bot_name]['attacks'].empty?
+    command_message = ->(text) { BotManager.command_message?(text, chat_only) }
+    bare_greeting = ->(text) { BotManager.command_message?(text, true) && text =~ /hello|help/i }
+    # Several bots share '#bots' (and a lab can put two bots in one channel): never answer another bot, or an
+    # LLM reply that contains 'hello' sets off the other bot's greeting, and the two talk to each other forever.
+    from_bot = ->(m) { m.user && bots_ref.key?(m.user.nick) }
+    no_attacks_reply = lambda do |m|
+      m.reply(get_personality_messages.call(bot_name, m.user.nick, 'no_attacks') ||
+              "I don't run attacks or quizzes in this lab. Ask me anything, or talk to the bot that runs the challenges.")
+    end
 
     @bots[bot_name]['bot'] = Cinch::Bot.new do
       configure do |c|
@@ -2383,6 +2413,7 @@ class BotManager
       # Global message handler to capture all IRC channel messages
       # This runs for all messages to capture them with metadata
       on :message do |m|
+        next if from_bot.call(m)
         # Skip capturing if message is from the bot itself (to avoid duplicates)
         next if m.user.nick.downcase == bot_name.downcase
         
@@ -2394,8 +2425,11 @@ class BotManager
       end
 
       on :message, /hello/i do |m|
+        next if from_bot.call(m)
+        next if chat_only && !bare_greeting.call(m.message)
         m.reply "Hello, #{m.user.nick} (#{m.user.host})."
         m.reply get_personality_messages.call(bot_name, m.user.nick, 'greeting')
+        next if chat_only
         current = bots_ref[bot_name]['current_attack']
 
         # prompt for the first attack
@@ -2407,11 +2441,14 @@ class BotManager
       end
 
       on :message, /help/i do |m|
+        next if from_bot.call(m)
+        next if chat_only && !bare_greeting.call(m.message)
         m.reply get_personality_messages.call(bot_name, m.user.nick, 'help')
       end
 
       # Personality management commands
       on :message, /^personalities$/i do |m|
+        next if from_bot.call(m)
         available_personalities = list_personalities.call(bot_name)
         if available_personalities.empty?
           m.reply "No personalities available for this bot."
@@ -2427,6 +2464,7 @@ class BotManager
       end
 
       on :message, /^personality$/i do |m|
+        next if from_bot.call(m)
         current_personality = get_current_personality.call(bot_name, m.user.nick)
         if current_personality
           config = get_personality_config.call(bot_name, current_personality)
@@ -2437,6 +2475,7 @@ class BotManager
       end
 
       on :message, /^(switch|personality) .+$/i do |m|
+        next if from_bot.call(m)
         target_personality = m.message.chomp.split(' ', 2)[1]
         if set_current_personality.call(bot_name, m.user.nick, target_personality)
           config = get_personality_config.call(bot_name, target_personality)
@@ -2448,6 +2487,8 @@ class BotManager
       end
 
       on :message, 'next' do |m|
+        next if from_bot.call(m)
+        next no_attacks_reply.call(m) if chat_only
         m.reply get_personality_messages.call(bot_name, m.user.nick, 'next')
 
         # is this the last one?
@@ -2468,6 +2509,8 @@ class BotManager
       end
 
       on :message, /^(goto|attack) [0-9]+$/i do |m|
+        next if from_bot.call(m)
+        next no_attacks_reply.call(m) if chat_only
         m.reply get_personality_messages.call(bot_name, m.user.nick, 'goto')
         requested_index = m.message.chomp().split[1].to_i - 1
 
@@ -2490,6 +2533,8 @@ class BotManager
       end
 
       on :message, /^(the answer is|answer):? .+$/i do |m|
+        next if from_bot.call(m)
+        next no_attacks_reply.call(m) if chat_only
         answer = m.message.chomp().match(/(?:the )?answer(?: is)?:? (.+)$/i)[1]
         current = bots_ref[bot_name]['current_attack']
 
@@ -2545,6 +2590,8 @@ class BotManager
       end
 
       on :message, 'previous' do |m|
+        next if from_bot.call(m)
+        next no_attacks_reply.call(m) if chat_only
         m.reply get_personality_messages.call(bot_name, m.user.nick, 'previous')
 
         # is this the last one?
@@ -2565,6 +2612,8 @@ class BotManager
       end
 
       on :message, 'list' do |m|
+        next if from_bot.call(m)
+        next no_attacks_reply.call(m) if chat_only
         bots_ref[bot_name]['attacks'].each_with_index {|val, index|
           uptohere = ''
           if index == bots_ref[bot_name]['current_attack']
@@ -2576,12 +2625,14 @@ class BotManager
       end
 
       on :message, 'clear_history' do |m|
+        next if from_bot.call(m)
         user_id = m.user.nick
         clear_user_history.call(bot_name, user_id)
         m.reply "Chat history cleared for #{user_id}."
       end
 
       on :message, 'show_history' do |m|
+        next if from_bot.call(m)
         user_id = m.user.nick
         chat_context = get_chat_context.call(bot_name, user_id)
         if chat_context.empty?
@@ -2594,8 +2645,9 @@ class BotManager
 
       # fallback to Ollama LLM responses
       on :message do |m|
+        next if from_bot.call(m)
         # Only process messages not related to controlling attacks or personality management
-        if m.message !~ /hello|help|next|previous|ready|list|clear_history|show_history|^(goto|attack) [0-9]|(the answer is|answer)|personalities|^(switch|personality) .+$/
+        unless command_message.call(m.message)
           begin
             user_id = m.user.nick
 
@@ -2693,6 +2745,8 @@ class BotManager
       end
 
       on :message, 'ready' do |m|
+        next if from_bot.call(m)
+        next no_attacks_reply.call(m) if chat_only
         m.reply get_personality_messages.call(bot_name, m.user.nick, 'getting_shell')
         current = bots_ref[bot_name]['current_attack']
 

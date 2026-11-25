@@ -14,6 +14,9 @@
   <read_fact>server_ip</read_fact>
   <read_fact>accounts</read_fact>
   <read_fact>autostart</read_fact>
+  <!-- IRC nicks shown in the buddy list (a lab with a second bot, e.g. a role-play tutor, adds it here).
+       Pidgin opens a chat with the first one and says hello on sign-on, as before. -->
+  <read_fact>buddies</read_fact>
 
   <default_input into="server_ip">
     <value>127.0.0.1</value>
@@ -21,6 +24,10 @@
 
   <default_input into="autostart">
     <value>true</value>
+  </default_input>
+
+  <default_input into="buddies">
+    <value>Hackerbot</value>
   </default_input>
 
   <requires>

@@ -1,0 +1,60 @@
+<%
+  require 'json'
+
+  if self.accounts.empty?
+    abort('Sorry, you need to provide an account')
+  end
+
+  $main_user = JSON.parse(self.accounts.first)['username'].to_s
+
+  # Same LLM settings as the attack bot (CLI/env overrides, OpenAI-compatible server by default)
+  $hb2_llm_provider    = ENV['HB2_LLM_PROVIDER']    || 'openai'
+  $hb2_llm_host        = ENV['HB2_LLM_HOST']        || 'localhost'
+  $hb2_llm_port        = ENV['HB2_LLM_PORT']        || '4000'
+  $hb2_llm_model       = ENV['HB2_LLM_MODEL']       || 'gpt-4o-mini'
+  $hb2_openai_api_key  = ENV['HB2_OPENAI_API_KEY']  || 'no-key-needed'
+  $hb2_openai_base_url = ENV['HB2_OPENAI_BASE_URL'] || "http://#$hb2_llm_host:#$hb2_llm_port"
+  $hb2_embedding_model = ENV['HB2_EMBEDDING_MODEL'] || 'text-embedding-ada-002'
+
+  def get_binding
+    binding
+  end
+-%>
+<?xml version="1.0"?>
+
+<hackerbot
+               xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+               xsi:schemaLocation="http://www.github/cliffe/SecGen/hackerbot">
+
+	<name>Tutor</name>
+
+  <!-- LLM Provider Configuration -->
+  <llm_provider><%= $hb2_llm_provider %></llm_provider>
+  <ollama_model><%= $hb2_llm_model %></ollama_model>
+  <ollama_host><%= $hb2_llm_host %></ollama_host>
+  <ollama_port><%= $hb2_llm_port %></ollama_port>
+  <openai_api_key><%= $hb2_openai_api_key %></openai_api_key>
+  <openai_base_url><%= $hb2_openai_base_url %></openai_base_url>
+  <embedding_model><%= $hb2_embedding_model %></embedding_model>
+  <system_prompt>You are Sam, a friendly lab tutor (a member of teaching staff) helping a student in a computer security lab on protecting integrity on Linux: file permissions (chmod), file attributes (chattr immutable i and append-only a, lsattr) and read-only bind mounts. You are chatting over IRC, so keep replies short (two to four sentences) and conversational, like a demonstrator walking round the lab. The student works on the "desktop" VM as user <%= $main_user %>; a separate bot called Hackerbot attacks their VM when they say 'ready' and releases flags when their defence works.
+
+Teach, do not solve: explain how a mechanism works, ask what the student tried and what happened, and point them to the matching section of the lab sheet (permissions, file attributes, read-only mounting). Never give the exact command that completes a Hackerbot challenge, and never give or guess flags or quiz answers. You have no flags.
+
+Stay in character as teaching staff, but if a student sincerely asks whether you are a real person, say you are an AI tutor. Do not make up module policy: deadlines, extensions, marks, assessment weighting and academic misconduct questions go to the module leader. If a student seems distressed, be kind and suggest talking to a real person (module leader, personal tutor or student wellbeing service). Politely steer off-topic chat back to the lab.</system_prompt>
+  <max_tokens>300</max_tokens>
+  <model_temperature>0.6</model_temperature>
+  <streaming>true</streaming>
+  <num_thread>2</num_thread>
+  <!-- The tutor answers from the system prompt and its canned answers; no RAG knowledge base to load -->
+  <rag_cag_enabled>false</rag_cag_enabled>
+
+  <!-- No <get_shell> and no <attack>s: a chat-only bot. 'ready', 'next', 'list', 'goto' and 'answer' get no_attacks. -->
+
+	<messages>
+		<greeting>Hi, I'm Sam, the lab tutor for this session. Ask me about anything in the lab, or tell me where you're stuck. Hackerbot runs the attacks and hands out the flags; I'm here for the explanations.</greeting>
+		<help>Ask me a question in your own words, for example "why can root still delete my file?" or "what does append-only mean?". I can explain ideas and point you to the right part of the lab sheet. For attacks, flags and quizzes, talk to Hackerbot.</help>
+		<no_attacks>That one's a Hackerbot command: I don't run attacks, flags or quizzes. Message Hackerbot for those, and come back to me if a defence doesn't work and you want to know why.</no_attacks>
+		<non_answer>Hmm, I'm not sure about that one. Could you put it another way, or tell me which part of the lab sheet you're on?</non_answer>
+	</messages>
+
+</hackerbot>

@@ -18,8 +18,9 @@ class hackerbot3::config{
       group   => 'root',
     }
 
-    # Lab sheet, served on $port (index.html for a single bot, as in Hackerbot 2)
-    if $secgen_parameters['hackerbot_configs'].length == 1 {
+    # Lab sheet, served on $port. index.html for the first bot (the lab's main bot, as in Hackerbot 2);
+    # further bots that have a sheet get lab_part_N.html. Chat-only bots (role-play tutor) have none.
+    if $counter == 0 {
       $htmlfilename = 'index.html'
     } else {
       $htmlfilename = "lab_part_${counter}.html"

@@ -3,7 +3,7 @@
 <pounces version='1.0'>
 	<pounce ui='gtk-gaim'>
 		<account protocol='prpl-irc'><%=@username-%>@<%=@ip%></account>
-		<pouncee>Hackerbot</pouncee>
+		<pouncee><%= @buddies.first %></pouncee>
 		<options/>
 		<events>
 			<event type='sign-on'/>

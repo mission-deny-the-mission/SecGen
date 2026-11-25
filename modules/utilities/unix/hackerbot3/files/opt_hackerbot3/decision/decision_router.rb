@@ -46,6 +46,10 @@ class DecisionRouter
   STRATEGIES = %w[full shortlist twopass].freeze
   MAX_MESSAGE_CHARS = 500
   FIT_INSTRUCTIONS = 'Does candidate_answer directly answer what the student asked in user_message?'.freeze
+  # Pair tiers the answer-fit check skips. challenge_adjacent answers are deliberate refusals or redirects
+  # ("can you give me the flag?" -> "no, but..."): they never "answer what was asked", so the check would
+  # always send them to the LLM, which is the opposite of why they were written.
+  FIT_SKIP_TIERS = %w[challenge_adjacent].freeze
   FIT_CRITERIA = { 'answers' => 'Yes: it answers the specific question asked',
                    'off' => 'No: it is only on a related topic, or misses what was specifically asked' }.freeze
 
@@ -162,7 +166,7 @@ class DecisionRouter
     end
     pair = @pairs[top_id]
     fit = nil
-    if @fit_check
+    if @fit_check && !FIT_SKIP_TIERS.include?(pair['tier'])
       fit = answer_fit(text, pair['a'])
       latency = ((monotonic - t0) * 1000).round
       if fit < @fit_threshold

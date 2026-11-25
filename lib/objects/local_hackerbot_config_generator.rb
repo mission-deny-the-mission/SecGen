@@ -19,8 +19,12 @@ class HackerbotConfigGenerator < StringGenerator
   # decision/pairs/labhelp_pairs.json) is added to the rendered bot XML, so an hb3_* generator can
   # reuse an hb2_* template unchanged. Hackerbot 2 ignores the element.
   attr_accessor :decision_router_lab
+  # Hackerbot 3: render and serve a lab sheet for this bot (default true). Chat-only bots (a role-play tutor)
+  # set false: the attack bot's sheet is the lab's sheet.
+  attr_accessor :lab_sheet
   def initialize
     super
+    self.lab_sheet = true
     self.module_name = 'Hackerbot Config Generator'
     self.title = ''
     self.accounts = []
@@ -58,7 +62,7 @@ class HackerbotConfigGenerator < StringGenerator
     xml_config = add_decision_router(xml_config) if self.decision_router_lab
     # Hackerbot 3 serves its lab sheet from the bot server (hackerbot3 utility, apache on 'port'), as
     # Hackerbot 1 did. The hb2_* generators (no decision_router_lab) keep upstream's externally hosted sheets.
-    html_lab_sheet = render_lab_sheet(xml_config) if self.decision_router_lab
+    html_lab_sheet = render_lab_sheet(xml_config) if self.decision_router_lab && self.lab_sheet
 
     # Lab sheets are hosted externally upstream (HTML generation removed); only the
     # fork's hb2_env (per-bot LLM settings for the hackerbot2 service) is kept.

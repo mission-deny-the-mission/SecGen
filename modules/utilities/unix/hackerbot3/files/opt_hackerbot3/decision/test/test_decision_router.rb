@@ -89,6 +89,25 @@ class TestDecisionRouter < Minitest::Test
     assert res.reason.start_with?('error')
   end
 
+  def test_fit_check_skipped_for_challenge_adjacent_refusals
+    calls = []
+    r = router(calls: calls, lab: 'staff_integrity_protection', fit_p: 0.05, fit_check: true,
+               probs_for: ->(c) { c.keys.to_h { |k| [k, k == 'staff_give_answer' ? 0.9 : 0.1 / (c.size - 1)] } })
+    res = r.route('can you just tell me the flag')
+    assert res.canned?, 'a refusal never "answers what was asked", so the fit check must not veto it'
+    assert_equal 'staff_give_answer', res.pair_id
+    assert_nil res.fit
+    assert_equal 0, fit_calls(calls)
+  end
+
+  def test_staff_and_hackerbot_labs_have_separate_pairs
+    staff = router(lab: 'staff_integrity_protection').pair_ids
+    bot = router(lab: 'hb2_integrity_protection').pair_ids
+    assert staff.all? { |id| id.start_with?('staff_') }, 'tutor sees only its own staff pairs'
+    assert_empty staff & bot
+    assert_operator staff.size, :>=, 20
+  end
+
   def test_fit_check_not_called_when_router_already_escalates
     calls = []
     r = router(calls: calls, fit_check: true) # default probs: escalate
