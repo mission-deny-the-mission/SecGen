@@ -63,7 +63,10 @@ class DecisionRouter
   attr_reader :lab, :threshold, :strategy, :timeout, :fit_check, :fit_threshold
 
   # @param opts [Hash]
-  #   :pairs_file, :lab (required)           pairs JSON and the lab id whose pairs are candidates
+  #   :pairs_file, :lab                      pairs JSON and the lab id whose pairs are candidates, or
+  #   :pairs                                 inline pairs [{'id','q','a','tier'}] (all candidates; e.g. a role-play
+  #                                          character's own answers from its bot XML). :lab is then only a label.
+  #   :instructions, :escalate_desc          override the decision question (default: the pairs file's / built-in)
   #   :url (required)                        decision model base URL (serves /v1/systemone)
   #   :model                                 model name sent in the request (vLLM wants one; llama.cpp ignores it)
   #   :threshold (0.5)                       top-option probability needed to serve a canned answer
@@ -80,7 +83,7 @@ class DecisionRouter
   #   :log_path                              optional JSONL decision log (stores student messages: off by default)
   #   :http_post                             injectable lambda(url, body, timeout) -> parsed JSON (tests)
   def initialize(opts)
-    @lab = opts.fetch(:lab).to_s
+    @lab = (opts[:lab] || (opts[:pairs] ? 'inline' : opts.fetch(:lab))).to_s
     @url = opts.fetch(:url).to_s.chomp('/')
     @model = opts[:model]
     @threshold = (opts[:threshold] || 0.5).to_f
@@ -101,7 +104,13 @@ class DecisionRouter
     # shortlist/twopass without an embedder degrade to full rather than failing at message time
     @strategy = (@embed_url.nil? && strategy != 'full') ? 'full' : strategy
 
-    load_pairs(opts.fetch(:pairs_file))
+    if opts[:pairs]
+      load_pair_data({ 'pairs' => opts[:pairs].map { |p| p.merge('labs' => [@lab]) } }, 'inline pairs')
+    else
+      load_pair_data(JSON.parse(File.read(opts.fetch(:pairs_file))), opts[:pairs_file])
+    end
+    @instructions = opts[:instructions] unless opts[:instructions].to_s.strip.empty?
+    @escalate_desc = opts[:escalate_desc] unless opts[:escalate_desc].to_s.strip.empty?
     @mutex = Mutex.new
     @pair_vectors = nil
     @failures = 0
@@ -205,14 +214,14 @@ class DecisionRouter
 
   # ---- pairs -------------------------------------------------------------------------------
 
-  def load_pairs(path)
-    data = JSON.parse(File.read(path))
+  def load_pair_data(data, path)
     @instructions = data['instructions'] || DEFAULT_INSTRUCTIONS
     @escalate_desc = data['escalate_desc'] || DEFAULT_ESCALATE_DESC
     @pairs = {}
     (data['pairs'] || []).each do |p|
       next unless Array(p['labs']).include?(@lab)
       raise ArgumentError, "pair id '#{ESCALATE}' is reserved" if p['id'] == ESCALATE
+      raise ArgumentError, "pair '#{p['id']}' needs an id, q and a" if [p['id'], p['q'], p['a']].any? { |v| v.to_s.strip.empty? }
       @pairs[p['id']] = p
     end
     raise ArgumentError, "no pairs for lab '#{@lab}' in #{path}" if @pairs.empty?

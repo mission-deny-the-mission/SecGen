@@ -1,0 +1,65 @@
+<%
+  require 'json'
+  c = @c
+
+  # Same LLM settings as the attack bot (CLI/env overrides, OpenAI-compatible server by default)
+  $hb2_llm_provider    = ENV['HB2_LLM_PROVIDER']    || 'openai'
+  $hb2_llm_host        = ENV['HB2_LLM_HOST']        || 'localhost'
+  $hb2_llm_port        = ENV['HB2_LLM_PORT']        || '4000'
+  $hb2_llm_model       = ENV['HB2_LLM_MODEL']       || 'gpt-4o-mini'
+  $hb2_openai_api_key  = ENV['HB2_OPENAI_API_KEY']  || 'no-key-needed'
+  $hb2_openai_base_url = ENV['HB2_OPENAI_BASE_URL'] || "http://#$hb2_llm_host:#$hb2_llm_port"
+  $hb2_embedding_model = ENV['HB2_EMBEDDING_MODEL'] || 'text-embedding-ada-002'
+  who = [c['display_name'], c['role'], c['organisation']].compact.reject(&:empty?).join(', ')
+-%>
+<?xml version="1.0"?>
+
+<hackerbot
+               xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+               xsi:schemaLocation="http://www.github/cliffe/SecGen/hackerbot">
+
+	<name><%= xml_escape(c['nick']) %></name>
+	<!-- Role-play character: <%= xml_escape(who) %> (hb3_roleplay_character). Chat-only: no attacks, no flags. -->
+
+<% pairs = Array(c['pairs']) -%>
+<% unless pairs.empty? -%>
+  <!-- Hackerbot 3 decision router with the character's own answers (servers come from HB3_* in hb3.env) -->
+  <decision_router>
+    <enabled>true</enabled>
+    <instructions>Which of these questions is the person in the chat asking? Pick the option whose question asks the same thing as their message. If no option asks the same thing, pick 'escalate'.</instructions>
+    <escalate_desc>None of the above: anything else, small talk, or a question the other options do not answer</escalate_desc>
+    <pairs>
+<% pairs.each do |p| -%>
+      <pair id="<%= xml_escape(p['id']) %>" tier="<%= xml_escape(p['tier'] || 'concept') %>"><q><%= xml_escape(p['q']) %></q><a><%= xml_escape(p['a']) %></a></pair>
+<% end -%>
+    </pairs>
+  </decision_router>
+<% end -%>
+
+  <!-- LLM Provider Configuration -->
+  <llm_provider><%= $hb2_llm_provider %></llm_provider>
+  <ollama_model><%= $hb2_llm_model %></ollama_model>
+  <ollama_host><%= $hb2_llm_host %></ollama_host>
+  <ollama_port><%= $hb2_llm_port %></ollama_port>
+  <openai_api_key><%= $hb2_openai_api_key %></openai_api_key>
+  <openai_base_url><%= $hb2_openai_base_url %></openai_base_url>
+  <embedding_model><%= $hb2_embedding_model %></embedding_model>
+  <system_prompt><%= xml_escape(system_prompt(c)) %></system_prompt>
+  <max_tokens><%= (c['max_tokens'] || 300).to_i %></max_tokens>
+  <model_temperature><%= (c['temperature'] || 0.7).to_f %></model_temperature>
+  <streaming>true</streaming>
+  <num_thread>2</num_thread>
+  <!-- Prompt budget (characters): the persona and background are long, and the chat history is what keeps
+       the character consistent across a conversation, so allow room for both -->
+  <max_context_length><%= (c['max_context_length'] || 12000).to_i %></max_context_length>
+  <!-- The character answers from its persona and canned answers; no RAG knowledge base -->
+  <rag_cag_enabled>false</rag_cag_enabled>
+
+	<messages>
+		<greeting><%= xml_escape(c['greeting'] || "Hi, #{c['display_name'] || c['nick']} here.") %></greeting>
+		<help><%= xml_escape(c['help'] || 'Ask me anything.') %></help>
+		<no_attacks><%= xml_escape(c['no_attacks'] || "That's not something I can help with. Try Hackerbot.") %></no_attacks>
+		<non_answer><%= xml_escape(c['non_answer'] || "Sorry, I'm not sure what you mean.") %></non_answer>
+	</messages>
+
+</hackerbot>

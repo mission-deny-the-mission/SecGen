@@ -164,9 +164,9 @@ class OpenAIClient < LLMClient
             end
           end
 
-          if !current_line.strip.empty? && stream_callback
-            stream_callback.call(current_line.strip)
-          end
+          # Every chunk has already gone to stream_callback; callers buffer partial lines themselves
+          # (bot_manager flushes its buffer after this returns). Calling back with current_line here
+          # sent the last line twice, so streamed replies ended "...sentence.sentence."
 
           return full_response.strip
         else

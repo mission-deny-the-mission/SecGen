@@ -1,0 +1,49 @@
+<?xml version="1.0"?>
+
+<generator xmlns="http://www.github/cliffe/SecGen/generator"
+               xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+               xsi:schemaLocation="http://www.github/cliffe/SecGen/generator">
+  <name>Hackerbot 3 role-play character</name>
+  <author>Z. Cliffe Schreuders</author>
+  <module_license>GPLv3</module_license>
+  <description>Generates a chat-only Hackerbot 3 bot that plays a character in the scenario: an employee of a
+    fictional company (IT lead, receptionist, manager), a witness, a client. The character is data, not code: a
+    character file (JSON: persona, background facts, rules, chat messages and instructor-written Q/A pairs) or the
+    same fields passed as inputs. Common questions get the character's own canned answers through the decision
+    router; anything else goes to the LLM with a system prompt built from the persona, background and rules. The
+    bot runs no attacks and holds no flags. Add one per character; run alongside the scenario's Hackerbot.
+
+    Pick a bundled character with character="name" (characters/*.json), point at your own with
+    character_file="/path.json", or override single fields (nick, persona, facts_json, pairs_json, ...).
+    {{placeholders}} in any text are filled from "facts" plus main_user (the scenario's first account).</description>
+
+  <type>hackerbot_config</type>
+  <platform>linux</platform>
+
+  <read_fact>accounts</read_fact>
+  <read_fact>character</read_fact>
+  <read_fact>character_file</read_fact>
+  <read_fact>nick</read_fact>
+  <read_fact>persona</read_fact>
+  <read_fact>greeting</read_fact>
+  <read_fact>facts_json</read_fact>
+  <read_fact>pairs_json</read_fact>
+  <!-- unused (a character holds no flags); accepted so it takes the same inputs as an attack bot -->
+  <read_fact>flags</read_fact>
+  <read_fact>root_password</read_fact>
+
+  <default_input into="accounts">
+    <generator type="account">
+      <input into="username">
+        <value>vagrant</value>
+      </input>
+    </generator>
+  </default_input>
+
+  <default_input into="character">
+    <value>nova_meridian_it_ops</value>
+  </default_input>
+
+  <output_type>hackerbot</output_type>
+
+</generator>

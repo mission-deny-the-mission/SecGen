@@ -1316,12 +1316,18 @@ class BotManager
   # Get maximum context length from RAG config
   #
   # @return [Integer] Maximum context length or default
-  def get_max_context_length
-    @rag_config.fetch(:max_context_length, 4000)
+  # Prompt budget in characters. Per bot: <max_context_length> in the bot XML (a role-play character's
+  # persona plus background can be 3,000 characters on its own); otherwise the RAG config (default 4000).
+  def get_max_context_length(bot_name = nil)
+    per_bot = bot_name && @bots[bot_name] && @bots[bot_name]['max_context_length']
+    per_bot || @rag_config.fetch(:max_context_length, 4000)
   end
 
   # Environment (HB3_DECISION_*) supplies the servers; the bot XML supplies the lab:
   #   <decision_router><enabled>true</enabled><lab>hb2_siem</lab>[<threshold>, <strategy>, <shortlist_k>, <pairs_file>]</decision_router>
+  # or, for a bot with its own answers (a role-play character), inline pairs instead of <lab>:
+  #   <decision_router><pairs><pair id="..." tier="..."><q>...</q><a>...</a></pair>...</pairs>
+  #     [<instructions>, <escalate_desc>]</decision_router>
   # Returns nil (router off, plain LLM fallback) unless enabled, a lab is named and a decision URL is set.
   def build_decision_router(bot_name, hackerbot)
     node = hackerbot.at_xpath('decision_router')
@@ -1330,15 +1336,23 @@ class BotManager
     enabled = text.call('enabled')
     return nil if enabled && enabled.downcase != 'true'
     lab = text.call('lab')
+    inline = node.xpath('pairs/pair').map do |p|
+      { 'id' => p['id'].to_s.strip, 'tier' => p['tier'].to_s.strip, 'q' => p.at_xpath('q')&.text.to_s.strip,
+        'a' => p.at_xpath('a')&.text.to_s.strip }
+    end
     url = ENV['HB3_DECISION_URL']
-    if lab.nil? || lab.empty? || url.nil? || url.empty?
-      Print.err "Bot #{bot_name}: <decision_router> needs a <lab> and HB3_DECISION_URL; router disabled"
+    if ((lab.nil? || lab.empty?) && inline.empty?) || url.nil? || url.empty?
+      Print.err "Bot #{bot_name}: <decision_router> needs a <lab> or <pairs>, and HB3_DECISION_URL; router disabled"
       return nil
     end
+    lab = "#{bot_name.downcase}_inline" if (lab.nil? || lab.empty?)
     pairs_file = text.call('pairs_file') || ENV['HB3_DECISION_PAIRS'] ||
                  File.join(File.dirname(__FILE__), 'decision', 'pairs', 'labhelp_pairs.json')
     router = DecisionRouter.new(
       pairs_file: pairs_file,
+      pairs: inline.empty? ? nil : inline,
+      instructions: text.call('instructions'),
+      escalate_desc: text.call('escalate_desc'),
       lab: lab,
       url: url,
       model: ENV['HB3_DECISION_MODEL'],
@@ -1556,6 +1570,8 @@ class BotManager
         # Parse RAG + CAG configuration if enabled
         rag_cag_enabled = hackerbot.at_xpath('rag_cag_enabled')&.text
         @bots[bot_name]['rag_cag_enabled'] = rag_cag_enabled ? (rag_cag_enabled.downcase == 'true') : @enable_rag_cag
+        max_ctx = hackerbot.at_xpath('max_context_length')&.text.to_i
+        @bots[bot_name]['max_context_length'] = max_ctx if max_ctx > 0
 
         if @bots[bot_name]['rag_cag_enabled']
           # Parse individual RAG and CAG enabling (allowing independent control)
@@ -2150,7 +2166,7 @@ class BotManager
     "VM State:\n#{sections.join("\n")}"
   end
 
-  def assemble_prompt(system_prompt, context, chat_context, user_message, enhanced_context = nil)
+  def assemble_prompt(system_prompt, context, chat_context, user_message, enhanced_context = nil, bot_name = nil)
     sections = [system_prompt]
     
     # Add context (attack prompt)
@@ -2179,7 +2195,7 @@ class BotManager
     prompt = sections.join("\n\n")
     
     # Apply context length management
-    max_length = get_max_context_length
+    max_length = get_max_context_length(bot_name)
     if max_length && prompt.length > max_length
       # Calculate space needed for non-truncatable sections
       fixed_sections_length = [
@@ -2688,7 +2704,7 @@ class BotManager
               enhanced_context = get_enhanced_context.call(bot_name, m.message, attack_index: current_attack, variables: variables)
             end
 
-            prompt = assemble_prompt.call(current_system_prompt, attack_context, chat_context, m.message, enhanced_context)
+            prompt = assemble_prompt.call(current_system_prompt, attack_context, chat_context, m.message, enhanced_context, bot_name)
             if bots_ref[bot_name]['chat_ai'].instance_variable_get(:@streaming)
               accumulated_text = ''
               stream_callback = Proc.new do |chunk|

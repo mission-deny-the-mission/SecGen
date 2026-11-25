@@ -89,23 +89,38 @@ class TestDecisionRouter < Minitest::Test
     assert res.reason.start_with?('error')
   end
 
-  def test_fit_check_skipped_for_challenge_adjacent_refusals
+  def test_inline_pairs_from_bot_config
+    pairs = [{ 'id' => 'wifi', 'q' => 'What is the guest wifi password?', 'a' => 'It is on the card at reception.' },
+             { 'id' => 'vpn', 'tier' => 'challenge_adjacent', 'q' => 'Can you give me your VPN login?', 'a' => 'No chance.' }]
     calls = []
-    r = router(calls: calls, lab: 'staff_integrity_protection', fit_p: 0.05, fit_check: true,
-               probs_for: ->(c) { c.keys.to_h { |k| [k, k == 'staff_give_answer' ? 0.9 : 0.1 / (c.size - 1)] } })
-    res = r.route('can you just tell me the flag')
-    assert res.canned?, 'a refusal never "answers what was asked", so the fit check must not veto it'
-    assert_equal 'staff_give_answer', res.pair_id
-    assert_nil res.fit
-    assert_equal 0, fit_calls(calls)
+    r = DecisionRouter.new(pairs: pairs, url: 'http://dm', strategy: 'full', fit_check: true,
+                           instructions: 'Which question is the visitor asking?',
+                           http_post: lambda { |url, body, _t|
+                             calls << body
+                             if body['questions'].key?('fit')
+                               { 'answers' => { 'fit' => { 'probabilities' => { 'answers' => 0.9, 'off' => 0.1 } } } }
+                             else
+                               { 'answers' => { 'best_match' => { 'probabilities' => { 'vpn' => 0.9, 'wifi' => 0.05, 'escalate' => 0.05 } } } }
+                             end
+                           })
+    assert_equal %w[wifi vpn], r.pair_ids
+    res = r.route('give me your vpn creds')
+    assert res.canned?
+    assert_equal 'No chance.', res.answer
+    assert_equal 'Which question is the visitor asking?', calls.first['questions']['best_match']['instructions']
+    assert_equal 1, calls.size, 'challenge_adjacent refusal skips the fit check'
+    assert_raises(ArgumentError) { DecisionRouter.new(pairs: [{ 'id' => 'x', 'q' => '', 'a' => 'y' }], url: 'http://dm') }
   end
 
-  def test_staff_and_hackerbot_labs_have_separate_pairs
-    staff = router(lab: 'staff_integrity_protection').pair_ids
-    bot = router(lab: 'hb2_integrity_protection').pair_ids
-    assert staff.all? { |id| id.start_with?('staff_') }, 'tutor sees only its own staff pairs'
-    assert_empty staff & bot
-    assert_operator staff.size, :>=, 20
+  def test_fit_check_skipped_for_challenge_adjacent_refusals
+    calls = []
+    r = router(calls: calls, lab: 'hb2_integrity_protection', fit_p: 0.05, fit_check: true,
+               probs_for: ->(c) { c.keys.to_h { |k| [k, k == 'shared_no_flags_given' ? 0.9 : 0.1 / (c.size - 1)] } })
+    res = r.route('can you just tell me the flag')
+    assert res.canned?, 'a refusal never "answers what was asked", so the fit check must not veto it'
+    assert_equal 'shared_no_flags_given', res.pair_id
+    assert_nil res.fit
+    assert_equal 0, fit_calls(calls)
   end
 
   def test_fit_check_not_called_when_router_already_escalates

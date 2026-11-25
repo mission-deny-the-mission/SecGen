@@ -243,9 +243,12 @@ Diner's Club  3000 0000 0000 04</value>
           </input>
         </generator>
         <!-- second bot: chat-only role-play lab tutor (no attacks, flags or quizzes) -->
-        <generator module_path=".*/hb3_staff_tutor_integrity">
+        <generator module_path=".*/hb3_roleplay_character">
           <input into="accounts">
             <datastore>accounts</datastore>
+          </input>
+          <input into="character">
+            <value>integrity_lab_tutor</value>
           </input>
         </generator>
       </input>
