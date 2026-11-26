@@ -657,18 +657,16 @@ class KubeVirtFunctions
   # cluster does not publish its pod/service CIDRs in a way this provider can read (they live in
   # the control plane's own configuration), so they are inferred: per-node pod CIDRs are /24s out of one
   # pool, and ClusterIPs are spread over the service CIDR's /16s.
+  # IPv4 only: a /16 means nothing in an IPv6 pod/service range, so those are kept as given.
+  # Returns "network/prefix" (IPAddr#to_s alone drops the prefix, which reads back as a /32).
   def self.widen(cidr)
     address = IPAddr.new(cidr)
     prefix = address.prefix
-    return "#{address}/#{prefix}" if prefix <= CLUSTER_RANGE_WIDENING
+    return "#{address}/#{prefix}" if address.ipv6? || prefix <= CLUSTER_RANGE_WIDENING
 
-    IPAddr.new("#{address.to_i & mask_for(CLUSTER_RANGE_WIDENING)}/#{CLUSTER_RANGE_WIDENING}").to_s
-  rescue StandardError
+    "#{address.mask(CLUSTER_RANGE_WIDENING)}/#{CLUSTER_RANGE_WIDENING}"
+  rescue IPAddr::Error
     cidr.to_s
-  end
-
-  def self.mask_for(prefix)
-    ((1 << prefix) - 1) << (32 - prefix)
   end
 
   # Refuse to build a lab whose networks overlap the cluster's own addressing, naming both sides
