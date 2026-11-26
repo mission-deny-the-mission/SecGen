@@ -4,7 +4,7 @@ require 'socket'
 require 'timeout'
 require 'tmpdir'
 
-require_relative './print.rb'
+require_relative 'print'
 
 # Transport layer for the KubeVirt provider.
 #
@@ -53,6 +53,7 @@ class KubeVirt
   # default for many container/dev setups). Hand ssh a 0600 copy instead of failing every login.
   def usable_key(path)
     return path unless File.file?(path) && (File.stat(path).mode & 0o077) != 0
+
     copy = File.join(Dir.tmpdir, "secgen-kubevirt-key-#{Process.uid}-#{File.basename(path)}")
     File.open(copy, File::WRONLY | File::CREAT | File::TRUNC, 0o600) { |f| f.write(File.read(path)) }
     File.chmod(0o600, copy)
@@ -61,12 +62,12 @@ class KubeVirt
 
   # Build a transport from the command line options hash.
   def self.from_options(options)
-    self.new(options[:kubevirtnamespace],
-             kubeconfig: options[:kubevirtkubeconfig],
-             kubectl: options[:kubevirtkubectl] || 'kubectl',
-             virtctl: options[:kubevirtvirtctl] || 'virtctl',
-             ssh_key: options[:kubevirtsshkey],
-             verbose: options[:verbose])
+    new(options[:kubevirtnamespace],
+        kubeconfig: options[:kubevirtkubeconfig],
+        kubectl: options[:kubevirtkubectl] || 'kubectl',
+        virtctl: options[:kubevirtvirtctl] || 'virtctl',
+        ssh_key: options[:kubevirtsshkey],
+        verbose: options[:verbose])
   end
 
   # ---------------------------------------------------------------- process plumbing
@@ -82,10 +83,12 @@ class KubeVirt
   # or already names a namespace itself.
   def kubectl_args(args, namespaced = true)
     return args unless namespaced
+
     ns = namespace.to_s
     return args if ns.empty?
     return args if args.include?('-n') || args.include?('--namespace') ||
                    args.include?('-A') || args.include?('--all-namespaces')
+
     ['--namespace', ns] + args
   end
 
@@ -115,7 +118,11 @@ class KubeVirt
       rescue Errno::EPIPE
         # A command that never reads stdin (e.g. most kubectl verbs) may exit first.
       end
-      stdin.close rescue nil
+      begin
+        stdin.close
+      rescue StandardError
+        nil
+      end
       out_reader = Thread.new { out.read.to_s }
       err_reader = Thread.new { err.read.to_s }
       begin
@@ -193,6 +200,7 @@ class KubeVirt
 
   def ensure_namespace
     return true if namespace_exists?
+
     kubectl(['create', 'namespace', namespace], false)
     true
   end
@@ -225,9 +233,8 @@ class KubeVirt
     deadline = Time.now + timeout
     loop do
       return true if yield
-      if Time.now > deadline
-        raise TransportError, "timed out after #{timeout}s waiting for #{description}"
-      end
+      raise TransportError, "timed out after #{timeout}s waiting for #{description}" if Time.now > deadline
+
       sleep interval
     end
   end
@@ -350,11 +357,16 @@ class KubeVirt
 
   def terminate(pid)
     return if pid.nil?
+
     Process.kill('TERM', pid)
     begin
       Timeout.timeout(10) { Process.wait(pid) }
     rescue Timeout::Error
-      Process.kill('KILL', pid) rescue nil
+      begin
+        Process.kill('KILL', pid)
+      rescue StandardError
+        nil
+      end
     rescue Errno::ECHILD
       nil
     end

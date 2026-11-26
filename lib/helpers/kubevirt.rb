@@ -8,8 +8,8 @@ require 'securerandom'
 require 'socket'
 require 'tmpdir'
 
-require_relative 'constants.rb'
-require_relative './print.rb'
+require_relative 'constants'
+require_relative 'print'
 require_relative 'network'
 require_relative 'kubevirt_connection'
 
@@ -40,7 +40,6 @@ require_relative 'kubevirt_connection'
 # for a NetworkPolicy to select. Services a lab uses (an LLM gateway, say) are deployed once,
 # outside SecGen; scenarios are handed their address as ordinary module inputs.
 class KubeVirtFunctions
-
   # Raised when the lab cannot be built. secgen.rb turns it into a user-facing error.
   class BuildError < StandardError; end
 
@@ -52,7 +51,7 @@ class KubeVirtFunctions
 
   # Module types that are provisioned with puppet: everything except the base (the golden
   # image provides it) and network modules (the interfaces are the cluster's job).
-  PROVISIONABLE_MODULE_TYPES = %w(vulnerability service utility build).freeze
+  PROVISIONABLE_MODULE_TYPES = %w[vulnerability service utility build].freeze
 
   # Where the provisioning script expects things inside the guest.
   GUEST_ASSET_DIR = '/tmp/secgen'
@@ -113,7 +112,7 @@ class KubeVirtFunctions
 
   # Lab network backends (see NETWORKING above). 'auto' picks ovn when the cluster serves the
   # kubeovn.io API, else bridge.
-  LAB_NETWORK_BACKENDS = %w(auto ovn bridge).freeze
+  LAB_NETWORK_BACKENDS = %w[auto ovn bridge].freeze
   LAB_NETWORK_OVN = 'ovn'
   LAB_NETWORK_BRIDGE = 'bridge'
   # Labels on the cluster-scoped Kube-OVN objects (Vpc, Subnet) a lab owns, so destroy can find
@@ -136,18 +135,14 @@ class KubeVirtFunctions
   # would otherwise hand out addresses that belong to the cluster.
   CLUSTER_RANGE_WIDENING = 16
 
-
   # Values handed to the ERB templates: explicit readers (rather than a generic hash) so a
   # template cannot silently depend on something that is not set.
   class TemplateContext
-    attr_accessor :vm_name, :system_name, :hostname, :memory, :cpus, :namespace
-    attr_accessor :storage_class, :golden_namespace, :golden_image, :disk_size
-    attr_accessor :dns_nameservers, :dns_policy
-    attr_accessor :modules, :puppet_root, :puppet_system_dir
+    attr_accessor :vm_name, :system_name, :hostname, :memory, :cpus, :namespace, :storage_class, :golden_namespace,
+                  :golden_image, :disk_size, :dns_nameservers, :dns_policy, :modules, :puppet_root, :puppet_system_dir, :nad_networks
     # Lab networking and placement (kubevirt_vm.yaml.erb) and the lab's own networks
     # (kubevirt_nad.yaml.erb / kubevirt_ovn.yaml.erb).
     attr_accessor :lab_interfaces, :placement, :lab_id, :lab_network_backend
-    attr_accessor :nad_networks
 
     def get_binding
       binding
@@ -250,10 +245,10 @@ class KubeVirtFunctions
     names = systems.map { |system| vm_name(system.name) }
     duplicates = names.select { |name| names.count(name) > 1 }.uniq
     unless duplicates.empty?
-      Print.err "These systems resolve to the same Kubernetes object name: " \
+      Print.err 'These systems resolve to the same Kubernetes object name: ' \
                 "#{duplicates.join(', ')} (from #{systems.map(&:name).join(', ')})"
-      Print.err 'Rename the systems in the scenario: KubeVirt object names may only contain' \
-                ' lowercase letters, digits and "-".'
+      Print.err 'Rename the systems in the scenario: KubeVirt object names may only contain ' \
+                'lowercase letters, digits and "-".'
       exit 1
     end
 
@@ -326,14 +321,13 @@ class KubeVirtFunctions
   # <kubevirt_image>secgen-base-...</kubevirt_image>.
   def self.golden_image_for(system)
     base_module = system.module_selections.find { |mod| mod.module_type == 'base' }
-    if base_module.nil?
-      raise BuildError, "system '#{system.name}' has no base module: cannot resolve a KubeVirt image"
-    end
+    raise BuildError, "system '#{system.name}' has no base module: cannot resolve a KubeVirt image" if base_module.nil?
+
     image = (base_module.attributes['kubevirt_image'] || []).first.to_s
     if image.empty?
       raise BuildError, "base #{base_module.module_path} is not available on KubeVirt: add " \
-        '<kubevirt_image>secgen-base-name</kubevirt_image> to its secgen_metadata.xml ' \
-        "(see 'Preparing golden images' in README-KubeVirt.md)"
+                        '<kubevirt_image>secgen-base-name</kubevirt_image> to its secgen_metadata.xml ' \
+                        "(see 'Preparing golden images' in README-KubeVirt.md)"
     end
     image
   end
@@ -351,12 +345,13 @@ class KubeVirtFunctions
       size = transport.kubectl(['get', 'pvc', golden_image, '--namespace', namespace,
                                 '-o', 'jsonpath={.spec.resources.requests.storage}']).strip
       return size unless size.empty?
+
       raise BuildError, "golden image #{namespace}/#{golden_image} exists but reports no size"
     rescue KubeVirt::TransportError => e
       raise BuildError, "cannot read the golden image #{namespace}/#{golden_image}: #{e.message}\n" \
-        "The provider reads the golden PVC's size from the cluster because a clone may not be " \
-        "smaller than its source.\nPrepare the golden image and run where kubectl can reach the " \
-        "cluster, or pass --kubevirt-image-size <size, e.g. 34Gi> (at least the source size)."
+                        "The provider reads the golden PVC's size from the cluster because a clone may not be " \
+                        "smaller than its source.\nPrepare the golden image and run where kubectl can reach the " \
+                        'cluster, or pass --kubevirt-image-size <size, e.g. 34Gi> (at least the source size).'
     end
   end
 
@@ -476,6 +471,11 @@ class KubeVirtFunctions
       bridge = bridge_name(namespace, vlan)
       range = vlans[vlan]['range']
       want.fetch(vlan, []).each do |system_name, address, fixed|
+        origin = if fixed
+                   ' (fixed in the scenario)'
+                 else
+                   ' (assigned by the scenario, pinned so the guest gets the address the scenario was built with)'
+                 end
         nad_networks << {
           'name' => network_nad_name(vlan, address),
           'bridge' => bridge,
@@ -484,10 +484,8 @@ class KubeVirtFunctions
           'range_end' => address,
           'vlan' => vlan,
           'system' => system_name,
-          'comment' => "VLAN #{vlan} (#{range}) for '#{system_name}': pinned to #{address}" \
-                       "#{fixed ? ' (fixed in the scenario)' : ' (assigned by the scenario, pinned so the ' \
-                       'guest gets the address the scenario was built with)'}. Shares bridge " \
-                       "#{bridge} with the VLAN's other interfaces."
+          'comment' => "VLAN #{vlan} (#{range}) for '#{system_name}': pinned to #{address}#{origin}. " \
+                       "Shares bridge #{bridge} with the VLAN's other interfaces."
         }
       end
     end
@@ -512,7 +510,7 @@ class KubeVirtFunctions
 
   # The Kube-OVN form of the plan: one Vpc + Subnet + NAD per VLAN (not per address), and each
   # interface carries its address for the ip_address annotation on the VM template.
-  def self.ovn_lab_network_plan(namespace, vlans, want, interfaces, options)
+  def self.ovn_lab_network_plan(namespace, vlans, want, interfaces, _options)
     nad_networks = vlans.keys.sort.map do |vlan|
       range = vlans[vlan]['range']
       used = want.fetch(vlan, []).map { |_system, address, _fixed| address }
@@ -582,7 +580,7 @@ class KubeVirtFunctions
       context.nad_networks = networks
       if plan['backend'] == LAB_NETWORK_OVN
         write_file(render(OVN_TEMPLATE, context), "#{out_dir}/#{LAB_NAD_MANIFEST}")
-        Print.std "Creating KubeVirt lab networks (Kube-OVN, cross-node): " \
+        Print.std 'Creating KubeVirt lab networks (Kube-OVN, cross-node): ' \
                   "#{out_dir}/#{LAB_NAD_MANIFEST} (#{networks.size} network(s))"
         networks.each do |network|
           Print.info " #{network['name']}: VLAN #{network['vlan']} #{network['range']} for " \
@@ -652,7 +650,7 @@ class KubeVirtFunctions
     ranges.uniq { |range| range['cidr'] }
   rescue KubeVirt::TransportError => e
     raise BuildError, "cannot read the cluster's own address ranges to check the lab networks " \
-      "against them: #{e.message}"
+                      "against them: #{e.message}"
   end
 
   # Widen a known address or small CIDR to the block the cluster reserved around it. The
@@ -707,7 +705,7 @@ class KubeVirtFunctions
     vms = vm_metadata(project_dir)
     if vms.empty?
       raise BuildError, "no generated KubeVirt VMs found in #{project_dir}/kubevirt: " \
-        'generate the project first (secgen.rb ... build-project), see README-KubeVirt.md'
+                        'generate the project first (secgen.rb ... build-project), see README-KubeVirt.md'
     end
     vms = select_vms(vms, options)
 
@@ -723,9 +721,8 @@ class KubeVirtFunctions
     vms.each do |meta|
       vm = meta['vm_name']
       manifest = "#{project_dir}/kubevirt/#{vm}.yaml"
-      unless File.exist?(manifest)
-        raise BuildError, "missing generated manifest #{manifest}"
-      end
+      raise BuildError, "missing generated manifest #{manifest}" unless File.exist?(manifest)
+
       Print.std " Creating VM #{vm} (cloning #{meta['golden_image']}, disk #{meta['disk_size']})"
       apply_manifest(transport, manifest, options)
     end
@@ -750,9 +747,7 @@ class KubeVirtFunctions
     vm = meta['vm_name']
     system_name = meta['system_name']
     script = "#{project_dir}/kubevirt/#{vm}-provision.sh"
-    unless File.exist?(script)
-      raise BuildError, "missing generated provisioning script #{script}"
-    end
+    raise BuildError, "missing generated provisioning script #{script}" unless File.exist?(script)
 
     Print.info "KubeVirt: provisioning #{vm} (#{system_name})"
     tarball = create_asset_tarball(project_dir, system_name)
@@ -766,7 +761,7 @@ class KubeVirtFunctions
       Print.info "KubeVirt: #{vm} provisioned"
     rescue KubeVirt::TransportError => e
       raise BuildError, "provisioning #{vm} failed: #{e.message}\n" \
-        "The guest log is in the command output above; see 'Troubleshooting a lab VM' in README-KubeVirt.md."
+                        "The guest log is in the command output above; see 'Troubleshooting a lab VM' in README-KubeVirt.md."
     ensure
       File.delete(tarball) if tarball && File.exist?(tarball)
     end
@@ -799,7 +794,7 @@ class KubeVirtFunctions
     sources << 'environments' if File.directory?("#{project_dir}/environments")
     if sources.empty?
       raise BuildError, "no puppet tree for '#{system_name}' in #{project_dir} " \
-        "(expected #{puppet_dir})"
+                        "(expected #{puppet_dir})"
     end
 
     tarball = File.join(Dir.tmpdir,
@@ -807,6 +802,7 @@ class KubeVirtFunctions
     unless system('tar', 'czf', tarball, '-C', project_dir, *sources)
       raise BuildError, "failed to archive #{sources.join(', ')} from #{project_dir}"
     end
+
     tarball
   end
 
@@ -815,9 +811,8 @@ class KubeVirtFunctions
   # Print the phase and pod-network address of each generated VM.
   def self.status(project_dir, options)
     vms = vm_metadata(project_dir)
-    if vms.empty?
-      raise BuildError, "no generated KubeVirt VMs found in #{project_dir}/kubevirt"
-    end
+    raise BuildError, "no generated KubeVirt VMs found in #{project_dir}/kubevirt" if vms.empty?
+
     vms = select_vms(vms, options)
     transport = self.transport(options)
     Print.std "KubeVirt lab in namespace '#{transport.namespace}':"
@@ -836,8 +831,8 @@ class KubeVirtFunctions
         # This address is on the cluster pod network and is not reachable from outside the
         # cluster. Use virtctl to get into the guest. The lab network addresses below are the
         # ones the scenario was built with.
-        Print.info " #{vm}: #{phase}#{ip.empty? ? '' : " at #{ip} (pod network, not routable here)"}" \
-                   " - golden image #{meta['golden_image']}"
+        Print.info " #{vm}: #{phase}#{" at #{ip} (pod network, not routable here)" unless ip.empty?} " \
+                   "- golden image #{meta['golden_image']}"
         lab = transport.vmi_interfaces(vm).reject { |interface| interface['name'] == 'default' }
         if lab.empty? && !(meta['lab_interfaces'] || []).empty?
           # The VMI is up but has no secondary interface: the lab network did not come up, which
@@ -845,7 +840,8 @@ class KubeVirtFunctions
           Print.warn " #{vm}: its lab networks are missing (expected " \
                      "#{(meta['lab_interfaces'] || []).map { |interface| interface['address'] }.join(', ')})"
         elsif !lab.empty?
-          Print.info " #{vm}: lab network(s) #{lab.map { |interface| "#{interface['name']}=#{interface['ip']}" }.join(', ')}"
+          addresses = lab.map { |interface| "#{interface['name']}=#{interface['ip']}" }
+          Print.info " #{vm}: lab network(s) #{addresses.join(', ')}"
         end
       end
     end
@@ -856,9 +852,8 @@ class KubeVirtFunctions
   # runStrategy Always would do. The disks are left in place.
   def self.halt(project_dir, options)
     vms = vm_metadata(project_dir)
-    if vms.empty?
-      raise BuildError, "no generated KubeVirt VMs found in #{project_dir}/kubevirt"
-    end
+    raise BuildError, "no generated KubeVirt VMs found in #{project_dir}/kubevirt" if vms.empty?
+
     vms = select_vms(vms, options)
     transport = self.transport(options)
     vms.each do |meta|
@@ -881,9 +876,8 @@ class KubeVirtFunctions
   # Vagrant. Dropping the VirtualMachineInstance makes the controller create a fresh one.
   def self.restart(project_dir, options)
     vms = vm_metadata(project_dir)
-    if vms.empty?
-      raise BuildError, "no generated KubeVirt VMs found in #{project_dir}/kubevirt"
-    end
+    raise BuildError, "no generated KubeVirt VMs found in #{project_dir}/kubevirt" if vms.empty?
+
     vms = select_vms(vms, options)
     transport = self.transport(options)
     vms.each do |meta|
@@ -907,9 +901,8 @@ class KubeVirtFunctions
   # destroyed: --system leaves the other VMs running, and they still need their networks.
   def self.destroy(project_dir, options)
     vms = vm_metadata(project_dir)
-    if vms.empty?
-      raise BuildError, "no generated KubeVirt VMs found in #{project_dir}/kubevirt"
-    end
+    raise BuildError, "no generated KubeVirt VMs found in #{project_dir}/kubevirt" if vms.empty?
+
     vms = select_vms(vms, options)
     transport = self.transport(options)
     vms.each do |meta|
@@ -957,7 +950,7 @@ class KubeVirtFunctions
 
   # Create the lab's NetworkAttachmentDefinitions. They have to exist before the VMs that
   # reference them: Multus fails a pod whose NAD is missing, so the VM would not come up.
-  def self.ensure_lab_networks(transport, project_dir, options)
+  def self.ensure_lab_networks(transport, project_dir, _options)
     plan = lab_network_plan_from_project(project_dir)
     networks = plan['networks'] || []
     if networks.empty?
@@ -969,9 +962,8 @@ class KubeVirtFunctions
     check_ovn_networks(transport, plan) if plan['backend'] == LAB_NETWORK_OVN
 
     manifest = "#{project_dir}/#{LAB_NAD_MANIFEST}"
-    unless File.exist?(manifest)
-      raise BuildError, "missing generated lab network manifest #{manifest}"
-    end
+    raise BuildError, "missing generated lab network manifest #{manifest}" unless File.exist?(manifest)
+
     # apply, not create: rebuilding a lab reuses the same NADs, so the interfaces keep the
     # addresses the scenario was built with.
     begin
@@ -992,11 +984,11 @@ class KubeVirtFunctions
       next if transport.cluster_jsonpath('subnets.kubeovn.io', network['subnet'], '{.metadata.name}').empty?
 
       owner = transport.cluster_jsonpath('subnets.kubeovn.io', network['subnet'],
-                                         "{.metadata.labels.secgen\\.io/lab-namespace}")
+                                         '{.metadata.labels.secgen\\.io/lab-namespace}')
       next if owner == plan['namespace']
 
       raise BuildError, "Kube-OVN subnet #{network['subnet']} already exists and belongs to " \
-        "'#{owner}', not this lab."
+                        "'#{owner}', not this lab."
     end
   end
 
@@ -1015,7 +1007,7 @@ class KubeVirtFunctions
       end
     rescue KubeVirt::TransportError => e
       raise BuildError, "Kube-OVN did not bring up lab network #{network['subnet']}" \
-                        "#{reason.empty? ? '' : " (#{reason})"}: #{e.message}"
+                        "#{" (#{reason})" unless reason.empty?}: #{e.message}"
     end
   end
 
@@ -1074,13 +1066,11 @@ class KubeVirtFunctions
     # globbing *.json alone made the network plan a nameless third "VM" (found on the first
     # real kubevirt-build run).
     Dir.glob("#{project_dir}/kubevirt/*.json").map do |path|
-      begin
-        JSON.parse(File.read(path))
-      rescue JSON::ParserError => e
-        raise BuildError, "cannot read #{path}: #{e.message}"
-      end
+      JSON.parse(File.read(path))
+    rescue JSON::ParserError => e
+      raise BuildError, "cannot read #{path}: #{e.message}"
     end.select { |meta| meta.is_a?(Hash) && !meta['vm_name'].to_s.empty? }
-      .sort_by { |meta| [meta['order'].to_i, meta['vm_name'].to_s] }
+       .sort_by { |meta| [meta['order'].to_i, meta['vm_name'].to_s] }
   end
 
   # Honour --system, which restricts a command to one system of the scenario (as it does for
@@ -1088,10 +1078,11 @@ class KubeVirtFunctions
   def self.select_vms(vms, options)
     system_name = options[:system].to_s
     return vms if system_name.empty?
+
     selected = vms.select { |meta| meta['system_name'].to_s == system_name }
     if selected.empty?
       raise BuildError, "no generated VM for system '#{system_name}' in this project (it has: " \
-        "#{vms.map { |meta| meta['system_name'] }.join(', ')})"
+                        "#{vms.map { |meta| meta['system_name'] }.join(', ')})"
     end
     Print.info "KubeVirt: only acting on system '#{system_name}' (--system)"
     selected
@@ -1106,8 +1097,8 @@ class KubeVirtFunctions
     end
     unless options[:kubevirtcreatenamespace]
       raise BuildError, "namespace '#{namespace}' does not exist. Create it and give it clone " \
-        "access to the golden images (see 'Cluster RBAC' in README-KubeVirt.md), or pass " \
-        '--kubevirt-create-namespace to have SecGen create it.'
+                        "access to the golden images (see 'Cluster RBAC' in README-KubeVirt.md), or pass " \
+                        '--kubevirt-create-namespace to have SecGen create it.'
     end
 
     Print.info "KubeVirt: creating namespace '#{namespace}'"
@@ -1176,7 +1167,7 @@ class KubeVirtFunctions
           next
         end
 
-        %w(default_gateway dns_nameservers routes).each do |input|
+        %w[default_gateway dns_nameservers routes].each do |input|
           values = (mod.received_inputs[input] || []).reject { |value| value.to_s.empty? }
           next if values.empty?
 
@@ -1198,9 +1189,6 @@ class KubeVirtFunctions
   end
 
   def self.write_file(contents, path)
-    File.open(path, 'w+') do |file|
-      file.write(contents)
-    end
+    File.write(path, contents)
   end
-
 end
