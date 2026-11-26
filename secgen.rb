@@ -94,9 +94,13 @@ def usage
    --kubevirt-cpus [number]: Virtual CPUs per VM (default: 2)
    --kubevirt-ssh-key [path]: Private key for the guest's vagrant user (defaults to the
               published Vagrant insecure key in lib/resources/kubevirt)
-   --kubevirt-dns [nameserver]: Nameserver(s) to hand the guest (comma separated, default
-              1.1.1.1) alongside dnsPolicy None: a masquerade guest can reach neither the
-              cluster's DNS nor the node's resolver. See 'Guest DNS' in README-KubeVirt.md.
+   --kubevirt-dns [nameserver|cluster]: Nameserver(s) to hand the guest, comma separated, at
+              most 3 (default 1.1.1.1), set with dnsPolicy None. 'cluster' = the cluster's DNS
+              Service (its ClusterIP, looked up; env SECGEN_KUBE_DNS overrides) -- only where
+              the CNI lets guests reach ClusterIPs. See 'Guest DNS' in README-KubeVirt.md.
+   --kubevirt-dns-search [domains]: Search domains for the guest, comma separated (default
+              none; with 'cluster': <namespace>.svc.<domain>, svc.<domain>, <domain>)
+   --kubevirt-cluster-domain [domain]: The cluster's DNS domain (default cluster.local)
    --kubevirt-create-namespace: Create the namespace (with a quota and clone access to the
               golden images) if it does not exist
    --kubevirt-halt: Halt the VMs after provisioning (runStrategy Halted)
@@ -692,6 +696,8 @@ opts = GetoptLong.new(
     ['--kubevirt-cpus', GetoptLong::REQUIRED_ARGUMENT],
     ['--kubevirt-ssh-key', GetoptLong::REQUIRED_ARGUMENT],
     ['--kubevirt-dns', GetoptLong::REQUIRED_ARGUMENT],
+    ['--kubevirt-dns-search', GetoptLong::REQUIRED_ARGUMENT],
+    ['--kubevirt-cluster-domain', GetoptLong::REQUIRED_ARGUMENT],
     ['--kubevirt-create-namespace', GetoptLong::NO_ARGUMENT],
     ['--kubevirt-halt', GetoptLong::NO_ARGUMENT],
     ['--kubevirt-image-size', GetoptLong::REQUIRED_ARGUMENT],
@@ -847,6 +853,12 @@ opts.each do |opt, arg|
   when '--kubevirt-dns'
     Print.info "KubeVirt guest nameserver(s) : #{arg}"
     options[:kubevirtdns] = arg
+  when '--kubevirt-dns-search'
+    Print.info "KubeVirt guest DNS search domain(s) : #{arg}"
+    options[:kubevirtdnssearch] = arg
+  when '--kubevirt-cluster-domain'
+    Print.info "KubeVirt cluster DNS domain : #{arg}"
+    options[:kubevirtclusterdomain] = arg
   when '--kubevirt-create-namespace'
     Print.info 'KubeVirt: creating the namespace if it does not exist'
     options[:kubevirtcreatenamespace] = true

@@ -11,13 +11,12 @@
 #   1. hostname  - cloud-init is inert on the published bases, so the hostname is set
 #                  here, before anything that resolves it (a sudo command run while the
 #                  hostname is unresolved prints a warning).
-#   2. resolver  - KubeVirt hands a masquerade guest the virt-launcher pod's resolv.conf.
-#                  With the default policy that is the cluster DNS (CoreDNS ClusterIP) and
-#                  with dnsPolicy Default it is the node's resolver -- the guest can reach
-#                  NEITHER. The VM is therefore created with dnsPolicy None plus an
-#                  explicit nameserver (--kubevirt-dns overrides which), and this step
-#                  writes the same resolver into the guest as a belt-and-braces measure so
-#                  provisioning cannot depend on the DHCP handoff alone.
+#   2. resolver  - KubeVirt hands a masquerade guest the virt-launcher pod's resolv.conf,
+#                  which by default points at a resolver the guest may not reach. The VM is
+#                  therefore created with dnsPolicy None plus an explicit resolver
+#                  (--kubevirt-dns / --kubevirt-dns-search), and this step writes the same
+#                  resolver into the guest as a belt-and-braces measure so provisioning
+#                  cannot depend on the DHCP handoff alone.
 #   3. puppet    - one puppet apply per selected module.
 #
 # Phase 1 has no isolated-L2/VLAN networking: the guest only has an address on the
@@ -40,8 +39,9 @@ echo "   hostname: $(hostname)"
 
 echo "== 2. resolver"
 <% if dns_nameservers.any? -%>
-# --kubevirt-dns: the guest cannot reach the cluster's DNS, so give it nameservers it can.
-sudo sh -c 'printf "<%= dns_nameservers.map { |nameserver| "nameserver #{nameserver}\\n" }.join %>" > /etc/resolv.conf'
+# --kubevirt-dns / --kubevirt-dns-search: the resolver the VM was created with.
+sudo sh -c 'printf "<%= dns_searches.any? ? "search #{dns_searches.join(' ')}\\n" : '' %><%= dns_nameservers.map { |nameserver| "nameserver #{nameserver}\\n" }.join %>" > /etc/resolv.conf'
+echo "   resolver: <%= dns_nameservers.join(', ') %><%= dns_searches.any? ? " (search #{dns_searches.join(' ')})" : '' %>"
 <% end -%>
 if getent hosts deb.debian.org >/dev/null 2>&1; then
   echo "   DNS resolution OK"

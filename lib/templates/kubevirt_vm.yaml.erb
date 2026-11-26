@@ -60,17 +60,23 @@ spec:
         secgen.io/phase: provisioning
     spec:
       # A masquerade guest is handed the virt-launcher pod's resolv.conf over DHCP. With
-      # the default policy that is the cluster's DNS (CoreDNS ClusterIP) and with
-      # "Default" it is the node's resolver -- NEITHER is reachable from the guest, so
-      # package installation in every puppet module would fail. Verified fix: dnsPolicy
-      # None plus an explicit nameserver below, which the guest then receives verbatim.
-      # --kubevirt-dns overrides the resolver (e.g. point labs at your own DNS).
+      # the default policy that is the cluster's DNS (a ClusterIP, unreachable from a guest
+      # on many CNIs) and with "Default" the node's resolver (often link-local, equally
+      # unreachable), so package installation in every puppet module could fail. dnsPolicy
+      # None plus the explicit resolver below, which the guest receives verbatim.
+      # --kubevirt-dns / --kubevirt-dns-search choose it (see "Guest DNS" in README-KubeVirt.md).
       dnsPolicy: <%= dns_policy %>
 <% if dns_nameservers.any? -%>
       dnsConfig:
         nameservers:
 <% dns_nameservers.each do |nameserver| -%>
-          - <%= nameserver %>
+          - "<%= nameserver %>"
+<% end -%>
+<% if dns_searches.any? -%>
+        searches:
+<% dns_searches.each do |domain| -%>
+          - "<%= domain %>"
+<% end -%>
 <% end -%>
 <% end -%>
 <% if placement == 'compact' -%>

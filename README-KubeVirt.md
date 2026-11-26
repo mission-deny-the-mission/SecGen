@@ -125,8 +125,11 @@ grant you - in that case create the namespace, quota and binding yourself.
 --kubevirt-cpus [number]           virtual CPUs per VM (2)
 --kubevirt-ssh-key [path]          private key for the guest's vagrant user (the published
                                    Vagrant insecure key in lib/resources/kubevirt)
---kubevirt-dns [nameserver]        nameserver(s) to hand the guest, comma separated (see
-                                   Guest DNS below; default 1.1.1.1, dnsPolicy None)
+--kubevirt-dns [nameserver|cluster] nameserver(s) to hand the guest, comma separated, at
+                                   most 3; 'cluster' = the cluster's DNS Service (see Guest
+                                   DNS below; default 1.1.1.1, dnsPolicy None)
+--kubevirt-dns-search [domains]    search domains for the guest, comma separated
+--kubevirt-cluster-domain [domain] the cluster's DNS domain (cluster.local)
 --kubevirt-create-namespace        create the namespace, quota and clone access if missing
 --kubevirt-halt                    halt the VMs after provisioning (runStrategy Halted)
 --kubevirt-image-size [size]       size for the cloned root disk, e.g. 34Gi; needs no cluster
@@ -330,31 +333,47 @@ not per lab:
   once, outside SecGen. A scenario that needs one is handed its address through the ordinary
   module inputs, the same as on any other provider.
 
-A masquerade guest cannot reach a ClusterIP Service directly (the address is not routed from
-inside the guest), so a service meant for labs should be published on an address the guests can
-route to - a LoadBalancer or NodePort address on the node network, for example.
+Whether a masquerade guest can reach a ClusterIP Service depends on the CNI (see Guest DNS), so a
+service meant for labs on any cluster should be published on an address the guests can route to -
+a LoadBalancer or NodePort address on the node network, for example.
 
 ## Guest DNS
 
-KubeVirt hands a masquerade guest the *pod's* `resolv.conf` over DHCP, and whichever way that is
-configured, the guest cannot use it:
+KubeVirt hands a masquerade guest the *pod's* `resolv.conf` over DHCP, and on many clusters the
+guest cannot use it:
 
-- with the default policy it is the cluster's DNS (CoreDNS ClusterIP) - `No route to host`;
+- with the default policy it is the cluster's DNS (a ClusterIP). Whether a guest can reach a
+  ClusterIP depends on the primary CNI: where Services are load-balanced at the socket level only,
+  the guest's packets never get translated and it gets `No route to host`;
 - with `dnsPolicy: Default` it is the *node's* resolver, which on some distributions is a
   link-local address the guest cannot reach either.
 
 Every puppet module that installs a package then fails, so SecGen always sets `dnsPolicy: None`
-together with an explicit `dnsConfig.nameservers`, defaulting to a public resolver: the guest is
-handed exactly that nameserver, and resolution and package installation then work (verified end
-to end on a booted VM). To point labs at the lab's own resolver instead:
+with an explicit `dnsConfig`, which the guest is handed verbatim. What goes in it is up to you:
 
-```bash
---kubevirt-namespace secgen-lab --kubevirt-dns 192.0.2.53,192.0.2.54
-```
+| you want | pass |
+|---|---|
+| a public resolver (default) | nothing (`1.1.1.1`) |
+| your own resolvers | `--kubevirt-dns 192.0.2.53,192.0.2.54` |
+| the cluster's DNS, so guests can use Service names | `--kubevirt-dns cluster` |
+| both, cluster first | `--kubevirt-dns cluster,192.0.2.53` |
+| your own search list | `--kubevirt-dns-search lab.example.org` |
 
-The provisioning script also writes the same resolver into the guest's `/etc/resolv.conf` (after
-setting the hostname, so the hostname resolves while it does it), so provisioning does not depend
-on the DHCP handoff alone.
+`cluster` is the ClusterIP of the `k8s-app=kube-dns` Service in `kube-system` (CoreDNS and
+kube-dns both publish it), looked up when the project is generated; `SECGEN_KUBE_DNS` overrides
+the address (a NodeLocal DNSCache address, say). With `cluster` and no `--kubevirt-dns-search`,
+the guest gets the same search list a pod in the lab namespace would
+(`<ns>.svc.cluster.local svc.cluster.local cluster.local`; `--kubevirt-cluster-domain` for a
+cluster that is not `cluster.local`), so `myservice.myns` resolves as it does in a pod. It only
+works where the CNI lets guests reach ClusterIPs - check with a lab VM before relying on it (the
+provisioning log says `DNS resolution OK` or warns). An egress policy that limits what finished
+labs may resolve is the cluster's business, as for the rest of egress.
+
+The settings are checked before anything is created (addresses must be IPs; at most 3
+nameservers, which is all glibc reads), recorded in each VM's `kubevirt/<vm>.json`, and the
+provisioning script writes the same resolver into the guest's `/etc/resolv.conf` (after setting
+the hostname, so the hostname resolves while it does it), so provisioning does not depend on the
+DHCP handoff alone.
 
 ## Troubleshooting a lab VM
 

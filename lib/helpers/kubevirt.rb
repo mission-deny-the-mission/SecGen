@@ -59,11 +59,23 @@ class KubeVirtFunctions
   GUEST_TARBALL_PATH = '/tmp/secgen-assets.tar.gz'
   GUEST_SCRIPT_PATH = '/tmp/secgen-provision.sh'
 
-  # Resolver handed to lab guests. A masquerade guest can reach neither the cluster's DNS
-  # nor (with dnsPolicy Default) the node's resolver -- both verified on the cluster -- so
-  # guests are always given an explicit nameserver. Override with --kubevirt-dns, e.g. to
-  # point labs at the lab's own resolver rather than a public one.
+  # Resolver handed to lab guests. Whether a masquerade guest can reach the cluster's DNS
+  # depends on the primary CNI (on some it cannot reach a ClusterIP at all), and with
+  # dnsPolicy Default it gets the node's resolver, often a link-local address it cannot reach
+  # either. So guests are always given an explicit nameserver, a public one unless
+  # --kubevirt-dns says otherwise: a list of addresses, or the keyword 'cluster' for the
+  # cluster's own DNS Service (looked up at build time, see self.dns_settings).
   DEFAULT_DNS_NAMESERVERS = ['1.1.1.1'].freeze
+  DNS_CLUSTER_KEYWORD = 'cluster'
+  # Overrides the looked-up cluster DNS address (e.g. a NodeLocal DNSCache address).
+  DNS_CLUSTER_ENV = 'SECGEN_KUBE_DNS'
+  # Kubernetes passes dnsConfig through to resolv.conf, and glibc reads at most 3 nameservers.
+  DNS_MAX_NAMESERVERS = 3
+  DNS_MAX_SEARCHES = 32
+  # The search list used with 'cluster' when --kubevirt-dns-search is not given, so short
+  # Service names resolve in the guest as they do in a pod. Override the domain with
+  # --kubevirt-cluster-domain on a cluster that is not cluster.local.
+  DEFAULT_CLUSTER_DOMAIN = 'cluster.local'
 
   VMI_READY_TIMEOUT = 900
   # The VMI reports Running well before sshd accepts connections (measured ~68s on the
@@ -142,7 +154,7 @@ class KubeVirtFunctions
   class TemplateContext
     attr_accessor :vm_name, :system_name, :hostname, :memory, :cpus, :namespace
     attr_accessor :storage_class, :golden_namespace, :golden_image, :disk_size
-    attr_accessor :dns_nameservers, :dns_policy
+    attr_accessor :dns_nameservers, :dns_searches, :dns_policy
     attr_accessor :modules, :puppet_root, :puppet_system_dir
     # Lab networking and placement (kubevirt_vm.yaml.erb) and the lab's own networks
     # (kubevirt_nad.yaml.erb / kubevirt_ovn.yaml.erb).
@@ -181,14 +193,89 @@ class KubeVirtFunctions
     value.empty? ? DEFAULT_CPUS : value
   end
 
-  # Resolvers handed to the guest. A masquerade guest cannot reach the cluster's DNS, and
-  # `dnsPolicy: Default` does not help: it merely substitutes the node's resolver
-  # (a link-local address on some distributions), which the guest equally cannot reach -- both verified on
-  # the cluster. So the provider always sets dnsPolicy None plus an explicit nameserver,
-  # defaulting to a public resolver, and never depends on the cluster's DNS.
-  def self.dns_nameservers(options)
-    configured = options[:kubevirtdns].to_s.split(/[,\s]+/).reject { |nameserver| nameserver.empty? }
-    configured.empty? ? DEFAULT_DNS_NAMESERVERS.dup : configured
+  # The resolver handed to the guest: { 'nameservers' => [...], 'searches' => [...] }.
+  #
+  # The provider always sets dnsPolicy None plus these explicit values, because what the
+  # guest would otherwise inherit is not reliably reachable from it (see DEFAULT_DNS_NAMESERVERS).
+  #   --kubevirt-dns         comma-separated addresses, and/or 'cluster' for the cluster's DNS
+  #                          Service (its ClusterIP, read from the cluster; $SECGEN_KUBE_DNS
+  #                          overrides). Default: a public resolver.
+  #   --kubevirt-dns-search  comma-separated search domains. Default: none, or with 'cluster' the
+  #                          pod-style list <ns>.svc.<domain>, svc.<domain>, <domain>.
+  # 'cluster' only helps where the primary CNI lets a masquerade guest reach a ClusterIP (e.g.
+  # Cilium with per-packet service load balancing); SecGen checks name resolution during
+  # provisioning and warns when it fails. Resolved once per run and cached in the options.
+  def self.dns_settings(options, transport = nil)
+    return options[:kubevirt_dns_settings] if options[:kubevirt_dns_settings]
+
+    requested = split_list(options[:kubevirtdns])
+    requested = DEFAULT_DNS_NAMESERVERS.dup if requested.empty?
+    cluster = requested.include?(DNS_CLUSTER_KEYWORD)
+    nameservers = requested.flat_map do |entry|
+      entry == DNS_CLUSTER_KEYWORD ? [cluster_dns_address(transport || self.transport(options))] : [entry]
+    end.uniq
+
+    searches = split_list(options[:kubevirtdnssearch])
+    if searches.empty? && cluster
+      domain = cluster_domain(options)
+      searches = ["#{options[:kubevirtnamespace]}.svc.#{domain}", "svc.#{domain}", domain]
+    end
+
+    problems = validate_dns(nameservers, searches)
+    raise BuildError, "guest DNS settings: #{problems.join('; ')}" unless problems.empty?
+
+    options[:kubevirt_dns_settings] = { 'nameservers' => nameservers, 'searches' => searches }
+  end
+
+  def self.split_list(value)
+    value.to_s.split(/[,\s]+/).reject(&:empty?)
+  end
+
+  def self.cluster_domain(options)
+    value = options[:kubevirtclusterdomain].to_s.sub(/\.\z/, '')
+    value.empty? ? DEFAULT_CLUSTER_DOMAIN : value
+  end
+
+  # The address of the cluster's DNS: $SECGEN_KUBE_DNS, else the ClusterIP of the Service that
+  # CoreDNS/kube-dns publish (label k8s-app=kube-dns, in kube-system on every mainstream
+  # distribution).
+  def self.cluster_dns_address(transport)
+    override = ENV[DNS_CLUSTER_ENV].to_s.strip
+    return override unless override.empty?
+
+    address = transport.cluster_dns_ip
+    return address unless address.to_s.empty?
+
+    raise BuildError, "--kubevirt-dns #{DNS_CLUSTER_KEYWORD}: found no Service labelled k8s-app=kube-dns " \
+      "in kube-system; give the address itself, or set #{DNS_CLUSTER_ENV}"
+  rescue KubeVirt::TransportError => e
+    raise BuildError, "--kubevirt-dns #{DNS_CLUSTER_KEYWORD}: cannot read the cluster DNS Service " \
+      "(#{e.message}); give the address itself, or set #{DNS_CLUSTER_ENV}"
+  end
+
+  # Problems with a resolver configuration, as messages (empty when it is usable). Checked
+  # here rather than left to the API server, which rejects a bad dnsConfig only once the VM
+  # is created -- after the lab's networks and disks already exist.
+  def self.validate_dns(nameservers, searches)
+    problems = []
+    nameservers.each do |nameserver|
+      begin
+        IPAddr.new(nameserver)
+        problems << "#{nameserver} is not a single address" if nameserver.include?('/')
+      rescue IPAddr::Error
+        problems << "nameserver '#{nameserver}' is not an IP address (use '#{DNS_CLUSTER_KEYWORD}' for the cluster's DNS)"
+      end
+    end
+    if nameservers.size > DNS_MAX_NAMESERVERS
+      problems << "#{nameservers.size} nameservers given, at most #{DNS_MAX_NAMESERVERS} are used"
+    end
+    searches.each do |domain|
+      next if domain =~ /\A(?=.{1,253}\z)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*\z/i
+
+      problems << "search domain '#{domain}' is not a valid domain name"
+    end
+    problems << "#{searches.size} search domains given, at most #{DNS_MAX_SEARCHES}" if searches.size > DNS_MAX_SEARCHES
+    problems
   end
 
   # 'spread' (default), 'compact', or a node name (see PLACEMENT_*). Validated by secgen.rb
@@ -261,6 +348,14 @@ class KubeVirtFunctions
     # the NADs have to exist before a VM that references them, and the interfaces are part of
     # the VM manifest.
     lab_network_backend(options, transport)
+    begin
+      dns = dns_settings(options, transport)
+    rescue BuildError => e
+      Print.err e.message
+      exit 1
+    end
+    Print.info "KubeVirt guest DNS: #{dns['nameservers'].join(', ')}" \
+               "#{dns['searches'].any? ? " (search #{dns['searches'].join(' ')})" : ''}"
     plan = lab_network_plan(systems, options)
     write_lab_networks(out_dir, plan, options)
 
@@ -287,6 +382,7 @@ class KubeVirtFunctions
         'memory' => system.memory.to_s,
         'namespace' => options[:kubevirtnamespace].to_s,
         'placement' => placement(options),
+        'dns' => dns_settings(options),
         'lab_interfaces' => interfaces,
         'order' => index,
         'created' => Time.now.to_s
@@ -395,10 +491,12 @@ class KubeVirtFunctions
     context.golden_namespace = golden_namespace(options)
     context.golden_image = golden_image
     context.disk_size = disk_size
-    context.dns_nameservers = dns_nameservers(options)
-    # dnsPolicy None always: the guest can reach neither the cluster DNS nor (with
-    # "Default") the node's resolver, so an explicit nameserver is mandatory. See
-    # self.dns_nameservers.
+    dns = dns_settings(options)
+    context.dns_nameservers = dns['nameservers']
+    context.dns_searches = dns['searches']
+    # dnsPolicy None always: what the guest would inherit otherwise (the cluster's DNS, or
+    # with "Default" the node's resolver) is not reliably reachable from it, so an explicit
+    # nameserver is mandatory. See self.dns_settings.
     context.dns_policy = 'None'
     context.modules = modules
     context.puppet_root = GUEST_ASSET_DIR

@@ -86,7 +86,9 @@ build labs but not run the cluster, a namespace-scoped account is enough:
 - in the lab namespace: full access to VMs/VMIs (`kubevirt.io`), DataVolumes (`cdi.kubevirt.io`),
   PVCs and NetworkAttachmentDefinitions; the `subresources.kubevirt.io` subresources (`virtctl`
   start/stop/restart, ssh/scp/port-forward, console); `get`/`list`/`watch` on pods, `pods/log`,
-  services and events; `get`/`list` on nodes (cluster-wide; SecGen reports where VMs run). No
+  services and events; cluster-wide `get`/`list` on nodes and services (SecGen reports where
+  VMs run, keeps lab networks clear of the node, pod and Service ranges, and looks up the
+  cluster DNS for `--kubevirt-dns cluster`). No
   `patch` on pods is needed (SecGen then applies `secgen.io/phase=ready` from the VM's next
   boot), and none should be given - it would let the account change a running pod's image;
 - in the golden namespace: the clone grant above;
@@ -136,8 +138,10 @@ Things that are easy to get wrong:
   governs the guest's pod-network interface. Lab-to-lab isolation comes from separate segments.
 - `virtctl ssh/scp/console` go through the API server, so a lab with no egress at all is still
   fully manageable.
-- A guest on a masquerade interface cannot reach a ClusterIP service, nor a NodePort on its own
-  node; publish shared services on node or LoadBalancer addresses and let labs use any node.
+- Depending on the CNI, a guest on a masquerade interface may not reach a ClusterIP service, nor
+  a NodePort on its own node; publish shared services on node or LoadBalancer addresses and let
+  labs use any node. Where guests *can* reach ClusterIPs, `--kubevirt-dns cluster` gives them the
+  cluster's DNS - then allow port 53 to it in the egress policy.
 - With Cilium's socket-level load balancing, a NodePort connection may be translated to the
   backend pod *before* policy is checked, so allow the backend pods as well as the node port.
 

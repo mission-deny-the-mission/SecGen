@@ -262,6 +262,14 @@ class KubeVirt
     end.compact.map(&:to_s).reject { |address| address.empty? || address == 'None' }.uniq
   end
 
+  # The ClusterIP of the cluster's DNS Service (CoreDNS and kube-dns both publish it labelled
+  # k8s-app=kube-dns in kube-system), or '' when there is none.
+  def cluster_dns_ip
+    out = kubectl(['get', 'services', '-n', 'kube-system', '-l', 'k8s-app=kube-dns',
+                   '-o', 'jsonpath={.items[*].spec.clusterIP}'], false, timeout: 60)
+    out.split.reject { |address| address.empty? || address == 'None' }.first.to_s
+  end
+
   # The guest's interfaces as the cluster sees them: name ('default', 'net1', ...) and address.
   def vmi_interfaces(vm_name)
     data = read_json(kubectl(['get', 'vmi', vm_name, '-o', 'json'], true, timeout: 60),
