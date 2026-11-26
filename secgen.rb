@@ -1101,7 +1101,11 @@ if options[:hb3_litellm]
     options[:hb2_openai_api_key] = options[:hb3_api_key]
   end
   Print.info "Hackerbot 3 via LiteLLM #{base}: decision #{options[:hb3_decision_url]}, embed #{options[:hb3_embed_url]}, LLM #{options[:hb2_openai_base_url]} (#{options[:hb2_llm_model]})"
-  Print.warn 'Hackerbot 3: --hb3-litellm without --hb3-api-key/HB3_API_KEY -- the /hb3/* routes will answer 401' unless options[:hb3_api_key]
+  unless options[:hb3_api_key]
+    Print.err 'Hackerbot 3: --hb3-litellm needs a LiteLLM virtual key (allowed routes /hb3/*) in --hb3-api-key or HB3_API_KEY;'
+    Print.err 'without one every /hb3/* call answers 401 and the bots cannot use the LLM or the decision router.'
+    exit 1
+  end
 end
 if options[:hb3_decision_url] && options[:hb2_openai_base_url].to_s =~ %r{//(localhost|127\.0\.0\.1)[:/]}
   Print.warn "Hackerbot 3: LLM fallback is #{options[:hb2_openai_base_url]} -- unreachable from a lab VM, so every " \
