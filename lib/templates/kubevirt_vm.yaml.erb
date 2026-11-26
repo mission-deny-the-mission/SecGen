@@ -113,6 +113,13 @@ spec:
         memory:
           guest: <%= memory %>Mi
         devices:
+          # Absolute-pointer USB tablet: the VNC console (virtctl vnc, Coder desktop) tracks the
+          # host cursor exactly. Without it the guest only has the relative PS/2 mouse, which
+          # drifts and lags behind the cursor.
+          inputs:
+            - type: tablet
+              bus: usb
+              name: tablet
           disks:
             - name: root
               disk:
