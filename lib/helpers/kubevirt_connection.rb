@@ -25,6 +25,20 @@ require_relative 'print'
 class KubeVirt
   class TransportError < StandardError; end
 
+  # A CLI ran to completion but exited non-zero. Carries the command's own streams and exit
+  # status separately from the message, so a caller that inspects output (the post-provision
+  # tests) never mistakes the command line in the message for something the command printed.
+  class CommandFailed < TransportError
+    attr_reader :stdout, :stderr, :exit_status
+
+    def initialize(message, stdout: '', stderr: '', exit_status: nil)
+      super(message)
+      @stdout = stdout
+      @stderr = stderr
+      @exit_status = exit_status
+    end
+  end
+
   # SecGen's bases are its existing Vagrant boxes, which ship with the published Vagrant
   # "insecure" key in the vagrant user's authorized_keys - hence no key injection step is
   # needed for provisioning. That key is public knowledge by design; it is NOT a secret
@@ -144,7 +158,8 @@ class KubeVirt
     if status.nil? || !status.success?
       code = status.nil? ? 'unknown' : status.exitstatus
       detail = stderr.strip.empty? ? stdout.strip : stderr.strip
-      raise TransportError, "#{binary} #{args.join(' ')} failed (exit #{code}): #{detail}"
+      raise CommandFailed.new("#{binary} #{args.join(' ')} failed (exit #{code}): #{detail}",
+                              stdout: stdout, stderr: stderr, exit_status: status&.exitstatus)
     end
     stdout
   end
@@ -299,8 +314,11 @@ class KubeVirt
     args = ['--username', user]
     args += ['--identity-file', ssh_key] unless ssh_key.to_s.empty?
     if insecure_host_key
+      # LogLevel=ERROR drops "Permanently added ... to the list of known hosts", which with a
+      # throwaway known_hosts file would otherwise be on stderr of every command.
       args += ['--local-ssh-opts=-o StrictHostKeyChecking=no',
-               '--local-ssh-opts=-o UserKnownHostsFile=/dev/null']
+               '--local-ssh-opts=-o UserKnownHostsFile=/dev/null',
+               '--local-ssh-opts=-o LogLevel=ERROR']
     end
     args
   end
@@ -343,9 +361,12 @@ class KubeVirt
   # Anything inside the block that talks to 127.0.0.1:<yielded port> reaches the guest.
   def with_port_forward(vm_name, guest_port, wait: 30)
     local_port = free_port
-    pid = Process.spawn(cli_env, virtctl.to_s, 'port-forward', "vm/#{vm_name}",
-                        "#{local_port}:#{guest_port}", '--namespace', namespace.to_s,
-                        out: File::NULL, err: File::NULL)
+    # virtctl_cmd is the binary; `virtctl` is the method that runs it to completion, which a
+    # long-lived tunnel cannot use.
+    ns = namespace.to_s
+    ns_args = ns.empty? ? [] : ['--namespace', ns]
+    pid = Process.spawn(cli_env, virtctl_cmd.to_s, *ns_args, 'port-forward', "vm/#{vm_name}",
+                        "#{local_port}:#{guest_port}", out: File::NULL, err: File::NULL)
     begin
       wait_until("port-forward to #{vm_name}:#{guest_port} to come up",
                  timeout: wait, interval: 1) { tcp_open?('127.0.0.1', local_port, 1) }

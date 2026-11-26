@@ -135,13 +135,21 @@ class PostProvisionTest
     end
     if kubevirt?
       # Run the command in the guest over virtctl. The transport reports a non-zero guest
-      # status as an exception, so its message (which carries the guest output) is passed
-      # back as both streams and the caller's match still sees it.
+      # status as CommandFailed, which carries the guest's own streams: pass those back, never
+      # the exception message - it contains the command line, so a test whose match string
+      # appears in its own command would otherwise pass whenever the command failed. A
+      # transport failure (virtctl timed out or could not start) has no guest output at all:
+      # its message (which also names the command) is reported as a warning, and the streams
+      # get a command-free note, since callers match against stderr too.
       begin
-        return {:stdout => kubevirt_connection.ssh(kubevirt_vm_name, args, timeout: 60),
-                :stderr => '', :exit_status => 0}
+        return { stdout: kubevirt_connection.ssh(kubevirt_vm_name, args, timeout: 60),
+                 stderr: '', exit_status: 0 }
+      rescue KubeVirt::CommandFailed => e
+        return { stdout: e.stdout.to_s, stderr: e.stderr.to_s, exit_status: e.exit_status || 1 }
       rescue KubeVirt::TransportError => e
-        return {:stdout => e.message, :stderr => e.message, :exit_status => 1}
+        self.outputs << "WARNING: could not run a command on #{kubevirt_vm_name} over virtctl: #{e.message}"
+        return { stdout: '', stderr: "(no output: virtctl could not reach #{kubevirt_vm_name})",
+                 exit_status: 255 }
       end
     end
     vagrant_ssh = -> { Open3.capture3("/usr/bin/vagrant ssh #{get_system_name} -c '#{args}'") }
