@@ -1,3 +1,4 @@
+require 'fileutils'
 require 'json'
 require 'open3'
 require 'socket'
@@ -65,13 +66,28 @@ class KubeVirt
   # ssh ignores a private key that group/others can read ("UNPROTECTED PRIVATE KEY FILE"), and a
   # git checkout gives the vendored key whatever the umask allows (0664 under umask 002, the
   # default for many container/dev setups). Hand ssh a 0600 copy instead of failing every login.
-  def usable_key(path)
-    return path unless File.file?(path) && (File.stat(path).mode & 0o077) != 0
+  #
+  # The copy goes in a directory of its own made by Dir.mktmpdir (0700, unpredictable name), and
+  # is created with O_EXCL|O_NOFOLLOW: a fixed name in a shared /tmp could be pre-created or
+  # symlinked by another user, and the key written into their file. One copy per source key per
+  # process (SecGen makes several transports), removed when the process exits.
+  @key_copies = {}
+  class << self
+    attr_reader :key_copies
+  end
 
-    copy = File.join(Dir.tmpdir, "secgen-kubevirt-key-#{Process.uid}-#{File.basename(path)}")
-    File.open(copy, File::WRONLY | File::CREAT | File::TRUNC, 0o600) { |f| f.write(File.read(path)) }
-    File.chmod(0o600, copy)
-    copy
+  def usable_key(path)
+    return path unless File.file?(path) && File.stat(path).mode.anybits?(0o077)
+
+    KubeVirt.key_copies[path] ||= begin
+      dir = Dir.mktmpdir('secgen-kubevirt-key-')
+      at_exit { FileUtils.remove_entry(dir, true) }
+      copy = File.join(dir, File.basename(path))
+      File.open(copy, File::WRONLY | File::CREAT | File::EXCL | File::NOFOLLOW, 0o600) do |file|
+        file.write(File.read(path))
+      end
+      copy
+    end
   end
 
   # Build a transport from the command line options hash.
