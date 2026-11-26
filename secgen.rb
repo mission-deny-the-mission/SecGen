@@ -92,6 +92,11 @@ def usage
               (default: text-embedding-ada-002, env: HB2_EMBEDDING_MODEL)
 
    HACKERBOT 3 DECISION ROUTER OPTIONS (hackerbot3 utility; LLM fallback uses the --hb2-* options above):
+   --hb3-litellm [url|cluster]: shorthand for the lab LiteLLM gateway's /hb3/* routes. Sets the decision,
+              embedding and LLM-fallback URLs (+ models, and the --hb2 key from --hb3-api-key) unless
+              given explicitly. 'cluster' = http://litellm.litellm.svc.cluster.local:4000, which lab
+              VMs resolve through kube-dns. Needs a LiteLLM virtual key whose allowed_routes is /hb3/*
+              in --hb3-api-key / HB3_API_KEY (env: HB3_LITELLM_URL)
    --hb3-decision-url [url]: decision model server (OpenAI-compatible, e.g. Clef-Flash on vLLM)
               (default: unset = router off, plain LLM fallback; env: HB3_DECISION_URL)
    --hb3-decision-model [model]: decision model name (default: clef-flash, env: HB3_DECISION_MODEL)
@@ -756,6 +761,7 @@ opts = GetoptLong.new(
     ['--hb3-fit-check', GetoptLong::REQUIRED_ARGUMENT],
     ['--hb3-fit-threshold', GetoptLong::REQUIRED_ARGUMENT],
     ['--hb3-decision-log', GetoptLong::REQUIRED_ARGUMENT],
+    ['--hb3-litellm', GetoptLong::REQUIRED_ARGUMENT],
     ['--hb3-embed-url', GetoptLong::REQUIRED_ARGUMENT],
     ['--hb3-embed-model', GetoptLong::REQUIRED_ARGUMENT],
     ['--hb3-api-key', GetoptLong::REQUIRED_ARGUMENT],
@@ -1009,9 +1015,11 @@ opts.each do |opt, arg|
   when '--hb2-llm-model'
     Print.info "Hackerbot 2 LLM model: #{arg}"
     options[:hb2_llm_model] = arg
+    options[:hb2_llm_model_explicit] = true
   when '--hb2-openai-api-key'
     Print.info "Hackerbot 2 OpenAI API key: ********"
     options[:hb2_openai_api_key] = arg
+    options[:hb2_openai_api_key_explicit] = true
   when '--hb2-openai-base-url'
     Print.info "Hackerbot 2 OpenAI base URL: #{arg}"
     options[:hb2_openai_base_url] = arg
@@ -1041,6 +1049,8 @@ opts.each do |opt, arg|
   when '--hb3-fit-threshold'
     Print.info "Hackerbot 3 answer-fit threshold: #{arg}"
     options[:hb3_fit_threshold] = arg
+  when '--hb3-litellm'
+    options[:hb3_litellm] = arg
   when '--hb3-decision-log'
     arg = '/opt/hackerbot3/logs/decisions.jsonl' if %w[on true yes 1].include?(arg.to_s.downcase)
     Print.info "Hackerbot 3 decision log: #{arg}"
@@ -1065,6 +1075,25 @@ end
 # This ensures CLI overrides to --hb2-llm-host / --hb2-llm-port are reflected in the base URL
 unless ENV['HB2_OPENAI_BASE_URL'] || options[:hb2_openai_base_url_explicit]
   options[:hb2_openai_base_url] = "http://#{options[:hb2_llm_host]}:#{options[:hb2_llm_port]}"
+end
+
+# --hb3-litellm: one gateway for everything a Hackerbot 3 lab bot calls. Explicit flags/env win.
+options[:hb3_litellm] ||= ENV['HB3_LITELLM_URL']
+if options[:hb3_litellm]
+  base = options[:hb3_litellm] == 'cluster' ? 'http://litellm.litellm.svc.cluster.local:4000' : options[:hb3_litellm].chomp('/')
+  options[:hb3_decision_url] ||= "#{base}/hb3/clef"
+  options[:hb3_embed_url]    ||= "#{base}/hb3/embed"
+  unless ENV['HB2_OPENAI_BASE_URL'] || options[:hb2_openai_base_url_explicit]
+    options[:hb2_openai_base_url] = "#{base}/hb3/fast/v1"
+  end
+  unless ENV['HB2_LLM_MODEL'] || options[:hb2_llm_model_explicit]
+    options[:hb2_llm_model] = 'qwen3.6-35b-a3b'
+  end
+  if options[:hb3_api_key] && !(ENV['HB2_OPENAI_API_KEY'] || options[:hb2_openai_api_key_explicit])
+    options[:hb2_openai_api_key] = options[:hb3_api_key]
+  end
+  Print.info "Hackerbot 3 via LiteLLM #{base}: decision #{options[:hb3_decision_url]}, embed #{options[:hb3_embed_url]}, LLM #{options[:hb2_openai_base_url]} (#{options[:hb2_llm_model]})"
+  Print.warn 'Hackerbot 3: --hb3-litellm without --hb3-api-key/HB3_API_KEY -- the /hb3/* routes will answer 401' unless options[:hb3_api_key]
 end
 
 # at least one command

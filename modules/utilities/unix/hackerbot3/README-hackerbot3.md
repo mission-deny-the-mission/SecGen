@@ -39,6 +39,33 @@ read by `hackerbot3.service`. Without an embedding URL use `--hb3-decision-strat
 The hackerbot server VM needs a network path to the model servers (the Sparks); on an isolated lab
 VLAN that means a route or proxy to them.
 
+## Running on the TinyMM cluster (Coder `secgen-lab` workspace)
+
+The lab bot reaches the Sparks models only through the shared LiteLLM gateway; lab egress
+(`secgen-lab-egress`) allows nothing else. Use its DNS name: lab VMs may query kube-dns, but
+Cilium's DNS proxy only answers `litellm.litellm.svc.cluster.local` (everything else is REFUSED).
+
+1. **Key.** Sign in at <https://litellm.harryslab2.xyz/ui> (Authentik, admins), *Virtual Keys ->
+   Create Key*: name it per lab (e.g. `hb3-novamer`), set an expiry, and under *Allowed routes*
+   enter `/hb3/*`. A key without that restriction gets **401** on `/hb3/*` (LiteLLM treats
+   pass-through routes as admin-only); with it, `/hb3/*` works and every other route (models
+   list, `/key/*`, spend) is refused. Never use the master key here: the key ends up in the
+   project files and in the bot VM's root-only `hb3.env`.
+2. **Build:**
+
+   ```bash
+   export HB3_API_KEY='<virtual key>'     # keep it out of shell history if you can
+   secgen -s scenarios/labs/response_and_investigation/1_integrity_protection_hackerbot3_nova_meridian.xml \
+     --project projects/novamer --hb3-litellm cluster [--hb3-decision-log on] run
+   ```
+
+   `--hb3-litellm cluster` sets the decision (`/hb3/clef`), embedding (`/hb3/embed`) and LLM
+   fallback (`/hb3/fast/v1`, model `qwen3.6-35b-a3b`) URLs and reuses the key for the fallback.
+   Explicit `--hb3-*` / `--hb2-*` flags still win.
+3. **Decision log** (only with `--hb3-decision-log on`; it stores what students type):
+   `lab-ssh hackerbot-server 'sudo tail -f /opt/hackerbot3/logs/decisions.jsonl'`
+4. **Afterwards:** destroy the lab and revoke the key in the UI.
+
 ## Fixes over the Hackerbot 2 copy
 
 - Attack results crashed the bot (`undefined method check_output_conditions for Cinch::Callback`):
