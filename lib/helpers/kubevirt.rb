@@ -244,7 +244,16 @@ class KubeVirtFunctions
     return value unless value == 'auto'
 
     transport ||= self.transport(options)
-    options[:kubevirtlabnetwork] = transport.api_group_served?('kubeovn.io') ? LAB_NETWORK_OVN : LAB_NETWORK_BRIDGE
+    begin
+      ovn = transport.api_group_served?('kubeovn.io')
+    rescue KubeVirt::TransportError => e
+      # Guessing 'bridge' here would pin the choice into the generated project, and on a
+      # Kube-OVN cluster a spread lab's VMs could then not reach each other.
+      raise BuildError, '--kubevirt-lab-network auto cannot tell whether the cluster runs Kube-OVN ' \
+                        "(#{e.message}). Make the cluster reachable, or choose the backend " \
+                        'explicitly: --kubevirt-lab-network ovn or --kubevirt-lab-network bridge.'
+    end
+    options[:kubevirtlabnetwork] = ovn ? LAB_NETWORK_OVN : LAB_NETWORK_BRIDGE
   end
 
   # KubeVirt object names must be valid DNS-1123 labels, so system names have to be
@@ -296,7 +305,12 @@ class KubeVirtFunctions
     # The scenario's networks become the lab's own L2 segments, before anything is generated:
     # the NADs have to exist before a VM that references them, and the interfaces are part of
     # the VM manifest.
-    lab_network_backend(options, transport)
+    begin
+      lab_network_backend(options, transport)
+    rescue BuildError => e
+      Print.err e.message
+      exit 1
+    end
     plan = lab_network_plan(systems, options)
     write_lab_networks(out_dir, plan, options)
 

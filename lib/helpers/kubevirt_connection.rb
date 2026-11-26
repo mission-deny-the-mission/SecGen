@@ -200,10 +200,10 @@ class KubeVirt
   end
 
   # Does the API server serve this API group? (Discovery: readable by any authenticated client.)
+  # Raises TransportError when the cluster cannot be asked: "not served" and "could not tell"
+  # are different answers, and the caller decides what an unknown means.
   def api_group_served?(group)
     kubectl(['api-versions'], false, timeout: 60).lines.any? { |line| line.start_with?("#{group}/") }
-  rescue TransportError
-    false
   end
 
   def namespace_exists?
