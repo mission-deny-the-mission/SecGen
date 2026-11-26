@@ -161,6 +161,47 @@ class KubeVirtFunctions
     KubeVirt.from_options(options)
   end
 
+  # What a generated KubeVirt project recorded about where its lab lives, or nil if the project
+  # was not generated for KubeVirt.
+  def self.project_context(project_dir)
+    path = "#{project_dir}/kubevirt_test_context.json"
+    return nil unless File.file?(path)
+
+    JSON.parse(File.read(path))
+  rescue JSON::ParserError => e
+    raise BuildError, "cannot read #{path}: #{e.message}"
+  end
+
+  # Commands on an existing project act on the lab the project was generated for. Its manifests
+  # name their namespace, so: a missing --kubevirt-namespace is taken from the project (and
+  # selects the KubeVirt provider), and a different one is refused rather than deleting or
+  # building in a namespace the project does not belong to. --kubevirt-kubeconfig likewise
+  # defaults to the one the project was generated with, so the commands reach the same cluster.
+  # Returns true if the project is a KubeVirt project. Updates options in place.
+  def self.apply_project_context!(project_dir, options)
+    context = project_context(project_dir)
+    return false if context.nil?
+
+    recorded = context['namespace'].to_s
+    given = options[:kubevirtnamespace].to_s
+    if recorded.empty?
+      raise BuildError, "#{project_dir}/kubevirt_test_context.json does not name the lab's namespace"
+    elsif given.empty?
+      options[:kubevirtnamespace] = recorded
+      Print.info "KubeVirt namespace : #{recorded} (from the project)"
+    elsif given != recorded
+      raise BuildError, "this project was generated for namespace '#{recorded}', not '#{given}': " \
+                        'its manifests name that namespace. Drop --kubevirt-namespace, or regenerate ' \
+                        "the project with --kubevirt-namespace #{given}."
+    end
+
+    if options[:kubevirtkubeconfig].to_s.empty? && !context['kubeconfig'].to_s.empty?
+      options[:kubevirtkubeconfig] = context['kubeconfig']
+      Print.info "KubeVirt kubeconfig : #{context['kubeconfig']} (from the project)"
+    end
+    true
+  end
+
   def self.storage_class(options)
     value = options[:kubevirtstorageclass].to_s
     value.empty? ? DEFAULT_STORAGE_CLASS : value

@@ -200,6 +200,15 @@ def build_vms(scenario, project_dir, options)
 
   project_dir + '/scenario.xml'
 
+  # A project generated for KubeVirt is built there even without --kubevirt-namespace (never by
+  # falling through to Vagrant), and only in the namespace it was generated for.
+  begin
+    KubeVirtFunctions.apply_project_context!(project_dir, options)
+  rescue KubeVirtFunctions::BuildError => e
+    Print.err e.message
+    exit 1
+  end
+
   # The KubeVirt provider does not use Vagrant at all (there is no maintained KubeVirt
   # plugin), so it drives the build itself: it applies the VM manifests generated into the
   # project and provisions the guests over virtctl (see lib/helpers/kubevirt.rb).
@@ -371,12 +380,27 @@ end
 # build_vms without Vagrant: the VM manifests generated into the project are applied to the
 # cluster, the guests are provisioned over virtctl (lib/helpers/kubevirt.rb), and the
 # post-provision tests run as they do for the other providers.
-def kubevirt_build(options, project_dir)
+# The KubeVirt commands act on an existing project: it must be a KubeVirt project, and its
+# recorded namespace (and kubeconfig) are what the command uses -- see
+# KubeVirtFunctions.apply_project_context!.
+def kubevirt_project!(options, project_dir, action)
   unless project_dir
-    Print.err 'Please specify the project directory to build (--project [dir])'
+    Print.err "Please specify the project directory to #{action} (--project [dir])"
     usage
     exit 1
   end
+  return if KubeVirtFunctions.apply_project_context!(project_dir, options)
+
+  Print.err "#{project_dir} is not a KubeVirt project (it has no kubevirt_test_context.json): " \
+            'generate it with --kubevirt-namespace'
+  exit 1
+rescue KubeVirtFunctions::BuildError => e
+  Print.err e.message
+  exit 1
+end
+
+def kubevirt_build(options, project_dir)
+  kubevirt_project!(options, project_dir, 'build')
 
   retry_count = options.has_key?(:retries) ? options[:retries].to_i : 0
   successful_creation = false
@@ -420,11 +444,7 @@ end
 # Deletes the VMs of a KubeVirt project (with their DataVolumes and root disks; the golden
 # images live in another namespace and are never touched).
 def kubevirt_destroy(options, project_dir)
-  unless project_dir
-    Print.err 'Please specify the project directory to destroy (--project [dir])'
-    usage
-    exit 1
-  end
+  kubevirt_project!(options, project_dir, 'destroy')
   KubeVirtFunctions.destroy(project_dir, options)
 end
 
@@ -438,11 +458,7 @@ end
 
 # Prints the phase and pod-network address of each VM of a KubeVirt project.
 def kubevirt_status(options, project_dir)
-  unless project_dir
-    Print.err 'Please specify the project directory to report on (--project [dir])'
-    usage
-    exit 1
-  end
+  kubevirt_project!(options, project_dir, 'report on')
   KubeVirtFunctions.status(project_dir, options)
 end
 
