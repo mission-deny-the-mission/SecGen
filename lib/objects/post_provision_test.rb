@@ -344,9 +344,12 @@ class PostProvisionTest
   # Is the given TCP port listening inside the guest? Asked over virtctl, so no network
   # path into the lab is needed.
   def kubevirt_port_listening?(port)
+    # The trailing `|| echo CLOSED` makes the probe exit 0 either way, so a closed port is an
+    # answer, not an error: only a real transport failure reaches the rescue (and its warning).
     output = kubevirt_connection.ssh(kubevirt_vm_name,
                                      "ss -ltn 2>/dev/null | grep -q ':#{port} ' && echo LISTENING || " \
-                                     "(exec 3<>/dev/tcp/127.0.0.1/#{port} && echo LISTENING) 2>/dev/null",
+                                     "(exec 3<>/dev/tcp/127.0.0.1/#{port} && echo LISTENING) 2>/dev/null || " \
+                                     'echo CLOSED',
                                      timeout: 30)
     output.include?('LISTENING')
   rescue KubeVirt::TransportError => e
