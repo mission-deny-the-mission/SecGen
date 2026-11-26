@@ -186,8 +186,19 @@ class KubeVirtFunctions
   # (a link-local address on some distributions), which the guest equally cannot reach -- both verified on
   # the cluster. So the provider always sets dnsPolicy None plus an explicit nameserver,
   # defaulting to a public resolver, and never depends on the cluster's DNS.
+  #
+  # Update (Cilium with bpf-lb-sock-hostns-only=true, TinyMM): guest traffic to a ClusterIP is now
+  # load-balanced per packet, so a masquerade guest CAN use the cluster DNS. `--kubevirt-dns
+  # cluster` hands it kube-dns (KUBE_DNS_IP, override with SECGEN_KUBE_DNS); --hb3-litellm
+  # cluster implies it, because the bot then needs litellm.litellm.svc.cluster.local to resolve.
+  # CoreDNS forwards other names upstream, so provisioning (apt) still works; once the lab is
+  # ready, secgen-lab-egress only lets the LiteLLM name through.
+  KUBE_DNS_IP = '10.96.0.10'.freeze
+
   def self.dns_nameservers(options)
     configured = options[:kubevirtdns].to_s.split(/[,\s]+/).reject { |nameserver| nameserver.empty? }
+    configured = ['cluster'] if configured.empty? && options[:hb3_litellm] == 'cluster'
+    configured = configured.map { |ns| ns == 'cluster' ? (ENV['SECGEN_KUBE_DNS'] || KUBE_DNS_IP) : ns }
     configured.empty? ? DEFAULT_DNS_NAMESERVERS.dup : configured
   end
 

@@ -135,9 +135,11 @@ def usage
    --kubevirt-cpus [number]: Virtual CPUs per VM (default: 2)
    --kubevirt-ssh-key [path]: Private key for the guest's vagrant user (defaults to the
               published Vagrant insecure key in lib/resources/kubevirt)
-   --kubevirt-dns [nameserver]: Nameserver(s) to hand the guest (comma separated, default
-              1.1.1.1) alongside dnsPolicy None: a masquerade guest can reach neither the
-              cluster's DNS nor the node's resolver. See 'Guest DNS' in README-KubeVirt.md.
+   --kubevirt-dns [nameserver|cluster]: Nameserver(s) to hand the guest (comma separated, default
+              1.1.1.1) alongside dnsPolicy None. 'cluster' = kube-dns (10.96.0.10, env
+              SECGEN_KUBE_DNS), reachable from guests when Cilium load-balances pod traffic per
+              packet (bpf-lb-sock-hostns-only); implied by --hb3-litellm cluster. See 'Guest DNS'
+              in README-KubeVirt.md.
    --kubevirt-create-namespace: Create the namespace (with a quota and clone access to the
               golden images) if it does not exist
    --kubevirt-halt: Halt the VMs after provisioning (runStrategy Halted)
@@ -1079,6 +1081,12 @@ end
 
 # --hb3-litellm: one gateway for everything a Hackerbot 3 lab bot calls. Explicit flags/env win.
 options[:hb3_litellm] ||= ENV['HB3_LITELLM_URL']
+# A decision URL on a LiteLLM /hb3/ route means the gateway is known: use it for the LLM
+# fallback too, instead of the HB2 default http://localhost:4000 (which a lab VM cannot reach,
+# so every LLM reply became the bot's canned "not sure I follow" error message).
+if !options[:hb3_litellm] && options[:hb3_decision_url].to_s =~ %r{\A(https?://[^/]+)/hb3/clef/?\z}
+  options[:hb3_litellm] = Regexp.last_match(1)
+end
 if options[:hb3_litellm]
   base = options[:hb3_litellm] == 'cluster' ? 'http://litellm.litellm.svc.cluster.local:4000' : options[:hb3_litellm].chomp('/')
   options[:hb3_decision_url] ||= "#{base}/hb3/clef"
@@ -1094,6 +1102,10 @@ if options[:hb3_litellm]
   end
   Print.info "Hackerbot 3 via LiteLLM #{base}: decision #{options[:hb3_decision_url]}, embed #{options[:hb3_embed_url]}, LLM #{options[:hb2_openai_base_url]} (#{options[:hb2_llm_model]})"
   Print.warn 'Hackerbot 3: --hb3-litellm without --hb3-api-key/HB3_API_KEY -- the /hb3/* routes will answer 401' unless options[:hb3_api_key]
+end
+if options[:hb3_decision_url] && options[:hb2_openai_base_url].to_s =~ %r{//(localhost|127\.0\.0\.1)[:/]}
+  Print.warn "Hackerbot 3: LLM fallback is #{options[:hb2_openai_base_url]} -- unreachable from a lab VM, so every " \
+             'question without a pre-written answer gets an error reply. Use --hb3-litellm or --hb2-openai-base-url.'
 end
 
 # at least one command
