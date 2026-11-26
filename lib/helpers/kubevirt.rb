@@ -507,8 +507,13 @@ class KubeVirtFunctions
 
         mask = (mod.received_inputs['subnet_mask'] || []).first.to_s
         mask = DEFAULT_SUBNET_MASK if mask.empty?
-        range = "#{entry[:subnet]}/#{prefix_length(mask)}"
+        range = lab_range(address, prefix_length(mask))
         vlans[vlan] ||= { 'range' => range, 'systems' => [] }
+        unless IPAddr.new(vlans[vlan]['range']).include?(IPAddr.new(address))
+          Print.warn "KubeVirt: #{system.name}'s address #{address} on VLAN #{vlan} is outside the VLAN's " \
+                     "range #{vlans[vlan]['range']}: its interface will not come up. Give the VLAN's " \
+                     'interfaces addresses in one subnet.'
+        end
         vlans[vlan]['systems'] << system.name
         (want[vlan] ||= []) << [system.name, address, mod.received_inputs.include?('IP_address')]
         list << { 'vlan' => vlan, 'address' => address }
@@ -676,6 +681,14 @@ class KubeVirtFunctions
 
   # 255.255.255.0 -> 24. A scenario's subnet_mask says how wide the lab segment is; fall back to
   # a /24 (SecGen's own default) if it is missing or unreadable.
+  # The lab network's CIDR, from an interface's own address and the scenario's mask. Not from the
+  # network map's subnet: that is always the x.y.z.0 of the address's /24, so with a mask
+  # narrower than /24 it named a block that need not contain the address (.200 with a /25 gave
+  # x.y.z.0/25), and with a wider one a non-canonical CIDR (x.y.5.0/16).
+  def self.lab_range(address, prefix)
+    "#{IPAddr.new(address).mask(prefix)}/#{prefix}"
+  end
+
   def self.prefix_length(mask)
     bits = IPAddr.new(mask).to_i.to_s(2).count('1')
     bits.zero? ? 24 : bits
